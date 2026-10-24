@@ -31,6 +31,72 @@ try {
     if ((Get-Content -LiteralPath (Join-Path $project 'mem/workspace/.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^workspace_format: 1$') {
         throw 'falta el formato del workspace en el manifiesto'
     }
+    if ((Get-Content -LiteralPath (Join-Path $project 'mem/workspace/.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^workspace_kind: consumer$') {
+        throw 'falta el tipo de workspace de consumidor en el manifiesto'
+    }
+    $unconfiguredIntegration = & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -Status
+    if ($unconfiguredIntegration -notcontains 'integration.codex.state: not-configured') {
+        throw 'la integración de Codex no informó estado no configurado'
+    }
+    & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -IntegrateCodex
+    if ((Get-Content -LiteralPath (Join-Path $project '.ato-ai-skill-mem.yml') -Raw) -ne (Get-Content -LiteralPath (Join-Path $root 'templates/integrations/host-config.yml') -Raw)) {
+        throw 'la configuración de integración no coincide con el contrato'
+    }
+    $adapterSkill = Join-Path $project '.agents/skills/ato-ai-project-mem/SKILL.md'
+    if (-not (Test-Path -LiteralPath $adapterSkill -PathType Leaf) -or (Get-Item -LiteralPath $adapterSkill -Force).LinkType -eq 'SymbolicLink') {
+        throw 'el adaptador de Codex no es un archivo local regular'
+    }
+    if ((Get-Content -LiteralPath $adapterSkill -Raw) -ne (Get-Content -LiteralPath (Join-Path $root 'templates/integrations/codex/SKILL.md') -Raw)) {
+        throw 'el adaptador de Codex no coincide con la plantilla'
+    }
+    $configuredIntegration = & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -Status
+    if ($configuredIntegration -notcontains 'integration.codex.state: aligned') {
+        throw 'la integración de Codex no informó alineación'
+    }
+    & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -IntegrateCodex
+    if ([System.IO.File]::ReadAllText($agentsPath) -ne $agentsBefore) {
+        throw 'la integración de Codex modificó AGENTS.md'
+    }
+    $integrationConflict = Join-Path $temporaryRoot 'integration-conflict'
+    New-Item -ItemType Directory -Path $integrationConflict | Out-Null
+    Set-Content -LiteralPath (Join-Path $integrationConflict '.ato-ai-skill-mem.yml') -Value 'format: 9'
+    $integrationRejected = $false
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target $integrationConflict -IntegrateCodex
+    }
+    catch {
+        $integrationRejected = $true
+    }
+    if (-not $integrationRejected) {
+        throw 'bootstrap aceptó una configuración de integración incompatible'
+    }
+    if ((Test-Path -LiteralPath (Join-Path $integrationConflict 'mem/SKILL.md')) -or (Test-Path -LiteralPath (Join-Path $integrationConflict '.agents'))) {
+        throw 'bootstrap creó archivos antes de rechazar la configuración de integración'
+    }
+    $sourceStatus = & (Join-Path $root 'scripts/bootstrap.ps1') -SourceStatus
+    if ($sourceStatus -notcontains 'workspace.kind: source' -or $sourceStatus -notcontains 'workspace.expected_kind: source') {
+        throw 'el workspace fuente no informó su tipo'
+    }
+    $sourceTargetRejected = $false
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target $root -Status
+    }
+    catch {
+        $sourceTargetRejected = $true
+    }
+    if (-not $sourceTargetRejected) {
+        throw 'bootstrap aceptó la raíz fuente como consumidor'
+    }
+    $sourceUpdateRejected = $false
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -UpdateSourceWorkspace
+    }
+    catch {
+        $sourceUpdateRejected = $true
+    }
+    if (-not $sourceUpdateRejected) {
+        throw 'la actualización de fuente aceptó un checkout no apto'
+    }
     $status = & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -Status
     if ($status -notcontains 'workspace.state: aligned') {
         throw 'el estado del workspace no informó alineación'

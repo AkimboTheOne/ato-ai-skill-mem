@@ -11,6 +11,9 @@ instala una instancia híbrida en `mem/`:
 
 ```text
 consumer-project/
+├── .ato-ai-skill-mem.yml              # contrato opcional de integración
+├── .agents/skills/ato-ai-project-mem/ # adaptador opcional de Codex
+│   └── SKILL.md                        # regular; dirige a mem/SKILL.md
 └── mem/
     ├── SKILL.md      -> ato-ai-skill-mem/SKILL.md
     ├── VERSION       -> ato-ai-skill-mem/VERSION
@@ -24,8 +27,9 @@ consumer-project/
         └── records/
 ```
 
-El `workspace/` de este repositorio sigue el mismo contrato y contiene la
-memoria de este proyecto. Las instancias no comparten registros entre sí.
+El `workspace/` de este repositorio es un workspace de fuente: contiene la
+memoria documental de este proyecto, no enlaces simbólicos ni datos de
+consumidores. Las instancias no comparten registros entre sí.
 
 ## Cómo funciona
 
@@ -72,6 +76,20 @@ Windows PowerShell:
 .\scripts\bootstrap.ps1 -Target C:\path\to\consumer-project
 ```
 
+Para exponer la memoria como un skill local de Codex, añade la integración de
+forma explícita:
+
+```sh
+./scripts/bootstrap.sh --target /absolute/path/to/consumer-project --integrate-codex
+```
+
+Esto crea `.ato-ai-skill-mem.yml` en la raíz del consumidor y un adaptador
+regular en `.agents/skills/ato-ai-project-mem/SKILL.md`. El adaptador delega en
+`mem/SKILL.md` y usa solamente `mem/workspace/`; no es un enlace hacia el
+repositorio fuente. `--status` informa si la integración está alineada, ausente
+o en conflicto. El bootstrap rechaza configuraciones o adaptadores existentes
+que no correspondan al contrato y nunca modifica `AGENTS.md`.
+
 Para integrar la consulta selectiva en un `AGENTS.md` consumidor, copia el
 bloque de integración de [references/agents-integration.md](references/agents-integration.md).
 El bootstrap no modifica instrucciones de agentes.
@@ -112,9 +130,30 @@ revisión de workspace más nuevo, planificación de migración o instalación
 pendiente. La revisión Git queda como evidencia auditable y no cambia por sí
 sola el modo. Esta evaluación recomienda acciones; no modifica el workspace.
 
+El manifiesto incluye `workspace_kind`: `consumer` en cada
+`mem/workspace/` y `source` en el `workspace/` de este repositorio. Para
+consultar el segundo sin crear una instancia, ejecuta:
+
+```sh
+./scripts/bootstrap.sh --source-status
+```
+
+Después de crear un release, solo un checkout limpio en `master` cuyo `HEAD`
+sea el tag `v<VERSION>` puede actualizar la referencia del workspace de fuente:
+
+```sh
+./scripts/bootstrap.sh --update-source-workspace
+```
+
+La operación solo escribe el manifiesto; no crea tags ni commits. El marcador
+queda asociado al último release validado aunque el desarrollo posterior avance
+en otra revisión. Usar `--target` sobre la raíz de este repositorio se rechaza
+para evitar una auto-instalación recursiva.
+
 ## Operación
 
-1. Integra el snippet manual en AGENTS.md si quieres activar memoria en ese
+1. Integra el adaptador de Codex con `--integrate-codex` o copia el snippet
+   manual en AGENTS.md si quieres activar memoria mediante instrucciones de
    proyecto.
 2. El agente lee workspace/INDEX.md y abre solo los registros pertinentes.
 3. Una persona pide explícitamente registrar, actualizar, retirar o reemplazar

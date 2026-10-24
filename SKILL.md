@@ -110,9 +110,11 @@ al tag Git `v<VERSION>` aplicado al commit de `master`.
 `workspace/.ato-ai-skill-mem-version.yml` es un manifiesto visible, separado
 de los registros de memoria: guarda la versión, revisión, tag y fechas de la
 última inicialización o actualización explícita, incluido su
-`workspace_format`. No contiene secretos ni estado inferido. Si el manifiesto
-no existe o no incluye ese campo, el workspace se trata como formato heredado
-`1`.
+`workspace_format` y `workspace_kind`. `workspace_kind: consumer` identifica
+la memoria de una instancia; `workspace_kind: source` identifica la memoria
+documental del repositorio canónico. No contiene secretos ni estado inferido.
+Si el manifiesto no existe o no incluye esos campos, el workspace se trata
+como formato heredado `1` y tipo `consumer`.
 
 La revisión y el tag son evidencia auditable del origen; la compatibilidad y
 el modo de operación se deciden por el formato y la versión SemVer. Así, una
@@ -133,6 +135,23 @@ preserva `INDEX.md` y
 `records/` íntegramente. Una fuente que no esté en `master` y taggeada se
 informa como `not-release-aligned`; no debe presentarse como una distribución
 publicada ni usarse para actualizar una marca existente.
+
+Un proyecto consumidor puede exponer el skill a Codex mediante un adaptador
+local y explícito. `--integrate-codex` crea
+`.ato-ai-skill-mem.yml` y `.agents/skills/ato-ai-project-mem/SKILL.md`; este
+último es un archivo local que delega en `mem/SKILL.md` y fija
+`mem/workspace/` como su único workspace. No enlaza el adaptador directamente
+a la fuente ni modifica `AGENTS.md`. La configuración declara rutas, no
+autoriza escrituras de memoria. El formato actual reserva integraciones para
+otros agentes, pero solo implementa `codex`.
+
+El repositorio canónico conserva su propio `workspace/` sin enlaces simbólicos
+ni instalación recursiva. Su marcador referencia el último release que lo
+validó, por lo que un checkout de desarrollo posterior puede leerse si es
+compatible, pero opera en desarrollo sin promoción. Usa `--source-status` para
+consultarlo y `--update-source-workspace` solo desde un checkout limpio en
+`master` cuyo `HEAD` sea `v<VERSION>`; esta operación escribe únicamente el
+marcador y requiere una revisión y commit humano posterior.
 
 Consulta [references/instance-contract.md](references/instance-contract.md)
 para el formato canónico, [references/agents-integration.md](references/agents-integration.md)

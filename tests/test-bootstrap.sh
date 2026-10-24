@@ -23,9 +23,54 @@ cp "$PROJECT/AGENTS.md" "$PROJECT/AGENTS.before"
 [ -L "$PROJECT/mem/scripts" ]
 [ -f "$PROJECT/mem/workspace/INDEX.md" ]
 [ -f "$PROJECT/mem/workspace/.ato-ai-skill-mem-version.yml" ]
+[ "$(sed -n 's/^workspace_kind: *//p' "$PROJECT/mem/workspace/.ato-ai-skill-mem-version.yml")" = 'consumer' ]
 [ "$(sed -n 's/^workspace_format: *//p' "$PROJECT/mem/workspace/.ato-ai-skill-mem-version.yml")" = '1' ]
 [ -d "$PROJECT/mem/workspace/records" ]
 cmp -s "$PROJECT/AGENTS.md" "$PROJECT/AGENTS.before"
+"$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --status | grep -F -x 'integration.codex.state: not-configured' >/dev/null
+
+"$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --integrate-codex
+cmp -s "$PROJECT/.ato-ai-skill-mem.yml" "$ROOT/templates/integrations/host-config.yml"
+[ -f "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" ]
+[ ! -L "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" ]
+cmp -s "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" "$ROOT/templates/integrations/codex/SKILL.md"
+"$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --status | grep -F -x 'integration.codex.state: aligned' >/dev/null
+"$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --integrate-codex
+cmp -s "$PROJECT/AGENTS.md" "$PROJECT/AGENTS.before"
+
+INTEGRATION_CONFLICT=$TEMP_ROOT/integration-conflict
+mkdir -p "$INTEGRATION_CONFLICT"
+printf '%s\n' 'format: 9' > "$INTEGRATION_CONFLICT/.ato-ai-skill-mem.yml"
+if "$ROOT/scripts/bootstrap.sh" --target "$INTEGRATION_CONFLICT" --integrate-codex >/dev/null 2>&1; then
+  printf '%s\n' 'bootstrap aceptó una configuración de integración incompatible' >&2
+  exit 1
+fi
+[ ! -e "$INTEGRATION_CONFLICT/mem/SKILL.md" ]
+[ ! -e "$INTEGRATION_CONFLICT/.agents" ]
+
+"$ROOT/scripts/bootstrap.sh" --source-status | grep -F -x 'workspace.kind: source' >/dev/null
+"$ROOT/scripts/bootstrap.sh" --source-status | grep -F -x 'workspace.expected_kind: source' >/dev/null
+if "$ROOT/scripts/bootstrap.sh" --target "$ROOT" --status >/dev/null 2>&1; then
+  printf '%s\n' 'bootstrap aceptó la raíz fuente como consumidor' >&2
+  exit 1
+fi
+if "$ROOT/scripts/bootstrap.sh" --update-source-workspace >/dev/null 2>&1; then
+  printf '%s\n' 'la actualización de fuente aceptó un checkout no apto' >&2
+  exit 1
+fi
+
+SOURCE_FIXTURE=$TEMP_ROOT/source-release
+cp -R "$ROOT" "$SOURCE_FIXTURE"
+git -C "$SOURCE_FIXTURE" config user.email test@example.invalid
+git -C "$SOURCE_FIXTURE" config user.name test
+git -C "$SOURCE_FIXTURE" add .
+git -C "$SOURCE_FIXTURE" commit -qm 'fixture release'
+git -C "$SOURCE_FIXTURE" branch -f master HEAD
+git -C "$SOURCE_FIXTURE" switch -q master
+git -C "$SOURCE_FIXTURE" tag -f v0.1.0 HEAD
+"$SOURCE_FIXTURE/scripts/bootstrap.sh" --update-source-workspace
+"$SOURCE_FIXTURE/scripts/bootstrap.sh" --source-status | grep -F -x 'workspace.source_tag: v0.1.0' >/dev/null
+"$SOURCE_FIXTURE/scripts/bootstrap.sh" --source-status | grep -F -x "workspace.source_revision: $(git -C "$SOURCE_FIXTURE" rev-parse HEAD)" >/dev/null
 
 mkdir -p "$LEGACY/mem/workspace/records"
 printf '%s\n' '# Legacy memory' > "$LEGACY/mem/workspace/INDEX.md"

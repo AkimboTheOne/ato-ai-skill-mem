@@ -4,6 +4,10 @@ El bootstrap no modifica instrucciones de agentes. Copia este bloque de forma
 manual al AGENTS.md del proyecto consumidor cuando quieras activar la memoria
 del proyecto:
 
+Si el proyecto usa Codex, también puede crear el adaptador de descubrimiento
+local con `--integrate-codex`. Es independiente de este bloque y no modifica
+`AGENTS.md`.
+
 ~~~md
 ## Memoria del proyecto
 

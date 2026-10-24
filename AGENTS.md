@@ -1,7 +1,9 @@
 # AGENTS.md
 
-Este repositorio usa `workspace/` para su memoria local. Sigue las reglas
-canónicas de [SKILL.md](SKILL.md); este archivo no las duplica.
+Este repositorio usa `workspace/` como workspace de fuente para su memoria
+documental local. No es un `mem/workspace/` de consumidor ni debe instalarse
+el skill sobre esta raíz. Sigue las reglas canónicas de [SKILL.md](SKILL.md);
+este archivo no las duplica.
 
 ## Versionado del skill y del workspace
 
@@ -10,6 +12,18 @@ Al cargar el skill, lee `VERSION`, `WORKSPACE_FORMAT` y, si existe,
 versión, formato, compatibilidad y modo antes de operar memoria. Aplica los
 modos, su orden de prioridad y las condiciones de actualización definidos en
 [SKILL.md](SKILL.md); no los reinterpretes ni los dupliques aquí.
+
+El manifiesto de este workspace tiene `workspace_kind: source`. Para
+consultarlo usa `scripts/bootstrap.* --source-status` (o `-SourceStatus`).
+Solo actualiza su referencia de release mediante la operación explícita de
+fuente, desde `master`, con checkout limpio y el tag `v<VERSION>` en `HEAD`.
+La actualización no crea tags ni commits: una persona revisa y confirma el
+commit documental posterior. Los consumidores usan `mem/workspace/` y los
+comandos con `--target`; nunca comparten registros con este workspace.
+
+Este repositorio fuente no instala un adaptador de agente sobre sí mismo. La
+integración `--integrate-codex` solo pertenece a proyectos consumidores y crea
+un punto de descubrimiento local separado de este workspace de fuente.
 
 ## Idioma
 
