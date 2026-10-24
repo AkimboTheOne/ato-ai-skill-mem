@@ -12,16 +12,16 @@ supersedes: null
 superseded_by: null
 ---
 
-# Convention title
+# Título de la convención
 
-## Convention
+## Convención
 
-State the agreed practice or constraint.
+Indica la práctica o restricción acordada.
 
-## Rationale and evidence
+## Justificación y evidencia
 
-Explain why this convention exists.
+Explica por qué existe esta convención.
 
-## Operational implications
+## Implicaciones operativas
 
-Explain where and how to apply it.
+Explica dónde y cómo aplicarla.

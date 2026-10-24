@@ -12,16 +12,16 @@ supersedes: null
 superseded_by: null
 ---
 
-# Context title
+# Título del contexto
 
-## Context
+## Contexto
 
-State the durable project context.
+Indica el contexto duradero del proyecto.
 
-## Evidence
+## Evidencia
 
-Link to the source or explain how this context was established.
+Enlaza la fuente o explica cómo se estableció este contexto.
 
-## Operational implications
+## Implicaciones operativas
 
-Describe how this context should affect future work.
+Describe cómo este contexto debe afectar el trabajo futuro.

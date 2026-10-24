@@ -1,0 +1,6 @@
+format: 1
+workspace:
+  path: mem/workspace
+integrations:
+  codex:
+    adapter_path: .agents/skills/ato-ai-project-mem
