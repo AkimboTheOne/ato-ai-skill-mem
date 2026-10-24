@@ -21,9 +21,12 @@ La actualización no crea tags ni commits: una persona revisa y confirma el
 commit documental posterior. Los consumidores usan `mem/workspace/` y los
 comandos con `--target`; nunca comparten registros con este workspace.
 
-Este repositorio fuente no instala un adaptador de agente sobre sí mismo. La
-integración `--integrate-codex` solo pertenece a proyectos consumidores y crea
-un punto de descubrimiento local separado de este workspace de fuente.
+Este repositorio fuente expone un adaptador estático de descubrimiento en
+`.agents/skills/ato-ai-source-mem/`. Este adaptador usa solamente
+`workspace/`, no instala una instancia ni crea enlaces simbólicos. La
+integración `--integrate-codex` sigue perteneciendo exclusivamente a proyectos
+consumidores y crea un punto de descubrimiento separado para
+`mem/workspace/`.
 
 ## Idioma
 

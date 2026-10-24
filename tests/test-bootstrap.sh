@@ -6,6 +6,11 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 TEMP_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEMP_ROOT"' EXIT
 
+[ -f "$ROOT/.agents/skills/ato-ai-source-mem/SKILL.md" ]
+[ ! -L "$ROOT/.agents/skills/ato-ai-source-mem/SKILL.md" ]
+grep -F -x 'exclusivamente en `workspace/`.' "$ROOT/.agents/skills/ato-ai-source-mem/SKILL.md" >/dev/null
+grep -F -x 'No uses `mem/workspace/`, no ejecutes `--target .` y no copies, reemplaces ni' "$ROOT/.agents/skills/ato-ai-source-mem/SKILL.md" >/dev/null
+
 PROJECT=$TEMP_ROOT/consumer
 LEGACY=$TEMP_ROOT/legacy
 mkdir -p "$PROJECT"
