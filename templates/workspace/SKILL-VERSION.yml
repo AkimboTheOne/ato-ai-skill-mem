@@ -1,0 +1,9 @@
+# Administrado por ato-ai-skill-mem. Describe el release del skill que
+# inicializó o actualizó explícitamente este workspace; no es contenido de memoria.
+format: 1
+workspace_format: WORKSPACE_FORMAT
+skill_version: VERSION
+source_revision: REVISION
+source_tag: TAG
+created_at: DATE
+updated_at: DATE

@@ -12,16 +12,16 @@ supersedes: null
 superseded_by: null
 ---
 
-# Decision title
+# Título de la decisión
 
-## Decision
+## Decisión
 
-State the decision precisely.
+Expresa la decisión con precisión.
 
-## Rationale and evidence
+## Justificación y evidencia
 
-Explain why, with links or sources when available.
+Explica el motivo, con enlaces o fuentes cuando estén disponibles.
 
-## Operational implications
+## Implicaciones operativas
 
-Describe constraints, follow-up, or effects on future work.
+Describe restricciones, seguimiento o efectos en el trabajo futuro.

@@ -1,0 +1,9 @@
+# Administrado por ato-ai-skill-mem. Describe el release del skill que
+# inicializó o actualizó explícitamente este workspace; no es contenido de memoria.
+format: 1
+workspace_format: 1
+skill_version: 0.1.0
+source_revision: fedcfa5fe48e26169a3bd434d965de3ac7b44b39
+source_tag: unreleased
+created_at: unknown
+updated_at: 2026-10-24

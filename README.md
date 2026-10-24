@@ -17,6 +17,7 @@ consumer-project/
     ├── templates/    -> ato-ai-skill-mem/templates/
     └── workspace/    # real, local y versionado por el consumidor
         ├── INDEX.md
+        ├── .ato-ai-skill-mem-version.yml
         └── records/
 ```
 
@@ -30,24 +31,24 @@ solamente su propia memoria. El flujo evita cargar contexto innecesario y no
 persiste nada sin una petición explícita.
 
 ~~~text
-canonical skill
+skill canónico
   ├── SKILL.md + references + templates
   │        │
-  │        └── bootstrap ──> consumer-project/mem/
-  │                              ├── symlinks canónicos
+  │        └── bootstrap ──> proyecto-consumidor/mem/
+  │                              ├── enlaces simbólicos canónicos
   │                              └── workspace/ local
   │
-  └── agent task
+  └── tarea del agente
            │
-           ├── read INDEX.md
-           ├── open relevant records only
-           └── explicit human request
-                    └── create/update/retire record + INDEX.md
+           ├── lee INDEX.md
+           ├── abre solo registros relevantes
+           └── petición humana explícita
+                    └── crea/actualiza/retira registro + INDEX.md
 ~~~
 
 Cada registro es un archivo Markdown fechado con tipo, estado, autor, evidencia
-y enlaces relacionados. Cuando una decisión queda invalidada, se conserva como
-retired y enlaza a su sucesora; no se borra.
+y enlaces relacionados. Cuando una decisión queda invalidada, se conserva con
+`status: retired` y enlaza a su sucesora; no se borra.
 
 El bootstrap prevalida los tres destinos enlazados antes de crear la instancia.
 Si encuentra un conflicto existente, falla sin reemplazar archivos ni crear
@@ -69,7 +70,7 @@ Windows PowerShell:
 ```
 
 Para integrar la consulta selectiva en un `AGENTS.md` consumidor, copia el
-snippet de [references/agents-integration.md](references/agents-integration.md).
+bloque de integración de [references/agents-integration.md](references/agents-integration.md).
 El bootstrap no modifica instrucciones de agentes.
 
 Los scripts requieren permisos para crear symlinks. Si el sistema no los
@@ -79,6 +80,31 @@ Windows habilita Developer Mode o ejecuta una terminal con el permiso adecuado.
 Los scripts son idempotentes: validan enlaces existentes y crean solo el
 scaffolding ausente. `mem/templates/` apunta siempre a las plantillas
 canónicas; `mem/workspace/` nunca se sobrescribe.
+
+## Versiones
+
+`VERSION` declara la versión del skill; `WORKSPACE_FORMAT` declara el formato
+de datos que puede operar. Un release se considera alineado cuando el checkout
+está en `master` y el mismo commit tiene el tag `v<VERSION>`.
+Consulta el estado, sin modificar el proyecto, con:
+
+```sh
+./scripts/bootstrap.sh --target /absolute/path/to/consumer-project --status
+```
+
+El workspace conserva su propia marca visible en
+`workspace/.ato-ai-skill-mem-version.yml`. El formato `1` se mantiene
+compatible durante `0.x` y `1.x`, incluso si el manifiesto es heredado y no lo
+declara. Para actualizar solo esa marca tras validar un release nuevo, usa
+`--update-workspace`; requiere fuente `release-aligned` y no modifica
+`INDEX.md` ni registros. Un cambio de formato solo podrá plantearse a partir
+de `2.0.0`, mediante una migración confirmada por una persona.
+
+Al cargar el skill, el agente debe comunicar un diagnóstico de fuente,
+versiones, formatos, compatibilidad y modo recomendado antes de operar
+memoria. El modo puede ser operación compatible, desarrollo sin promoción,
+revisión de discrepancia de versión, planificación de migración o instalación
+pendiente. Esta evaluación recomienda acciones; no modifica el workspace.
 
 ## Operación
 

@@ -12,16 +12,16 @@ supersedes: null
 superseded_by: null
 ---
 
-# Lesson title
+# Título de la lección
 
-## Lesson
+## Lección
 
-State the reusable learning.
+Indica el aprendizaje reutilizable.
 
-## Evidence
+## Evidencia
 
-Identify the event, result, or source that supports it.
+Identifica el evento, resultado o fuente que la respalda.
 
-## Operational implications
+## Implicaciones operativas
 
-Describe the future behavior this learning changes.
+Describe el comportamiento futuro que este aprendizaje cambia.
