@@ -14,24 +14,11 @@ duradero del proyecto, lee `mem/SKILL.md`, `mem/VERSION`,
 
 Al cargar el skill, comunica un diagnóstico breve de fuente, versiones,
 formatos, compatibilidad de datos y modo recomendado antes de operar memoria.
-Usa estos modos: operación compatible para formatos compatibles; desarrollo
-sin promoción si la fuente no es `release-aligned`; revisión de fuente o
-workspace más nuevo si la versión o revisión difiere; planificación de
-migración si el formato es incompatible; e instalación pendiente si no existe
-workspace. En planificación de migración no interpretes registros como
-compatibles ni escribas datos; explica impacto y espera confirmación humana.
-En operación compatible, lee `mem/workspace/INDEX.md` y abre solo los
-registros relevantes para la tarea.
-
-Mantén separadas la versión del skill y el formato de datos del workspace. Los
-workspaces de formato `1`, incluidos los heredados sin manifiesto de versión,
-pueden operarse con las versiones `0.x` y `1.x` de este skill sin reescribir
-registros. Recomienda actualizar el manifiesto solo si la fuente es
-`release-aligned`, la versión del skill es más reciente y una persona lo pide
-explícitamente. Nunca rebajes un manifiesto ni lo actualices desde una fuente
-de desarrollo. Si el formato es incompatible, explica impacto y migración
-propuesta, y espera confirmación humana explícita; no migres ni sobrescribas
-datos.
+Aplica la evaluación de carga y el orden de modos de `mem/SKILL.md`; ese
+documento es la fuente canónica para compatibilidad, actualizaciones y
+migraciones. Solo en operación compatible, lee `mem/workspace/INDEX.md` y
+abre los registros relevantes para la tarea. Los demás modos deben producir
+una recomendación visible sin escribir datos.
 
 No escribas, retires ni reemplaces memoria del proyecto salvo petición humana
 explícita. No guardes secretos, credenciales, datos sensibles ni

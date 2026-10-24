@@ -47,16 +47,10 @@ function Assert-LinkDestination([string]$Source, [string]$Destination) {
     }
 }
 
-foreach ($required in @('SKILL.md', 'references', 'templates')) {
+foreach ($required in @('SKILL.md', 'VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts')) {
     if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot $required))) {
         Fail "falta el componente canónico $required en $sourceRoot"
     }
-}
-if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot 'VERSION'))) {
-    Fail "falta el VERSION canónico en $sourceRoot"
-}
-if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot 'WORKSPACE_FORMAT'))) {
-    Fail "falta el WORKSPACE_FORMAT canónico en $sourceRoot"
 }
 
 $skillVersion = (Get-Content -LiteralPath (Join-Path $sourceRoot 'VERSION') -Raw).Trim()
@@ -132,7 +126,6 @@ function Get-WorkspaceState {
             default { return 'version-mismatch' }
         }
     }
-    if ((Get-MarkerValue 'source_revision') -ne $sourceRevision) { return 'source-revision-differs' }
     return 'aligned'
 }
 if ($Status) {
@@ -161,24 +154,27 @@ if ($null -ne $memItem -and -not $memItem.PSIsContainer) {
 if ($null -ne $memItem -and $memItem.LinkType -eq 'SymbolicLink') {
     Fail "el directorio de instancia debe ser local, no un enlace simbólico: $memDir"
 }
+if ($UpdateWorkspace -and -not (Test-Path -LiteralPath $workspace)) {
+    Fail 'la actualización del workspace requiere una instancia existente'
+}
 if ($UpdateWorkspace -and $sourceState -ne 'release-aligned') {
     Fail 'la actualización del workspace requiere una fuente release-aligned'
 }
 if ($UpdateWorkspace -and (Test-Path -LiteralPath $workspace) -and (Get-WorkspaceDataCompatibility) -ne 'compatible') {
     Fail 'el formato del workspace requiere una migración confirmada'
 }
-if ($UpdateWorkspace -and (Get-WorkspaceState) -notin @('absent', 'legacy-compatible', 'compatible-update-available', 'aligned')) {
+if ($UpdateWorkspace -and (Get-WorkspaceState) -notin @('legacy-compatible', 'compatible-update-available', 'aligned')) {
     Fail 'la actualización del workspace no avanzaría la versión registrada del skill'
 }
 
-Assert-LinkDestination (Join-Path $sourceRoot 'SKILL.md') (Join-Path $memDir 'SKILL.md')
-Assert-LinkDestination (Join-Path $sourceRoot 'references') (Join-Path $memDir 'references')
-Assert-LinkDestination (Join-Path $sourceRoot 'templates') (Join-Path $memDir 'templates')
+foreach ($linkedItem in @('SKILL.md', 'VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts')) {
+    Assert-LinkDestination (Join-Path $sourceRoot $linkedItem) (Join-Path $memDir $linkedItem)
+}
 
 [System.IO.Directory]::CreateDirectory($memDir) | Out-Null
-Ensure-Symlink (Join-Path $sourceRoot 'SKILL.md') (Join-Path $memDir 'SKILL.md')
-Ensure-Symlink (Join-Path $sourceRoot 'references') (Join-Path $memDir 'references')
-Ensure-Symlink (Join-Path $sourceRoot 'templates') (Join-Path $memDir 'templates')
+foreach ($linkedItem in @('SKILL.md', 'VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts')) {
+    Ensure-Symlink (Join-Path $sourceRoot $linkedItem) (Join-Path $memDir $linkedItem)
+}
 
 $workspaceExisted = Test-Path -LiteralPath $workspace
 [System.IO.Directory]::CreateDirectory((Join-Path $workspace 'records')) | Out-Null

@@ -51,23 +51,22 @@ visible con: estado de la fuente, versión fuente y registrada, formato fuente
 y registrado, compatibilidad de datos y modo recomendado. Si el instalador
 está disponible, `--status` aporta esos mismos datos sin escribir.
 
-Elige el modo con estas reglas:
+Elige un único modo aplicando estas reglas en orden de prioridad:
 
-- **Operación compatible:** el formato es compatible y el workspace está
-  alineado, heredado o requiere una actualización compatible. Lee y usa los
-  registros normalmente; recomienda actualizar el manifiesto solo bajo las
-  condiciones de versionado.
-- **Desarrollo sin promoción:** la fuente no es `release-aligned`. Puede leer
-  datos compatibles, pero no recomienda ni ejecuta una actualización de
-  manifiesto.
-- **Fuente o workspace más nuevo:** la versión registrada es mayor, o la
-  revisión difiere sin un avance válido. No rebaja el manifiesto; recomienda
-  seleccionar la fuente publicada correspondiente o revisar la discrepancia.
-- **Planificación de migración:** el formato es incompatible. No escribe ni
-  interpreta registros como compatibles; explica el impacto, propone pasos y
-  espera confirmación humana explícita.
-- **Instalación pendiente:** el workspace no existe. Recomienda instalar la
-  instancia; no lo hace salvo petición humana explícita.
+1. **Instalación pendiente:** el workspace no existe. Recomienda instalar la
+   instancia; no lo hace salvo petición humana explícita.
+2. **Planificación de migración:** el formato es incompatible. No escribe ni
+   interpreta registros como compatibles; explica el impacto, propone pasos y
+   espera confirmación humana explícita.
+3. **Workspace más nuevo:** la versión registrada es mayor. No rebaja el
+   manifiesto; recomienda seleccionar la fuente publicada correspondiente.
+4. **Desarrollo sin promoción:** la fuente no es `release-aligned`. Puede leer
+   datos compatibles, pero no recomienda ni ejecuta una actualización de
+   manifiesto.
+5. **Operación compatible:** el formato es compatible y el workspace está
+   alineado, heredado o requiere una actualización compatible. Lee y usa los
+   registros normalmente; recomienda actualizar el manifiesto solo bajo las
+   condiciones de versionado.
 
 ## Escritura explícita
 
@@ -115,6 +114,10 @@ de los registros de memoria: guarda la versión, revisión, tag y fechas de la
 no existe o no incluye ese campo, el workspace se trata como formato heredado
 `1`.
 
+La revisión y el tag son evidencia auditable del origen; la compatibilidad y
+el modo de operación se deciden por el formato y la versión SemVer. Así, una
+revisión distinta no fuerza por sí sola una migración ni una actualización.
+
 El formato `1` debe mantenerse compatible durante `0.x` y `1.x`: versiones
 nuevas del skill pueden operar esos datos sin reescribir registros. Una futura
 migración de paradigma solo puede introducirse a partir de `2.0.0`, con un
@@ -125,7 +128,8 @@ migración automática.
 Usa `scripts/bootstrap.sh --target <project> --status` (o el equivalente de
 PowerShell) para inspeccionar la alineación sin modificar datos. Si el
 workspace requiere actualizar su marcador, usa `--update-workspace`; esta
-rutina requiere una fuente `release-aligned` y preserva `INDEX.md` y
+rutina requiere una instancia existente, una fuente `release-aligned` y
+preserva `INDEX.md` y
 `records/` íntegramente. Una fuente que no esté en `master` y taggeada se
 informa como `not-release-aligned`; no debe presentarse como una distribución
 publicada ni usarse para actualizar una marca existente.

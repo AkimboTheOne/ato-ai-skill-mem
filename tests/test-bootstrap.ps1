@@ -17,6 +17,11 @@ try {
     if ($skillLink.LinkType -ne 'SymbolicLink') {
         throw 'SKILL.md no se instaló como enlace simbólico'
     }
+    foreach ($linkedItem in @('VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts')) {
+        if ((Get-Item -LiteralPath (Join-Path $project "mem/$linkedItem") -Force).LinkType -ne 'SymbolicLink') {
+            throw "$linkedItem no se instaló como enlace simbólico"
+        }
+    }
     if (-not (Test-Path -LiteralPath (Join-Path $project 'mem/workspace/INDEX.md'))) {
         throw 'falta el índice del workspace'
     }
@@ -29,6 +34,10 @@ try {
     $status = & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -Status
     if ($status -notcontains 'workspace.state: aligned') {
         throw 'el estado del workspace no informó alineación'
+    }
+    $linkedStatus = & (Join-Path $project 'mem/scripts/bootstrap.ps1') -Target $project -Status
+    if ($linkedStatus -notcontains 'workspace.state: aligned') {
+        throw 'el instalador enlazado no informó alineación'
     }
     Set-Content -LiteralPath (Join-Path $project 'mem/workspace/.ato-ai-skill-mem-version.yml') -Value 'skill_version: 0.0.0'
     $outdatedStatus = & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -Status

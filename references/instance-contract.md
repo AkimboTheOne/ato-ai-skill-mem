@@ -2,9 +2,10 @@
 
 ## Propiedad
 
-`mem/SKILL.md`, `mem/references/` y `mem/templates/` son enlaces simbólicos al skill
-canónico. `mem/workspace/` pertenece al proyecto consumidor y debe ser una
-carpeta real, versionable y no sobrescribible por el bootstrap.
+`mem/SKILL.md`, `mem/VERSION`, `mem/WORKSPACE_FORMAT`, `mem/references/`,
+`mem/templates/` y `mem/scripts/` son enlaces simbólicos al skill canónico.
+`mem/workspace/` pertenece al proyecto consumidor y debe ser una carpeta real,
+versionable y no sobrescribible por el bootstrap.
 
 ## Estructura del workspace
 
@@ -27,8 +28,9 @@ el checkout local.
 `.ato-ai-skill-mem-version.yml` pertenece al workspace y registra la última
 versión, revisión y `workspace_format` del skill que lo inicializó o actualizó
 de forma explícita. Es metadata operativa, no un registro de memoria. El
-bootstrap lo crea si no existe; `--update-workspace` solo lo renueva desde una
-fuente `release-aligned`, sin tocar el índice ni los registros.
+bootstrap lo crea si no existe; `--update-workspace` solo lo renueva en una
+instancia existente desde una fuente `release-aligned`, sin tocar el índice ni
+los registros.
 
 El formato `1` se conserva durante `0.x` y `1.x`. Un workspace anterior sin
 manifiesto, o sin `workspace_format`, se interpreta como formato heredado `1`

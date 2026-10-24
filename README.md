@@ -13,8 +13,11 @@ instala una instancia híbrida en `mem/`:
 consumer-project/
 └── mem/
     ├── SKILL.md      -> ato-ai-skill-mem/SKILL.md
+    ├── VERSION       -> ato-ai-skill-mem/VERSION
+    ├── WORKSPACE_FORMAT -> ato-ai-skill-mem/WORKSPACE_FORMAT
     ├── references/   -> ato-ai-skill-mem/references/
     ├── templates/    -> ato-ai-skill-mem/templates/
+    ├── scripts/      -> ato-ai-skill-mem/scripts/
     └── workspace/    # real, local y versionado por el consumidor
         ├── INDEX.md
         ├── .ato-ai-skill-mem-version.yml
@@ -32,7 +35,7 @@ persiste nada sin una petición explícita.
 
 ~~~text
 skill canónico
-  ├── SKILL.md + references + templates
+  ├── SKILL.md + VERSION + WORKSPACE_FORMAT + references + templates + scripts
   │        │
   │        └── bootstrap ──> proyecto-consumidor/mem/
   │                              ├── enlaces simbólicos canónicos
@@ -78,8 +81,9 @@ permite, fallan con un diagnóstico y no generan una copia divergente. En
 Windows habilita Developer Mode o ejecuta una terminal con el permiso adecuado.
 
 Los scripts son idempotentes: validan enlaces existentes y crean solo el
-scaffolding ausente. `mem/templates/` apunta siempre a las plantillas
-canónicas; `mem/workspace/` nunca se sobrescribe.
+scaffolding ausente. `mem/SKILL.md`, `mem/VERSION`,
+`mem/WORKSPACE_FORMAT`, `mem/references/`, `mem/templates/` y `mem/scripts/`
+apuntan siempre a la fuente canónica; `mem/workspace/` nunca se sobrescribe.
 
 ## Versiones
 
@@ -96,15 +100,17 @@ El workspace conserva su propia marca visible en
 `workspace/.ato-ai-skill-mem-version.yml`. El formato `1` se mantiene
 compatible durante `0.x` y `1.x`, incluso si el manifiesto es heredado y no lo
 declara. Para actualizar solo esa marca tras validar un release nuevo, usa
-`--update-workspace`; requiere fuente `release-aligned` y no modifica
-`INDEX.md` ni registros. Un cambio de formato solo podrá plantearse a partir
-de `2.0.0`, mediante una migración confirmada por una persona.
+`--update-workspace`; requiere una instancia existente y una fuente
+`release-aligned`, y no modifica `INDEX.md` ni registros. Un cambio de formato
+solo podrá plantearse a partir de `2.0.0`, mediante una migración confirmada
+por una persona.
 
 Al cargar el skill, el agente debe comunicar un diagnóstico de fuente,
 versiones, formatos, compatibilidad y modo recomendado antes de operar
 memoria. El modo puede ser operación compatible, desarrollo sin promoción,
-revisión de discrepancia de versión, planificación de migración o instalación
-pendiente. Esta evaluación recomienda acciones; no modifica el workspace.
+revisión de workspace más nuevo, planificación de migración o instalación
+pendiente. La revisión Git queda como evidencia auditable y no cambia por sí
+sola el modo. Esta evaluación recomienda acciones; no modifica el workspace.
 
 ## Operación
 

@@ -16,8 +16,11 @@ cp "$PROJECT/AGENTS.md" "$PROJECT/AGENTS.before"
 
 [ -L "$PROJECT/mem/SKILL.md" ]
 [ "$(readlink "$PROJECT/mem/SKILL.md")" = "$ROOT/SKILL.md" ]
+[ -L "$PROJECT/mem/VERSION" ]
+[ -L "$PROJECT/mem/WORKSPACE_FORMAT" ]
 [ -L "$PROJECT/mem/references" ]
 [ -L "$PROJECT/mem/templates" ]
+[ -L "$PROJECT/mem/scripts" ]
 [ -f "$PROJECT/mem/workspace/INDEX.md" ]
 [ -f "$PROJECT/mem/workspace/.ato-ai-skill-mem-version.yml" ]
 [ "$(sed -n 's/^workspace_format: *//p' "$PROJECT/mem/workspace/.ato-ai-skill-mem-version.yml")" = '1' ]
@@ -30,6 +33,7 @@ printf '%s\n' '# Legacy memory' > "$LEGACY/mem/workspace/INDEX.md"
 "$ROOT/scripts/bootstrap.sh" --target "$LEGACY" --status | grep -F -x 'workspace.state: legacy-compatible' >/dev/null
 
 "$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --status | grep -F -x 'workspace.state: aligned' >/dev/null
+"$PROJECT/mem/scripts/bootstrap.sh" --target "$PROJECT" --status | grep -F -x 'workspace.state: aligned' >/dev/null
 printf '%s\n' 'skill_version: 0.0.0' > "$PROJECT/mem/workspace/.ato-ai-skill-mem-version.yml"
 "$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --status | grep -F -x 'workspace.state: compatible-update-available' >/dev/null
 if "$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --update-workspace >/dev/null 2>&1; then

@@ -14,7 +14,7 @@ Este comando nunca modifica RUTA_DEL_PROYECTO/AGENTS.md.
 
 Opciones:
   --status              Informa la alineación entre el release fuente y el workspace.
-  --update-workspace    Actualiza solo workspace/.ato-ai-skill-mem-version.yml.
+  --update-workspace    Actualiza el manifiesto de un workspace compatible existente.
 EOF
 }
 
@@ -56,11 +56,9 @@ SOURCE_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 TARGET_ROOT=$(CDPATH= cd -- "$TARGET" && pwd -P)
 MEM_DIR=$TARGET_ROOT/mem
 
-[ -f "$SOURCE_ROOT/SKILL.md" ] || fail "falta el SKILL.md canónico en $SOURCE_ROOT"
-[ -f "$SOURCE_ROOT/VERSION" ] || fail "falta el VERSION canónico en $SOURCE_ROOT"
-[ -f "$SOURCE_ROOT/WORKSPACE_FORMAT" ] || fail "falta el WORKSPACE_FORMAT canónico en $SOURCE_ROOT"
-[ -d "$SOURCE_ROOT/references" ] || fail "faltan las references canónicas en $SOURCE_ROOT"
-[ -d "$SOURCE_ROOT/templates" ] || fail "faltan las templates canónicas en $SOURCE_ROOT"
+for required in SKILL.md VERSION WORKSPACE_FORMAT references templates scripts; do
+  [ -e "$SOURCE_ROOT/$required" ] || fail "falta el componente canónico $required en $SOURCE_ROOT"
+done
 
 SKILL_VERSION=$(tr -d '[:space:]' < "$SOURCE_ROOT/VERSION")
 if ! printf '%s\n' "$SKILL_VERSION" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' >/dev/null; then
@@ -139,8 +137,6 @@ workspace_state() {
       workspace-newer) printf '%s\n' 'workspace-newer' ;;
       *) printf '%s\n' 'version-mismatch' ;;
     esac
-  elif [ "$(read_marker source_revision)" != "$SOURCE_REVISION" ]; then
-    printf '%s\n' 'source-revision-differs'
   else
     printf '%s\n' 'aligned'
   fi
@@ -185,6 +181,10 @@ if [ -L "$MEM_DIR" ]; then
   fail "el directorio de instancia debe ser local, no un enlace simbólico: $MEM_DIR"
 fi
 
+if [ "$MODE" = 'update-workspace' ] && [ ! -d "$WORKSPACE" ]; then
+  fail "la actualización del workspace requiere una instancia existente"
+fi
+
 if [ "$MODE" = 'update-workspace' ] && [ "$SOURCE_STATE" != 'release-aligned' ]; then
   fail "la actualización del workspace requiere una fuente release-aligned"
 fi
@@ -193,7 +193,7 @@ if [ "$MODE" = 'update-workspace' ] && [ -d "$WORKSPACE" ] && [ "$(workspace_dat
 fi
 if [ "$MODE" = 'update-workspace' ]; then
   case "$(workspace_state)" in
-    absent|legacy-compatible|compatible-update-available|aligned) ;;
+    legacy-compatible|compatible-update-available|aligned) ;;
     *) fail "la actualización del workspace no avanzaría la versión registrada del skill" ;;
   esac
 fi
@@ -226,14 +226,14 @@ ensure_link() {
   fi
 }
 
-validate_link_destination "$SOURCE_ROOT/SKILL.md" "$MEM_DIR/SKILL.md"
-validate_link_destination "$SOURCE_ROOT/references" "$MEM_DIR/references"
-validate_link_destination "$SOURCE_ROOT/templates" "$MEM_DIR/templates"
+for linked_item in SKILL.md VERSION WORKSPACE_FORMAT references templates scripts; do
+  validate_link_destination "$SOURCE_ROOT/$linked_item" "$MEM_DIR/$linked_item"
+done
 
 mkdir -p "$MEM_DIR"
-ensure_link "$SOURCE_ROOT/SKILL.md" "$MEM_DIR/SKILL.md"
-ensure_link "$SOURCE_ROOT/references" "$MEM_DIR/references"
-ensure_link "$SOURCE_ROOT/templates" "$MEM_DIR/templates"
+for linked_item in SKILL.md VERSION WORKSPACE_FORMAT references templates scripts; do
+  ensure_link "$SOURCE_ROOT/$linked_item" "$MEM_DIR/$linked_item"
+done
 
 WORKSPACE_EXISTED=false
 [ -d "$WORKSPACE" ] && WORKSPACE_EXISTED=true
