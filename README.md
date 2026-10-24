@@ -1,8 +1,10 @@
 # ato-ai-skill-mem
 
 `ato-ai-skill-mem` administra memoria curada y local para un proyecto y sus
-agentes. La memoria es Markdown versionable: no es una base de datos, una
-captura automática de conversaciones ni un segundo cerebro.
+agentes. La memoria es Markdown versionable: no es una base de datos ni una
+captura automática de conversaciones. Es una base técnica que otros proyectos
+pueden incorporar a flujos de memoria o de segundo cerebro sin convertir esta
+skill en ese producto.
 
 ## Modelo
 
@@ -31,6 +33,26 @@ El `workspace/` de este repositorio es un workspace de fuente: contiene la
 memoria documental de este proyecto, no enlaces simbólicos ni datos de
 consumidores. Las instancias no comparten registros entre sí.
 
+## Contextos de uso
+
+Una skill, un agente o un proyecto pueden invocar esta capacidad. En todos los
+casos, el workspace pertenece al proyecto que origina el conocimiento; la
+ubicación de la skill o del agente no crea una memoria independiente.
+
+| Contexto | Cómo se incorpora | Estado |
+| --- | --- | --- |
+| Skill en proyecto | El proyecto instala `mem/`; una skill local puede delegar en `mem/SKILL.md`. | Instalación de proyecto soportada. |
+| Skill en agente | Las instrucciones del agente referencian la skill y señalan el proyecto objetivo. | Integración manual; el bootstrap no instala adaptadores genéricos de agentes. |
+| Skill en skill | Una skill compuesta declara `ato-ai-skill-mem` como dependencia y delega las operaciones de memoria. | Composición documental; el anfitrión resuelve e invoca la dependencia. |
+
+Para un consumidor, el destino soportado es `mem/workspace/` del proyecto
+anfitrión. Los dos últimos patrones no habilitan un workspace privado para la
+skill o el agente. Si un repositorio que contiene una skill necesita memoria
+para su propio desarrollo, puede instalar la instancia como proyecto
+consumidor y mantener `mem/workspace/` separado de las memorias de los
+proyectos que atienda. El anfitrión debe preservar las reglas de evaluación,
+compatibilidad y escritura explícita de `SKILL.md`.
+
 ## Cómo funciona
 
 La definición del skill se mantiene centralizada; cada consumidor conserva
@@ -56,6 +78,13 @@ skill canónico
 Cada registro es un archivo Markdown fechado con tipo, estado, autor, evidencia
 y enlaces relacionados. Cuando una decisión queda invalidada, se conserva con
 `status: retired` y enlaza a su sucesora; no se borra.
+
+Los datos del workspace pueden viajar con el repositorio del proyecto al
+versionar y sincronizar ese repositorio con Git. Esto sincroniza las copias de
+la memoria de ese mismo proyecto; no mezcla workspaces ni distribuye
+automáticamente conocimiento entre proyectos. Para compartir una conclusión,
+una persona la selecciona y la incorpora al repositorio o memoria común que
+corresponda.
 
 El bootstrap prevalida los tres destinos enlazados antes de crear la instancia.
 Si encuentra un conflicto existente, falla sin reemplazar archivos ni crear
@@ -170,7 +199,8 @@ sobre este README.
 
 - No guarda secretos, credenciales ni datos sensibles.
 - No captura conversaciones ni escribe en segundo plano.
-- No incorpora RAG, índices vectoriales, servicios externos o sincronización.
+- No incorpora RAG, índices vectoriales, servicios externos ni sincronización
+  automática de memoria entre proyectos.
 - Los registros se versionan por defecto con el proyecto consumidor.
 
 ## Validación antes de ampliar

@@ -33,6 +33,42 @@ actualizar, retirar o reemplazar memoria.
 
 No lo actives para tareas que no dependen de memoria persistente.
 
+## Contextos de invocación e integración
+
+La skill puede ser invocada desde tres contextos. El contexto cambia quién
+presenta la instrucción; no cambia la propiedad ni la ruta de la memoria:
+
+| Contexto | Uso | Soporte actual |
+| --- | --- | --- |
+| Skill en proyecto | Una skill local del proyecto consulta la memoria del proyecto. | Soportado por la instalación `--target`; Codex puede añadir el adaptador explícito. |
+| Skill en agente | Las instrucciones de un agente delegan la consulta o escritura solicitada en esta skill. | Patrón documental: el agente anfitrión debe referenciar la skill y declarar el proyecto objetivo. |
+| Skill en skill | Una skill compuesta declara esta skill como dependencia para tareas de memoria. | Patrón documental: la skill anfitriona debe referenciar la dependencia y el proyecto propietario. |
+
+En los tres casos, antes de operar identifica el proyecto propietario y usa
+su workspace configurado. La ruta del skill invocador o del agente no
+determina por sí sola dónde guardar memoria. Para un consumidor soportado, el
+workspace es `mem/workspace/` dentro del proyecto anfitrión. No uses el
+`workspace/` del repositorio fuente como destino de un consumidor ni crees
+workspaces privados junto al agente o skill. Si un repositorio que contiene
+una skill necesita memoria para desarrollar ese proyecto, puede ser
+consumidor por derecho propio: instala la instancia en `mem/` y conserva allí
+su `mem/workspace/`, separado de cualquier workspace de los proyectos que
+atienda.
+
+Las integraciones en agente o skill anfitriones deben conservar la evaluación
+de carga, la lectura selectiva y la escritura explícita definidas aquí. No
+copien este documento para crear una política paralela: declaren la
+dependencia, cómo invocarla y cuál es el proyecto objetivo. Si el runtime no
+puede resolver esa dependencia o ruta de forma explícita, informa la
+limitación y no adivines otro workspace.
+
+El bootstrap implementa instalación en proyectos y un adaptador de Codex; no
+instala automáticamente la skill en agentes o skills de otras plataformas.
+El workspace de cada consumidor puede versionarse con el repositorio de ese
+proyecto. Compartir o promover conocimiento entre proyectos es una acción
+separada y deliberada; no hay sincronización automática ni fusión de
+workspaces.
+
 ## Lectura selectiva
 
 1. Ejecuta la evaluación de carga antes de usar o modificar memoria.
@@ -96,8 +132,8 @@ No borres un registro solo porque haya quedado obsoleto.
 - No guardes secretos, credenciales, tokens, datos personales sensibles ni
   transcripciones completas de conversaciones.
 - No escribas de manera automática al cerrar una tarea o sesión.
-- No introduzcas bases vectoriales, RAG, servicios externos, sincronización ni
-  ejecución en segundo plano.
+- No introduzcas bases vectoriales, RAG, servicios externos, sincronización
+  automática entre proyectos ni ejecución en segundo plano.
 - No sobrescribas contenido existente durante una actualización de la
   instalación.
 

@@ -28,6 +28,17 @@ integración `--integrate-codex` sigue perteneciendo exclusivamente a proyectos
 consumidores y crea un punto de descubrimiento separado para
 `mem/workspace/`.
 
+La capacidad puede ser invocada desde un proyecto, un agente o una skill
+compuesta. Sigue el contrato de contexto y propiedad del workspace de
+`SKILL.md`: las instrucciones del agente o de la skill anfitriona pueden
+delegar en esta skill, pero no cambian quién posee los datos ni habilitan una
+integración automática. El bootstrap implementa instalación de proyecto y un
+adaptador de Codex; otros contextos requieren instrucciones explícitas del
+anfitrión. No afirmes sincronización automática o fusión entre workspaces de
+proyectos distintos: Git puede versionar la memoria de cada consumidor,
+mientras que compartir conocimiento entre proyectos requiere promoción
+deliberada.
+
 ## Idioma
 
 Usa español para el razonamiento comunicado, las conversaciones, la
