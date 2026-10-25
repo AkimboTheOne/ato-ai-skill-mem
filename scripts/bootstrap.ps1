@@ -2,9 +2,11 @@
 param(
     [string]$Target,
     [switch]$Status,
-    [switch]$UpdateWorkspace,
+    [switch]$UpdateVault,
+    [switch]$MigrateWorkspaceToVault,
     [switch]$SourceStatus,
-    [switch]$UpdateSourceWorkspace,
+    [switch]$UpdateSourceVault,
+    [switch]$MigrateSourceWorkspaceToVault,
     [switch]$IntegrateCodex,
     [Parameter(DontShow = $true)]
     [switch]$Integrate
@@ -22,14 +24,14 @@ function Fail([string]$Message) {
     throw "error: $Message"
 }
 
-$operationCount = [int]$Status.IsPresent + [int]$UpdateWorkspace.IsPresent + [int]$SourceStatus.IsPresent + [int]$UpdateSourceWorkspace.IsPresent
+$operationCount = [int]$Status.IsPresent + [int]$UpdateVault.IsPresent + [int]$MigrateWorkspaceToVault.IsPresent + [int]$SourceStatus.IsPresent + [int]$UpdateSourceVault.IsPresent + [int]$MigrateSourceWorkspaceToVault.IsPresent
 if ($operationCount -gt 1) {
     Fail 'solo se puede seleccionar una operación'
 }
 if ($IntegrateCodex -and $operationCount -gt 0) {
     Fail '-IntegrateCodex solo se admite durante la instalación'
 }
-$sourceModeCount = [int]$SourceStatus.IsPresent + [int]$UpdateSourceWorkspace.IsPresent
+$sourceModeCount = [int]$SourceStatus.IsPresent + [int]$UpdateSourceVault.IsPresent + [int]$MigrateSourceWorkspaceToVault.IsPresent
 if ($sourceModeCount -gt 0 -and -not [string]::IsNullOrWhiteSpace($Target)) {
     Fail 'las operaciones de fuente no admiten -Target'
 }
@@ -39,7 +41,8 @@ if ($sourceModeCount -eq 0 -and [string]::IsNullOrWhiteSpace($Target)) {
 if ($sourceModeCount -gt 0) {
     $targetRoot = $null
     $memDir = $null
-    $workspace = Join-Path $sourceRoot 'workspace'
+    $workspace = Join-Path $sourceRoot 'vault'
+    $legacyWorkspace = Join-Path $sourceRoot 'workspace'
     $expectedWorkspaceKind = 'source'
 }
 else {
@@ -48,12 +51,14 @@ else {
         Fail 'la raíz de la fuente no es un proyecto consumidor; usa -SourceStatus'
     }
     $memDir = Join-Path $targetRoot 'mem'
-    $workspace = Join-Path $memDir 'workspace'
+    $workspace = Join-Path $memDir 'vault'
+    $legacyWorkspace = Join-Path $memDir 'workspace'
     $expectedWorkspaceKind = 'consumer'
     $integrationConfig = Join-Path $targetRoot '.ato-ai-skill-mem.yml'
     $codexAdapterDir = Join-Path $targetRoot '.agents/skills/ato-ai-project-mem'
 }
 $versionFile = Join-Path $workspace '.ato-ai-skill-mem-version.yml'
+if (-not (Test-Path -LiteralPath $workspace) -and (Test-Path -LiteralPath (Join-Path $legacyWorkspace '.ato-ai-skill-mem-version.yml'))) { $versionFile = Join-Path $legacyWorkspace '.ato-ai-skill-mem-version.yml' }
 $integrationTemplate = Join-Path $sourceRoot 'templates/integrations/host-config.yml'
 $codexAdapterTemplate = Join-Path $sourceRoot 'templates/integrations/codex/SKILL.md'
 
@@ -86,7 +91,7 @@ function Assert-LinkDestination([string]$Source, [string]$Destination) {
     }
 }
 
-foreach ($required in @('SKILL.md', 'VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts', 'templates/integrations/host-config.yml', 'templates/integrations/codex/SKILL.md')) {
+foreach ($required in @('SKILL.md', 'VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts', 'templates/vault/SKILL-VERSION.yml', 'templates/vault/INDEX.md', 'templates/integrations/host-config.yml', 'templates/integrations/codex/SKILL.md')) {
     if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot $required))) {
         Fail "falta el componente canónico $required en $sourceRoot"
     }
@@ -141,19 +146,21 @@ function Get-MarkerValue([string]$Key) {
 }
 function Get-MarkerWorkspaceFormat {
     if (-not (Test-Path -LiteralPath $versionFile)) { return '1' }
-    $markerFormat = Get-MarkerValue 'workspace_format'
+    $markerFormat = Get-MarkerValue 'vault_format'
+    if ([string]::IsNullOrWhiteSpace($markerFormat)) { $markerFormat = Get-MarkerValue 'workspace_format' }
     if ([string]::IsNullOrWhiteSpace($markerFormat)) { return '1' }
     return $markerFormat
 }
 function Get-MarkerWorkspaceKind {
     if (-not (Test-Path -LiteralPath $versionFile)) { return 'consumer' }
-    $markerKind = Get-MarkerValue 'workspace_kind'
+    $markerKind = Get-MarkerValue 'vault_kind'
+    if ([string]::IsNullOrWhiteSpace($markerKind)) { $markerKind = Get-MarkerValue 'workspace_kind' }
     if ([string]::IsNullOrWhiteSpace($markerKind)) { return 'consumer' }
     return $markerKind
 }
 function Get-WorkspaceDataCompatibility {
-    if (-not (Test-Path -LiteralPath $workspace)) { return 'absent' }
-    if ((Get-MarkerWorkspaceFormat) -eq $currentWorkspaceFormat) { return 'compatible' }
+    if (-not (Test-Path -LiteralPath $workspace)) { if (Test-Path -LiteralPath $legacyWorkspace) { return 'migration-required' }; return 'absent' }
+    if ((Get-MarkerWorkspaceFormat) -eq $currentWorkspaceFormat -and -not [string]::IsNullOrWhiteSpace((Get-MarkerValue 'vault_format'))) { return 'compatible' }
     return 'migration-required'
 }
 function Get-VersionRelation([string]$WorkspaceVersion) {
@@ -166,7 +173,7 @@ function Get-VersionRelation([string]$WorkspaceVersion) {
     return 'same'
 }
 function Get-WorkspaceState {
-    if (-not (Test-Path -LiteralPath $workspace)) { return 'absent' }
+    if (-not (Test-Path -LiteralPath $workspace)) { if (Test-Path -LiteralPath $legacyWorkspace) { return 'migration-required' }; return 'absent' }
     if (-not (Test-Path -LiteralPath $versionFile)) { return 'legacy-compatible' }
     if ((Get-MarkerWorkspaceKind) -ne $expectedWorkspaceKind) { return 'role-mismatch' }
     if ((Get-WorkspaceDataCompatibility) -ne 'compatible') { return 'migration-required' }
@@ -181,17 +188,17 @@ function Get-WorkspaceState {
     }
     return 'aligned'
 }
-function Write-Marker([string]$CreatedAt) {
+function Write-Marker([string]$CreatedAt, [string]$Destination = $versionFile) {
     $updatedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
-    $marker = Get-Content -LiteralPath (Join-Path $sourceRoot 'templates/workspace/SKILL-VERSION.yml') -Raw
-    $marker = $marker -replace '(?m)^workspace_kind: .*$', "workspace_kind: $expectedWorkspaceKind"
+    $marker = Get-Content -LiteralPath (Join-Path $sourceRoot 'templates/vault/SKILL-VERSION.yml') -Raw
+    $marker = $marker -replace '(?m)^vault_kind: .*$', "vault_kind: $expectedWorkspaceKind"
     $marker = $marker -replace '(?m)^skill_version: .*$', "skill_version: $skillVersion"
-    $marker = $marker -replace '(?m)^workspace_format: .*$', "workspace_format: $currentWorkspaceFormat"
+    $marker = $marker -replace '(?m)^vault_format: .*$', "vault_format: $currentWorkspaceFormat"
     $marker = $marker -replace '(?m)^source_revision: .*$', "source_revision: $sourceRevision"
     $marker = $marker -replace '(?m)^source_tag: .*$', "source_tag: $sourceTag"
     $marker = $marker -replace '(?m)^created_at: .*$', "created_at: $CreatedAt"
     $marker = $marker -replace '(?m)^updated_at: .*$', "updated_at: $updatedAt"
-    [System.IO.File]::WriteAllText($versionFile, $marker)
+    [System.IO.File]::WriteAllText($Destination, $marker)
 }
 function Test-FileMatches([string]$Path, [string]$Template) {
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
@@ -241,22 +248,22 @@ function Write-Status {
     Write-Output "source.branch: $sourceBranch"
     Write-Output "source.revision: $sourceRevision"
     Write-Output "source.state: $sourceState"
-    Write-Output "workspace.format: $(Get-MarkerWorkspaceFormat)"
-    Write-Output "workspace.expected_format: $currentWorkspaceFormat"
-    Write-Output "workspace.data_compatibility: $(Get-WorkspaceDataCompatibility)"
-    Write-Output "workspace.kind: $(Get-MarkerWorkspaceKind)"
-    Write-Output "workspace.expected_kind: $expectedWorkspaceKind"
-    Write-Output "workspace.state: $(Get-WorkspaceState)"
+    Write-Output "vault.format: $(Get-MarkerWorkspaceFormat)"
+    Write-Output "vault.expected_format: $currentWorkspaceFormat"
+    Write-Output "vault.data_compatibility: $(Get-WorkspaceDataCompatibility)"
+    Write-Output "vault.kind: $(Get-MarkerWorkspaceKind)"
+    Write-Output "vault.expected_kind: $expectedWorkspaceKind"
+    Write-Output "vault.state: $(Get-WorkspaceState)"
     if ($expectedWorkspaceKind -eq 'consumer') {
         Write-Output "integration.codex.state: $(Get-CodexIntegrationState)"
         Write-Output 'integration.codex.adapter_path: .agents/skills/ato-ai-project-mem'
     }
     if (Test-Path -LiteralPath $versionFile) {
-        Write-Output "workspace.skill_version: $(Get-MarkerValue 'skill_version')"
-        Write-Output "workspace.source_revision: $(Get-MarkerValue 'source_revision')"
-        Write-Output "workspace.source_tag: $(Get-MarkerValue 'source_tag')"
-        Write-Output "workspace.created_at: $(Get-MarkerValue 'created_at')"
-        Write-Output "workspace.updated_at: $(Get-MarkerValue 'updated_at')"
+        Write-Output "vault.skill_version: $(Get-MarkerValue 'skill_version')"
+        Write-Output "vault.source_revision: $(Get-MarkerValue 'source_revision')"
+        Write-Output "vault.source_tag: $(Get-MarkerValue 'source_tag')"
+        Write-Output "vault.created_at: $(Get-MarkerValue 'created_at')"
+        Write-Output "vault.updated_at: $(Get-MarkerValue 'updated_at')"
     }
 }
 if ($Status -or $SourceStatus) {
@@ -264,32 +271,73 @@ if ($Status -or $SourceStatus) {
     exit 0
 }
 
-if ($UpdateSourceWorkspace) {
+if ($MigrateWorkspaceToVault -or $MigrateSourceWorkspaceToVault) {
+    if ($MigrateWorkspaceToVault -and -not (Test-Path -LiteralPath $memDir)) { Fail "la instancia no es un directorio: $memDir" }
+    if (-not (Test-Path -LiteralPath $legacyWorkspace -PathType Container)) { Fail "no existe el almacenamiento heredado: $legacyWorkspace" }
+    if (Test-Path -LiteralPath $workspace) { Fail "no se puede migrar: ya existe el destino $workspace" }
+    $oldVersionFile = Join-Path $legacyWorkspace '.ato-ai-skill-mem-version.yml'
+    if (-not (Test-Path -LiteralPath $oldVersionFile)) { Fail 'la migración requiere el manifiesto heredado' }
+    $oldFormat = ((Get-Content -LiteralPath $oldVersionFile | Where-Object { $_ -match '^workspace_format:' } | Select-Object -First 1) -replace '^workspace_format:\s*','').Trim()
+    if ([string]::IsNullOrWhiteSpace($oldFormat)) { $oldFormat = '1' }
+    if ($oldFormat -ne '1') { Fail "el formato heredado no es migrable: $oldFormat" }
+    $oldCreated = ((Get-Content -LiteralPath $oldVersionFile | Where-Object { $_ -match '^created_at:' } | Select-Object -First 1) -replace '^created_at:\s*','').Trim()
+    if ([string]::IsNullOrWhiteSpace($oldCreated)) { $oldCreated = 'unknown' }
+    $markerTemp = Join-Path ([System.IO.Path]::GetTempPath()) ('ato-ai-vault-marker-' + [guid]::NewGuid() + '.yml')
+    try {
+        Write-Marker $oldCreated $markerTemp
+        try {
+            Move-Item -LiteralPath $legacyWorkspace -Destination $workspace
+        }
+        catch {
+            throw "no se pudo mover el almacenamiento heredado: $($_.Exception.Message)"
+        }
+        $versionFile = Join-Path $workspace '.ato-ai-skill-mem-version.yml'
+        try {
+            Move-Item -LiteralPath $markerTemp -Destination $versionFile -Force
+        }
+        catch {
+            try {
+                Move-Item -LiteralPath $workspace -Destination $legacyWorkspace
+            }
+            catch {
+                throw "no se pudo actualizar el manifiesto y la reversión también falló: $($_.Exception.Message)"
+            }
+            throw 'no se pudo actualizar el manifiesto; la migración fue revertida'
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $markerTemp) { Remove-Item -LiteralPath $markerTemp -Force -ErrorAction SilentlyContinue }
+    }
+    Write-Output "migración completada: $legacyWorkspace -> $workspace"
+    exit 0
+}
+
+if ($UpdateSourceVault) {
     if (-not (Test-Path -LiteralPath $workspace)) {
-        Fail 'la actualización del workspace fuente requiere workspace/'
+        Fail 'la actualización del vault fuente requiere vault/'
     }
     if (-not (Test-Path -LiteralPath $versionFile)) {
-        Fail 'el workspace fuente requiere un manifiesto con workspace_kind: source'
+        Fail 'el vault fuente requiere un manifiesto con vault_kind: source'
     }
     if ((Get-MarkerWorkspaceKind) -ne 'source') {
-        Fail 'el manifiesto no pertenece a un workspace de fuente'
+        Fail 'el manifiesto no pertenece a un vault de fuente'
     }
     if ($sourceState -ne 'release-aligned') {
-        Fail 'la actualización del workspace fuente requiere una fuente release-aligned'
+        Fail 'la actualización del vault fuente requiere una fuente release-aligned'
     }
     if (-not [string]::IsNullOrEmpty($sourceWorktreeDirty)) {
-        Fail 'la actualización del workspace fuente requiere un checkout limpio'
+        Fail 'la actualización del vault fuente requiere un checkout limpio'
     }
     if ((Get-WorkspaceDataCompatibility) -ne 'compatible') {
-        Fail 'el formato del workspace requiere una migración confirmada'
+        Fail 'el formato del vault requiere una migración confirmada'
     }
     if ((Get-WorkspaceState) -notin @('compatible-update-available', 'aligned')) {
-        Fail 'la actualización del workspace fuente no avanzaría la versión registrada del skill'
+        Fail 'la actualización del vault fuente no avanzaría la versión registrada del skill'
     }
     $createdAt = Get-MarkerValue 'created_at'
     if ([string]::IsNullOrWhiteSpace($createdAt)) { $createdAt = 'unknown' }
     Write-Marker $createdAt
-    Write-Output "workspace de fuente actualizado: $workspace (workspace: $(Get-WorkspaceState))"
+    Write-Output "vault de fuente actualizado: $workspace (vault: $(Get-WorkspaceState))"
     exit 0
 }
 
@@ -300,24 +348,25 @@ if ($null -ne $memItem -and -not $memItem.PSIsContainer) {
 if ($null -ne $memItem -and $memItem.LinkType -eq 'SymbolicLink') {
     Fail "el directorio de instancia debe ser local, no un enlace simbólico: $memDir"
 }
-if ($UpdateWorkspace -and -not (Test-Path -LiteralPath $workspace)) {
-    Fail 'la actualización del workspace requiere una instancia existente'
+if ($UpdateVault -and -not (Test-Path -LiteralPath $workspace)) {
+    Fail 'la actualización del vault requiere una instancia existente'
 }
-if ($UpdateWorkspace -and $sourceState -ne 'release-aligned') {
-    Fail 'la actualización del workspace requiere una fuente release-aligned'
+if ($UpdateVault -and $sourceState -ne 'release-aligned') {
+    Fail 'la actualización del vault requiere una fuente release-aligned'
 }
-if ($UpdateWorkspace -and (Test-Path -LiteralPath $workspace) -and (Get-WorkspaceDataCompatibility) -ne 'compatible') {
-    Fail 'el formato del workspace requiere una migración confirmada'
+if ($UpdateVault -and (Test-Path -LiteralPath $workspace) -and (Get-WorkspaceDataCompatibility) -ne 'compatible') {
+    Fail 'el formato del vault requiere una migración confirmada'
 }
 if ((Test-Path -LiteralPath $versionFile) -and (Get-MarkerWorkspaceKind) -ne 'consumer') {
-    Fail 'el manifiesto no pertenece a un workspace de consumidor'
+    Fail 'el manifiesto no pertenece a un vault de consumidor'
 }
 if ($IntegrateCodex) {
     Assert-CodexIntegration
 }
-if ($UpdateWorkspace -and (Get-WorkspaceState) -notin @('legacy-compatible', 'compatible-update-available', 'aligned')) {
-    Fail 'la actualización del workspace no avanzaría la versión registrada del skill'
+if ($UpdateVault -and (Get-WorkspaceState) -notin @('legacy-compatible', 'compatible-update-available', 'aligned')) {
+    Fail 'la actualización del vault no avanzaría la versión registrada del skill'
 }
+if (Test-Path -LiteralPath $legacyWorkspace -PathType Container) { Fail 'existe mem/workspace; ejecuta -MigrateWorkspaceToVault explícitamente' }
 
 foreach ($linkedItem in @('SKILL.md', 'VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts')) {
     Assert-LinkDestination (Join-Path $sourceRoot $linkedItem) (Join-Path $memDir $linkedItem)
@@ -332,10 +381,10 @@ $workspaceExisted = Test-Path -LiteralPath $workspace
 [System.IO.Directory]::CreateDirectory((Join-Path $workspace 'records')) | Out-Null
 $index = Join-Path $workspace 'INDEX.md'
 if (-not (Test-Path -LiteralPath $index)) {
-    Copy-Item -LiteralPath (Join-Path $sourceRoot 'templates/workspace/INDEX.md') -Destination $index
+    Copy-Item -LiteralPath (Join-Path $sourceRoot 'templates/vault/INDEX.md') -Destination $index
 }
 
-if ($UpdateWorkspace -or -not (Test-Path -LiteralPath $versionFile)) {
+if ($UpdateVault -or -not (Test-Path -LiteralPath $versionFile)) {
     $createdAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
     if ($workspaceExisted) {
         $createdAt = Get-MarkerValue 'created_at'
@@ -347,4 +396,4 @@ if ($IntegrateCodex) {
     Install-CodexIntegration
 }
 
-Write-Output "instancia de memoria lista: $memDir (workspace: $(Get-WorkspaceState))"
+Write-Output "instancia de memoria lista: $memDir (vault: $(Get-WorkspaceState))"

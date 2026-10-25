@@ -3,12 +3,12 @@ name: ato-ai-skill-mem
 description: Administra memoria curada, local y versionable para un proyecto y sus agentes. Úsala cuando una tarea requiera consultar, registrar, actualizar, retirar o reemplazar decisiones, convenciones, aprendizajes o contexto de proyecto.
 ---
 
-# ATO AI Skill Mem
+# Memoria Skill (ATO AI Skill)
 
 ## Propósito
 
 Este skill mantiene una memoria explícita y legible por personas en
-`workspace/`. Es una memoria compartida por el proyecto: cada registro indica
+`vault/`. Es un almacenamiento persistente compartido por el proyecto: cada registro indica
 su autor, pero no existen subespacios separados por agente en el baseline.
 
 El skill administra conocimiento curado. No captura automáticamente
@@ -45,14 +45,14 @@ presenta la instrucción; no cambia la propiedad ni la ruta de la memoria:
 | Skill en skill | Una skill compuesta declara esta skill como dependencia para tareas de memoria. | Patrón documental: la skill anfitriona debe referenciar la dependencia y el proyecto propietario. |
 
 En los tres casos, antes de operar identifica el proyecto propietario y usa
-su workspace configurado. La ruta del skill invocador o del agente no
-determina por sí sola dónde guardar memoria. Para un consumidor soportado, el
-workspace es `mem/workspace/` dentro del proyecto anfitrión. No uses el
-`workspace/` del repositorio fuente como destino de un consumidor ni crees
+   su vault configurado. La ruta del skill invocador o del agente no
+   determina por sí sola dónde guardar memoria. Para un consumidor soportado, el
+   vault es `mem/vault/` dentro del proyecto anfitrión. No uses el
+   `vault/` del repositorio fuente como destino de un consumidor ni crees
 workspaces privados junto al agente o skill. Si un repositorio que contiene
 una skill necesita memoria para desarrollar ese proyecto, puede ser
 consumidor por derecho propio: instala la instancia en `mem/` y conserva allí
-su `mem/workspace/`, separado de cualquier workspace de los proyectos que
+   su `mem/vault/`, separado de cualquier vault de los proyectos que
 atienda.
 
 Las integraciones en agente o skill anfitriones deben conservar la evaluación
@@ -60,11 +60,11 @@ de carga, la lectura selectiva y la escritura explícita definidas aquí. No
 copien este documento para crear una política paralela: declaren la
 dependencia, cómo invocarla y cuál es el proyecto objetivo. Si el runtime no
 puede resolver esa dependencia o ruta de forma explícita, informa la
-limitación y no adivines otro workspace.
+limitación y no adivines otro vault.
 
 El bootstrap implementa instalación en proyectos y un adaptador de Codex; no
 instala automáticamente la skill en agentes o skills de otras plataformas.
-El workspace de cada consumidor puede versionarse con el repositorio de ese
+El vault de cada consumidor puede versionarse con el repositorio de ese
 proyecto. Compartir o promover conocimiento entre proyectos es una acción
 separada y deliberada; no hay sincronización automática ni fusión de
 workspaces.
@@ -72,9 +72,9 @@ workspaces.
 ## Lectura selectiva
 
 1. Ejecuta la evaluación de carga antes de usar o modificar memoria.
-2. Lee `workspace/INDEX.md`.
+2. Lee `vault/INDEX.md`.
 3. Identifica los enlaces relevantes para la tarea actual.
-4. Abre solo esos registros en `workspace/records/`.
+4. Abre solo esos registros en `vault/records/`.
 5. Explica qué información de memoria modificó la decisión si resulta material.
 
 No cargues todos los registros por defecto.
@@ -82,47 +82,47 @@ No cargues todos los registros por defecto.
 ## Evaluación de carga
 
 Al cargar el skill, lee `VERSION`, `WORKSPACE_FORMAT` y, si existe,
-`workspace/.ato-ai-skill-mem-version.yml`. Expón un diagnóstico breve y
+`vault/.ato-ai-skill-mem-version.yml`. Expón un diagnóstico breve y
 visible con: estado de la fuente, versión fuente y registrada, formato fuente
 y registrado, compatibilidad de datos y modo recomendado. Si el instalador
 está disponible, `--status` aporta esos mismos datos sin escribir.
 
 Elige un único modo aplicando estas reglas en orden de prioridad:
 
-1. **Instalación pendiente:** el workspace no existe. Recomienda instalar la
+1. **Instalación pendiente:** el vault no existe. Recomienda instalar la
    instancia; no lo hace salvo petición humana explícita.
 2. **Planificación de migración:** el formato es incompatible. No escribe ni
    interpreta registros como compatibles; explica el impacto, propone pasos y
    espera confirmación humana explícita.
-3. **Workspace más nuevo:** la versión registrada es mayor. No rebaja el
+3. **Vault más nuevo:** la versión registrada es mayor. No rebaja el
    manifiesto; recomienda seleccionar la fuente publicada correspondiente.
 4. **Desarrollo sin promoción:** la fuente no es `release-aligned`. Puede leer
    datos compatibles, pero no recomienda ni ejecuta una actualización de
    manifiesto.
-5. **Operación compatible:** el formato es compatible y el workspace está
+5. **Operación compatible:** el formato es compatible y el vault está
    alineado, heredado o requiere una actualización compatible. Lee y usa los
    registros normalmente; recomienda actualizar el manifiesto solo bajo las
    condiciones de versionado.
 
 ## Escritura explícita
 
-Solo modifica `workspace/` cuando una persona pida expresamente registrar,
+Solo modifica `vault/` cuando una persona pida expresamente registrar,
 actualizar, retirar o reemplazar memoria. Una propuesta de cambio puede
 presentarse sin escribir archivos.
 
 Al crear un registro:
 
 1. Usa una plantilla de `templates/records/`.
-2. Nómbralo `YYYY-MM-DD--slug.md` dentro de `workspace/records/`.
+2. Nómbralo `YYYY-MM-DD--slug.md` dentro de `vault/records/`.
 3. Completa el front matter y la evidencia disponible.
-4. Añade un enlace y un resumen de una línea a `workspace/INDEX.md`.
+4. Añade un enlace y un resumen de una línea a `vault/INDEX.md`.
 
 Al reemplazar un registro:
 
 1. Crea el registro sucesor.
 2. Cambia el anterior a `status: retired`.
 3. Añade `superseded_by` en el anterior y `supersedes` en el nuevo.
-4. Sustituye el enlace activo en `workspace/INDEX.md`; conserva la referencia
+4. Sustituye el enlace activo en `vault/INDEX.md`; conserva la referencia
    histórica en la sección de retirados.
 
 No borres un registro solo porque haya quedado obsoleto.
@@ -143,29 +143,29 @@ No borres un registro solo porque haya quedado obsoleto.
 de datos que el skill sabe operar. Una versión distribuible debe corresponder
 al tag Git `v<VERSION>` aplicado al commit de `master`.
 
-`workspace/.ato-ai-skill-mem-version.yml` es un manifiesto visible, separado
+`vault/.ato-ai-skill-mem-version.yml` es un manifiesto visible, separado
 de los registros de memoria: guarda la versión, revisión, tag y fechas de la
 última inicialización o actualización explícita, incluido su
-`workspace_format` y `workspace_kind`. `workspace_kind: consumer` identifica
-la memoria de una instancia; `workspace_kind: source` identifica la memoria
+`vault_format` y `vault_kind`. `vault_kind: consumer` identifica
+la memoria de una instancia; `vault_kind: source` identifica la memoria
 documental del repositorio canónico. No contiene secretos ni estado inferido.
-Si el manifiesto no existe o no incluye esos campos, el workspace se trata
+Si el manifiesto no existe o no incluye esos campos, el vault se trata
 como formato heredado `1` y tipo `consumer`.
 
 La revisión y el tag son evidencia auditable del origen; la compatibilidad y
 el modo de operación se deciden por el formato y la versión SemVer. Así, una
 revisión distinta no fuerza por sí sola una migración ni una actualización.
 
-El formato `1` debe mantenerse compatible durante `0.x` y `1.x`: versiones
-nuevas del skill pueden operar esos datos sin reescribir registros. Una futura
-migración de paradigma solo puede introducirse a partir de `2.0.0`, con un
-formato nuevo, pasos documentados y confirmación humana explícita. Detectar un
-formato incompatible debe producir un diagnóstico y propuesta, no una
-migración automática.
+El formato `1` es el formato heredado. Durante la etapa `0.x`, una versión
+menor puede introducir un nuevo formato de datos si documenta los pasos de
+migración y exige confirmación humana explícita; este cambio introduce el
+formato `2` en `0.2.0`. Una vez alcanzada `1.0.0`, los cambios incompatibles
+de formato requieren una nueva versión mayor. Detectar un formato incompatible
+debe producir un diagnóstico y propuesta, no una migración automática.
 
 Usa `scripts/bootstrap.sh --target <project> --status` (o el equivalente de
 PowerShell) para inspeccionar la alineación sin modificar datos. Si el
-workspace requiere actualizar su marcador, usa `--update-workspace`; esta
+vault requiere actualizar su marcador, usa `--update-vault`; esta
 rutina requiere una instancia existente, una fuente `release-aligned` y
 preserva `INDEX.md` y
 `records/` íntegramente. Una fuente que no esté en `master` y taggeada se
@@ -176,16 +176,16 @@ Un proyecto consumidor puede exponer el skill a Codex mediante un adaptador
 local y explícito. `--integrate-codex` crea
 `.ato-ai-skill-mem.yml` y `.agents/skills/ato-ai-project-mem/SKILL.md`; este
 último es un archivo local que delega en `mem/SKILL.md` y fija
-`mem/workspace/` como su único workspace. No enlaza el adaptador directamente
+`mem/vault/` como su único vault. No enlaza el adaptador directamente
 a la fuente ni modifica `AGENTS.md`. La configuración declara rutas, no
 autoriza escrituras de memoria. El formato actual reserva integraciones para
 otros agentes, pero solo implementa `codex`.
 
-El repositorio canónico conserva su propio `workspace/` sin enlaces simbólicos
+El repositorio canónico conserva su propio `vault/` sin enlaces simbólicos
 ni instalación recursiva. Su marcador referencia el último release que lo
 validó, por lo que un checkout de desarrollo posterior puede leerse si es
 compatible, pero opera en desarrollo sin promoción. Usa `--source-status` para
-consultarlo y `--update-source-workspace` solo desde un checkout limpio en
+consultarlo y `--update-source-vault` solo desde un checkout limpio en
 `master` cuyo `HEAD` sea `v<VERSION>`; esta operación escribe únicamente el
 marcador y requiere una revisión y commit humano posterior.
 

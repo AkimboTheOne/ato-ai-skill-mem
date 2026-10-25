@@ -1,6 +1,6 @@
-format: 1
-workspace:
-  path: mem/workspace
+format: 2
+vault:
+  path: mem/vault
 integrations:
   codex:
     adapter_path: .agents/skills/ato-ai-project-mem

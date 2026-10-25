@@ -23,20 +23,20 @@ consumer-project/
     ├── references/   -> ato-ai-skill-mem/references/
     ├── templates/    -> ato-ai-skill-mem/templates/
     ├── scripts/      -> ato-ai-skill-mem/scripts/
-    └── workspace/    # real, local y versionado por el consumidor
+    └── vault/        # real, local y versionado por el consumidor
         ├── INDEX.md
         ├── .ato-ai-skill-mem-version.yml
         └── records/
 ```
 
-El `workspace/` de este repositorio es un workspace de fuente: contiene la
+El `vault/` de este repositorio es un vault de fuente: contiene la
 memoria documental de este proyecto, no enlaces simbólicos ni datos de
 consumidores. Las instancias no comparten registros entre sí.
 
 ## Contextos de uso
 
 Una skill, un agente o un proyecto pueden invocar esta capacidad. En todos los
-casos, el workspace pertenece al proyecto que origina el conocimiento; la
+casos, el vault pertenece al proyecto que origina el conocimiento; la
 ubicación de la skill o del agente no crea una memoria independiente.
 
 | Contexto | Cómo se incorpora | Estado |
@@ -45,11 +45,11 @@ ubicación de la skill o del agente no crea una memoria independiente.
 | Skill en agente | Las instrucciones del agente referencian la skill y señalan el proyecto objetivo. | Integración manual; el bootstrap no instala adaptadores genéricos de agentes. |
 | Skill en skill | Una skill compuesta declara `ato-ai-skill-mem` como dependencia y delega las operaciones de memoria. | Composición documental; el anfitrión resuelve e invoca la dependencia. |
 
-Para un consumidor, el destino soportado es `mem/workspace/` del proyecto
-anfitrión. Los dos últimos patrones no habilitan un workspace privado para la
+Para un consumidor, el destino soportado es `mem/vault/` del proyecto
+anfitrión. Los dos últimos patrones no habilitan un vault privado para la
 skill o el agente. Si un repositorio que contiene una skill necesita memoria
 para su propio desarrollo, puede instalar la instancia como proyecto
-consumidor y mantener `mem/workspace/` separado de las memorias de los
+consumidor y mantener `mem/vault/` separado de las memorias de los
 proyectos que atienda. El anfitrión debe preservar las reglas de evaluación,
 compatibilidad y escritura explícita de `SKILL.md`.
 
@@ -65,7 +65,7 @@ skill canónico
   │        │
   │        └── bootstrap ──> proyecto-consumidor/mem/
   │                              ├── enlaces simbólicos canónicos
-  │                              └── workspace/ local
+  │                              └── vault/ local
   │
   └── tarea del agente
            │
@@ -79,7 +79,7 @@ Cada registro es un archivo Markdown fechado con tipo, estado, autor, evidencia
 y enlaces relacionados. Cuando una decisión queda invalidada, se conserva con
 `status: retired` y enlaza a su sucesora; no se borra.
 
-Los datos del workspace pueden viajar con el repositorio del proyecto al
+Los datos del vault pueden viajar con el repositorio del proyecto al
 versionar y sincronizar ese repositorio con Git. Esto sincroniza las copias de
 la memoria de ese mismo proyecto; no mezcla workspaces ni distribuye
 automáticamente conocimiento entre proyectos. Para compartir una conclusión,
@@ -89,7 +89,7 @@ corresponda.
 El bootstrap prevalida los tres destinos enlazados antes de crear la instancia.
 Si encuentra un conflicto existente, falla sin reemplazar archivos ni crear
 enlaces nuevos. Después crea solamente el scaffold que falta y preserva
-cualquier workspace/ ya existente.
+cualquier vault/ ya existente.
 
 ## Instalar una instancia
 
@@ -114,7 +114,7 @@ forma explícita:
 
 Esto crea `.ato-ai-skill-mem.yml` en la raíz del consumidor y un adaptador
 regular en `.agents/skills/ato-ai-project-mem/SKILL.md`. El adaptador delega en
-`mem/SKILL.md` y usa solamente `mem/workspace/`; no es un enlace hacia el
+`mem/SKILL.md` y usa solamente `mem/vault/`; no es un enlace hacia el
 repositorio fuente. `--status` informa si la integración está alineada, ausente
 o en conflicto. El bootstrap rechaza configuraciones o adaptadores existentes
 que no correspondan al contrato y nunca modifica `AGENTS.md`.
@@ -130,7 +130,7 @@ Windows habilita Developer Mode o ejecuta una terminal con el permiso adecuado.
 Los scripts son idempotentes: validan enlaces existentes y crean solo el
 scaffolding ausente. `mem/SKILL.md`, `mem/VERSION`,
 `mem/WORKSPACE_FORMAT`, `mem/references/`, `mem/templates/` y `mem/scripts/`
-apuntan siempre a la fuente canónica; `mem/workspace/` nunca se sobrescribe.
+apuntan siempre a la fuente canónica; `mem/vault/` nunca se sobrescribe.
 
 ## Versiones
 
@@ -143,24 +143,27 @@ Consulta el estado, sin modificar el proyecto, con:
 ./scripts/bootstrap.sh --target /absolute/path/to/consumer-project --status
 ```
 
-El workspace conserva su propia marca visible en
-`workspace/.ato-ai-skill-mem-version.yml`. El formato `1` se mantiene
-compatible durante `0.x` y `1.x`, incluso si el manifiesto es heredado y no lo
-declara. Para actualizar solo esa marca tras validar un release nuevo, usa
-`--update-workspace`; requiere una instancia existente y una fuente
-`release-aligned`, y no modifica `INDEX.md` ni registros. Un cambio de formato
-solo podrá plantearse a partir de `2.0.0`, mediante una migración confirmada
-por una persona.
+El vault conserva su propia marca visible en
+`vault/.ato-ai-skill-mem-version.yml`. El formato `1` es heredado y requiere
+migración explícita al formato `2` mediante `--migrate-workspace-to-vault`.
+Mientras el skill permanezca en `0.x`, una versión menor puede introducir
+cambios incompatibles documentados; `1.0.0` será el primer contrato estable.
+Para migrar el vault fuente existente usa
+`--migrate-source-workspace-to-vault`; ambas operaciones rechazan destinos
+existentes y conservan el contenido Markdown.
+Para actualizar solo esa marca tras validar un release nuevo, usa
+`--update-vault`; requiere una instancia existente y una fuente
+`release-aligned`, y no modifica `INDEX.md` ni registros.
 
 Al cargar el skill, el agente debe comunicar un diagnóstico de fuente,
 versiones, formatos, compatibilidad y modo recomendado antes de operar
 memoria. El modo puede ser operación compatible, desarrollo sin promoción,
-revisión de workspace más nuevo, planificación de migración o instalación
+revisión de vault más nuevo, planificación de migración o instalación
 pendiente. La revisión Git queda como evidencia auditable y no cambia por sí
-sola el modo. Esta evaluación recomienda acciones; no modifica el workspace.
+sola el modo. Esta evaluación recomienda acciones; no modifica el vault.
 
-El manifiesto incluye `workspace_kind`: `consumer` en cada
-`mem/workspace/` y `source` en el `workspace/` de este repositorio. Para
+El manifiesto incluye `vault_kind`: `consumer` en cada
+`mem/vault/` y `source` en el `vault/` de este repositorio. Para
 consultar el segundo sin crear una instancia, ejecuta:
 
 ```sh
@@ -168,10 +171,10 @@ consultar el segundo sin crear una instancia, ejecuta:
 ```
 
 Después de crear un release, solo un checkout limpio en `master` cuyo `HEAD`
-sea el tag `v<VERSION>` puede actualizar la referencia del workspace de fuente:
+sea el tag `v<VERSION>` puede actualizar la referencia del vault de fuente:
 
 ```sh
-./scripts/bootstrap.sh --update-source-workspace
+./scripts/bootstrap.sh --update-source-vault
 ```
 
 La operación solo escribe el manifiesto; no crea tags ni commits. El marcador
@@ -184,7 +187,7 @@ para evitar una auto-instalación recursiva.
 1. Integra el adaptador de Codex con `--integrate-codex` o copia el snippet
    manual en AGENTS.md si quieres activar memoria mediante instrucciones de
    proyecto.
-2. El agente lee workspace/INDEX.md y abre solo los registros pertinentes.
+2. El agente lee vault/INDEX.md y abre solo los registros pertinentes.
 3. Una persona pide explícitamente registrar, actualizar, retirar o reemplazar
    memoria.
 4. El agente usa una plantilla, actualiza el registro y mantiene el índice

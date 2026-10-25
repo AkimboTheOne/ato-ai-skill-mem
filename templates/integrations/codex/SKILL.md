@@ -7,13 +7,13 @@ description: Consulta y administra la memoria curada del proyecto actual mediant
 
 Este adaptador define el punto de entrada del proyecto consumidor. La fuente
 canónica del comportamiento está en `mem/SKILL.md`; la memoria de este proyecto
-está exclusivamente en `mem/workspace/`.
+está exclusivamente en `mem/vault/`.
 
 1. Lee y sigue `mem/SKILL.md` antes de consultar o modificar memoria.
 2. Ejecuta `mem/scripts/bootstrap.sh --target . --status` o el equivalente de
    PowerShell para diagnosticar versión, formato y compatibilidad sin escribir.
-3. Lee `mem/workspace/INDEX.md` y solo los registros pertinentes.
+3. Lee `mem/vault/INDEX.md` y solo los registros pertinentes.
 4. Escribe memoria únicamente por petición humana explícita.
 
-No uses el `workspace/` del repositorio fuente del skill. No copies, reemplaces
-ni sincronices `mem/workspace/` con otra instancia.
+No uses el `vault/` del repositorio fuente del skill. No copies, reemplaces
+ni sincronices `mem/vault/` con otra instancia.

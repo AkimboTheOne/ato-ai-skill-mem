@@ -1,8 +1,8 @@
 # Administrado por ato-ai-skill-mem. Describe el release del skill que
-# inicializó o actualizó explícitamente este workspace; no es contenido de memoria.
+# inicializó o actualizó explícitamente este vault; no es contenido de memoria.
 format: 1
-workspace_kind: consumer
-workspace_format: WORKSPACE_FORMAT
+vault_kind: consumer
+vault_format: VAULT_FORMAT
 skill_version: VERSION
 source_revision: REVISION
 source_tag: TAG

@@ -19,11 +19,15 @@ Crea o valida una instancia híbrida de ato-ai-skill-mem en RUTA_DEL_PROYECTO/me
 Este comando nunca modifica RUTA_DEL_PROYECTO/AGENTS.md.
 
 Opciones:
-  --status              Informa la alineación entre el release fuente y el workspace.
-  --update-workspace    Actualiza el manifiesto de un workspace compatible existente.
-  --source-status       Informa la alineación del workspace del repositorio fuente.
-  --update-source-workspace
-                        Actualiza el manifiesto del workspace fuente desde un release.
+  --status              Informa la alineación entre el release fuente y el vault.
+  --update-vault        Actualiza el manifiesto de un vault compatible existente.
+  --migrate-workspace-to-vault
+                        Migra explícitamente mem/workspace a mem/vault.
+  --source-status       Informa la alineación del vault del repositorio fuente.
+  --update-source-vault
+                        Actualiza el manifiesto del vault fuente desde un release.
+  --migrate-source-workspace-to-vault
+                        Migra explícitamente workspace/ a vault/.
   --integrate-codex    Crea o valida el adaptador local de Codex del proyecto.
 EOF
 }
@@ -44,16 +48,24 @@ while [ "$#" -gt 0 ]; do
       select_mode 'status'
       shift
       ;;
-    --update-workspace)
-      select_mode 'update-workspace'
+    --update-vault)
+      select_mode 'update-vault'
+      shift
+      ;;
+    --migrate-workspace-to-vault)
+      select_mode 'migrate-workspace-to-vault'
       shift
       ;;
     --source-status)
       select_mode 'source-status'
       shift
       ;;
-    --update-source-workspace)
-      select_mode 'update-source-workspace'
+    --update-source-vault)
+      select_mode 'update-source-vault'
+      shift
+      ;;
+    --migrate-source-workspace-to-vault)
+      select_mode 'migrate-source-workspace-to-vault'
       shift
       ;;
     --integrate-codex)
@@ -74,7 +86,7 @@ done
 [ "$INTEGRATE_CODEX" = false ] || [ "$MODE" = 'bootstrap' ] || fail '--integrate-codex solo se admite durante la instalación'
 
 case "$MODE" in
-  source-status|update-source-workspace)
+  source-status|update-source-vault|migrate-source-workspace-to-vault)
     [ -z "$TARGET" ] || fail "$MODE no admite --target"
     ;;
   *)
@@ -85,22 +97,24 @@ esac
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 SOURCE_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
-if [ "$MODE" = 'source-status' ] || [ "$MODE" = 'update-source-workspace' ]; then
+if [ "$MODE" = 'source-status' ] || [ "$MODE" = 'update-source-vault' ] || [ "$MODE" = 'migrate-source-workspace-to-vault' ]; then
   TARGET_ROOT=''
   MEM_DIR=''
-  WORKSPACE=$SOURCE_ROOT/workspace
+  WORKSPACE=$SOURCE_ROOT/vault
+  LEGACY_WORKSPACE=$SOURCE_ROOT/workspace
   EXPECTED_WORKSPACE_KIND='source'
 else
   TARGET_ROOT=$(CDPATH= cd -- "$TARGET" && pwd -P)
   [ "$TARGET_ROOT" != "$SOURCE_ROOT" ] || fail 'la raíz de la fuente no es un proyecto consumidor; usa --source-status'
   MEM_DIR=$TARGET_ROOT/mem
-  WORKSPACE=$MEM_DIR/workspace
+  WORKSPACE=$MEM_DIR/vault
+  LEGACY_WORKSPACE=$MEM_DIR/workspace
   EXPECTED_WORKSPACE_KIND='consumer'
   INTEGRATION_CONFIG=$TARGET_ROOT/.ato-ai-skill-mem.yml
   CODEX_ADAPTER_DIR=$TARGET_ROOT/.agents/skills/ato-ai-project-mem
 fi
 
-for required in SKILL.md VERSION WORKSPACE_FORMAT references templates scripts templates/integrations/host-config.yml templates/integrations/codex/SKILL.md; do
+for required in SKILL.md VERSION WORKSPACE_FORMAT references templates scripts templates/vault/SKILL-VERSION.yml templates/vault/INDEX.md templates/integrations/host-config.yml templates/integrations/codex/SKILL.md; do
   [ -e "$SOURCE_ROOT/$required" ] || fail "falta el componente canónico $required en $SOURCE_ROOT"
 done
 
@@ -127,6 +141,9 @@ if [ "$SOURCE_BRANCH" = 'master' ] && [ "$SOURCE_REVISION" = "$MASTER_REVISION" 
 fi
 
 VERSION_FILE=$WORKSPACE/.ato-ai-skill-mem-version.yml
+if [ ! -d "$WORKSPACE" ] && [ -f "$LEGACY_WORKSPACE/.ato-ai-skill-mem-version.yml" ]; then
+  VERSION_FILE=$LEGACY_WORKSPACE/.ato-ai-skill-mem-version.yml
+fi
 INTEGRATION_TEMPLATE=$SOURCE_ROOT/templates/integrations/host-config.yml
 CODEX_ADAPTER_TEMPLATE=$SOURCE_ROOT/templates/integrations/codex/SKILL.md
 
@@ -135,12 +152,13 @@ read_marker() {
   sed -n "s/^$marker_key: *//p" "$VERSION_FILE" | sed -n '1p' | tr -d '"'
 }
 
-marker_workspace_format() {
+marker_vault_format() {
   if [ ! -f "$VERSION_FILE" ]; then
     printf '%s\n' '1'
     return
   fi
-  marker_format=$(read_marker workspace_format)
+  marker_format=$(read_marker vault_format)
+  [ -n "$marker_format" ] || marker_format=$(read_marker workspace_format)
   if [ -z "$marker_format" ]; then
     printf '%s\n' '1'
   else
@@ -148,12 +166,13 @@ marker_workspace_format() {
   fi
 }
 
-marker_workspace_kind() {
+marker_vault_kind() {
   if [ ! -f "$VERSION_FILE" ]; then
     printf '%s\n' 'consumer'
     return
   fi
-  marker_kind=$(read_marker workspace_kind)
+  marker_kind=$(read_marker vault_kind)
+  [ -n "$marker_kind" ] || marker_kind=$(read_marker workspace_kind)
   if [ -z "$marker_kind" ]; then
     printf '%s\n' 'consumer'
   else
@@ -161,10 +180,14 @@ marker_workspace_kind() {
   fi
 }
 
-workspace_data_compatibility() {
+vault_data_compatibility() {
   if [ ! -d "$WORKSPACE" ]; then
+    if [ -d "$LEGACY_WORKSPACE" ]; then
+      printf '%s\n' 'migration-required'
+      return
+    fi
     printf '%s\n' 'absent'
-  elif [ "$(marker_workspace_format)" = "$CURRENT_WORKSPACE_FORMAT" ]; then
+  elif [ "$(marker_vault_format)" = "$CURRENT_WORKSPACE_FORMAT" ] && [ -n "$(read_marker vault_format 2>/dev/null || true)" ]; then
     printf '%s\n' 'compatible'
   else
     printf '%s\n' 'migration-required'
@@ -183,19 +206,23 @@ version_relation() {
   }'
 }
 
-workspace_state() {
+vault_state() {
   if [ ! -d "$WORKSPACE" ]; then
+    if [ -d "$LEGACY_WORKSPACE" ]; then
+      printf '%s\n' 'migration-required'
+      return
+    fi
     printf '%s\n' 'absent'
   elif [ ! -f "$VERSION_FILE" ]; then
     printf '%s\n' 'legacy-compatible'
-  elif [ "$(marker_workspace_kind)" != "$EXPECTED_WORKSPACE_KIND" ]; then
+  elif [ "$(marker_vault_kind)" != "$EXPECTED_WORKSPACE_KIND" ]; then
     printf '%s\n' 'role-mismatch'
-  elif [ "$(workspace_data_compatibility)" != 'compatible' ]; then
+  elif [ "$(vault_data_compatibility)" != 'compatible' ]; then
     printf '%s\n' 'migration-required'
   elif [ "$(read_marker skill_version)" != "$SKILL_VERSION" ]; then
     case "$(version_relation "$(read_marker skill_version)")" in
       source-newer) printf '%s\n' 'compatible-update-available' ;;
-      workspace-newer) printf '%s\n' 'workspace-newer' ;;
+    workspace-newer) printf '%s\n' 'vault-newer' ;;
       *) printf '%s\n' 'version-mismatch' ;;
     esac
   else
@@ -207,14 +234,14 @@ write_marker() {
   marker_created_at=$1
   marker_date=$(date -u +%Y-%m-%d)
   sed \
-    -e "s/^workspace_kind: .*/workspace_kind: $EXPECTED_WORKSPACE_KIND/" \
+    -e "s/^vault_kind: .*/vault_kind: $EXPECTED_WORKSPACE_KIND/" \
     -e "s/^skill_version: .*/skill_version: $SKILL_VERSION/" \
-    -e "s/^workspace_format: .*/workspace_format: $CURRENT_WORKSPACE_FORMAT/" \
+    -e "s/^vault_format: .*/vault_format: $CURRENT_WORKSPACE_FORMAT/" \
     -e "s/^source_revision: .*/source_revision: $SOURCE_REVISION/" \
     -e "s/^source_tag: .*/source_tag: $SOURCE_TAG/" \
     -e "s/^created_at: .*/created_at: $marker_created_at/" \
     -e "s/^updated_at: .*/updated_at: $marker_date/" \
-    "$SOURCE_ROOT/templates/workspace/SKILL-VERSION.yml" > "$VERSION_FILE"
+    "$SOURCE_ROOT/templates/vault/SKILL-VERSION.yml" > "$VERSION_FILE"
 }
 
 codex_adapter_is_managed() {
@@ -256,23 +283,59 @@ print_status() {
   printf 'source.branch: %s\n' "$SOURCE_BRANCH"
   printf 'source.revision: %s\n' "$SOURCE_REVISION"
   printf 'source.state: %s\n' "$SOURCE_STATE"
-  printf 'workspace.format: %s\n' "$(marker_workspace_format)"
-  printf 'workspace.expected_format: %s\n' "$CURRENT_WORKSPACE_FORMAT"
-  printf 'workspace.data_compatibility: %s\n' "$(workspace_data_compatibility)"
-  printf 'workspace.kind: %s\n' "$(marker_workspace_kind)"
-  printf 'workspace.expected_kind: %s\n' "$EXPECTED_WORKSPACE_KIND"
-  printf 'workspace.state: %s\n' "$(workspace_state)"
+  printf 'vault.format: %s\n' "$(marker_vault_format)"
+  printf 'vault.expected_format: %s\n' "$CURRENT_WORKSPACE_FORMAT"
+  printf 'vault.data_compatibility: %s\n' "$(vault_data_compatibility)"
+  printf 'vault.kind: %s\n' "$(marker_vault_kind)"
+  printf 'vault.expected_kind: %s\n' "$EXPECTED_WORKSPACE_KIND"
+  printf 'vault.state: %s\n' "$(vault_state)"
   if [ "$EXPECTED_WORKSPACE_KIND" = 'consumer' ]; then
     printf 'integration.codex.state: %s\n' "$(codex_integration_state)"
     printf 'integration.codex.adapter_path: %s\n' '.agents/skills/ato-ai-project-mem'
   fi
   if [ -f "$VERSION_FILE" ]; then
-    printf 'workspace.skill_version: %s\n' "$(read_marker skill_version)"
-    printf 'workspace.source_revision: %s\n' "$(read_marker source_revision)"
-    printf 'workspace.source_tag: %s\n' "$(read_marker source_tag)"
-    printf 'workspace.created_at: %s\n' "$(read_marker created_at)"
-    printf 'workspace.updated_at: %s\n' "$(read_marker updated_at)"
+    printf 'vault.skill_version: %s\n' "$(read_marker skill_version)"
+    printf 'vault.source_revision: %s\n' "$(read_marker source_revision)"
+    printf 'vault.source_tag: %s\n' "$(read_marker source_tag)"
+    printf 'vault.created_at: %s\n' "$(read_marker created_at)"
+    printf 'vault.updated_at: %s\n' "$(read_marker updated_at)"
   fi
+}
+
+migrate_workspace_to_vault() {
+  [ -d "$LEGACY_WORKSPACE" ] || fail "no existe el almacenamiento heredado: $LEGACY_WORKSPACE"
+  [ ! -e "$WORKSPACE" ] || fail "no se puede migrar: ya existe el destino $WORKSPACE"
+  OLD_VERSION_FILE=$LEGACY_WORKSPACE/.ato-ai-skill-mem-version.yml
+  [ -f "$OLD_VERSION_FILE" ] || fail 'la migración requiere el manifiesto heredado'
+  OLD_FORMAT=$(sed -n 's/^workspace_format: *//p' "$OLD_VERSION_FILE" | sed -n '1p')
+  [ -n "$OLD_FORMAT" ] || OLD_FORMAT=1
+  [ "$OLD_FORMAT" = '1' ] || fail "el formato heredado no es migrable: $OLD_FORMAT"
+  CREATED_AT=$(sed -n 's/^created_at: *//p' "$OLD_VERSION_FILE" | sed -n '1p' | tr -d '"')
+  [ -n "$CREATED_AT" ] || CREATED_AT=unknown
+  MARKER_TMP=$(mktemp "$SOURCE_ROOT/.ato-ai-vault-marker.XXXXXX")
+  write_marker_to() {
+    DESTINATION=$1
+    sed -e "s/^vault_kind: .*/vault_kind: $EXPECTED_WORKSPACE_KIND/" \
+      -e "s/^skill_version: .*/skill_version: $SKILL_VERSION/" \
+      -e "s/^vault_format: .*/vault_format: $CURRENT_WORKSPACE_FORMAT/" \
+      -e "s/^source_revision: .*/source_revision: $SOURCE_REVISION/" \
+      -e "s/^source_tag: .*/source_tag: $SOURCE_TAG/" \
+      -e "s/^created_at: .*/created_at: $CREATED_AT/" \
+      -e "s/^updated_at: .*/updated_at: $(date -u +%Y-%m-%d)/" \
+      "$SOURCE_ROOT/templates/vault/SKILL-VERSION.yml" > "$DESTINATION"
+  }
+  write_marker_to "$MARKER_TMP"
+  if ! mv "$LEGACY_WORKSPACE" "$WORKSPACE"; then
+    rm -f "$MARKER_TMP"
+    fail 'no se pudo mover el almacenamiento heredado'
+  fi
+  VERSION_FILE=$WORKSPACE/.ato-ai-skill-mem-version.yml
+  if ! mv "$MARKER_TMP" "$VERSION_FILE"; then
+    mv "$WORKSPACE" "$LEGACY_WORKSPACE"
+    rm -f "$MARKER_TMP"
+    fail 'no se pudo actualizar el manifiesto; la migración fue revertida'
+  fi
+  printf 'migración completada: %s -> %s\n' "$LEGACY_WORKSPACE" "$WORKSPACE"
 }
 
 if [ "$MODE" = 'status' ] || [ "$MODE" = 'source-status' ]; then
@@ -280,21 +343,29 @@ if [ "$MODE" = 'status' ] || [ "$MODE" = 'source-status' ]; then
   exit 0
 fi
 
-if [ "$MODE" = 'update-source-workspace' ]; then
-  [ -d "$WORKSPACE" ] || fail 'la actualización del workspace fuente requiere workspace/'
-  [ -f "$VERSION_FILE" ] || fail 'el workspace fuente requiere un manifiesto con workspace_kind: source'
-  [ "$(marker_workspace_kind)" = 'source' ] || fail 'el manifiesto no pertenece a un workspace de fuente'
-  [ "$SOURCE_STATE" = 'release-aligned' ] || fail 'la actualización del workspace fuente requiere una fuente release-aligned'
-  [ -z "$SOURCE_WORKTREE_DIRTY" ] || fail 'la actualización del workspace fuente requiere un checkout limpio'
-  [ "$(workspace_data_compatibility)" = 'compatible' ] || fail 'el formato del workspace requiere una migración confirmada'
-  case "$(workspace_state)" in
+if [ "$MODE" = 'migrate-workspace-to-vault' ] || [ "$MODE" = 'migrate-source-workspace-to-vault' ]; then
+  if [ "$MODE" = 'migrate-workspace-to-vault' ]; then
+    [ -e "$MEM_DIR" ] && [ -d "$MEM_DIR" ] || fail "la instancia no es un directorio: $MEM_DIR"
+  fi
+  migrate_workspace_to_vault
+  exit 0
+fi
+
+if [ "$MODE" = 'update-source-vault' ]; then
+  [ -d "$WORKSPACE" ] || fail 'la actualización del vault fuente requiere vault/'
+  [ -f "$VERSION_FILE" ] || fail 'el vault fuente requiere un manifiesto con vault_kind: source'
+  [ "$(marker_vault_kind)" = 'source' ] || fail 'el manifiesto no pertenece a un vault de fuente'
+  [ "$SOURCE_STATE" = 'release-aligned' ] || fail 'la actualización del vault fuente requiere una fuente release-aligned'
+  [ -z "$SOURCE_WORKTREE_DIRTY" ] || fail 'la actualización del vault fuente requiere un checkout limpio'
+  [ "$(vault_data_compatibility)" = 'compatible' ] || fail 'el formato del vault requiere una migración confirmada'
+  case "$(vault_state)" in
     compatible-update-available|aligned) ;;
-    *) fail 'la actualización del workspace fuente no avanzaría la versión registrada del skill' ;;
+    *) fail 'la actualización del vault fuente no avanzaría la versión registrada del skill' ;;
   esac
   CREATED_AT=$(read_marker created_at 2>/dev/null || printf 'unknown')
   [ -n "$CREATED_AT" ] || CREATED_AT='unknown'
   write_marker "$CREATED_AT"
-  printf 'workspace de fuente actualizado: %s (workspace: %s)\n' "$WORKSPACE" "$(workspace_state)"
+  printf 'vault de fuente actualizado: %s (vault: %s)\n' "$WORKSPACE" "$(vault_state)"
   exit 0
 fi
 
@@ -305,26 +376,27 @@ if [ -L "$MEM_DIR" ]; then
   fail "el directorio de instancia debe ser local, no un enlace simbólico: $MEM_DIR"
 fi
 
-if [ "$MODE" = 'update-workspace' ] && [ ! -d "$WORKSPACE" ]; then
-  fail "la actualización del workspace requiere una instancia existente"
+if [ "$MODE" = 'update-vault' ] && [ ! -d "$WORKSPACE" ]; then
+  fail "la actualización del vault requiere una instancia existente"
 fi
 
-if [ "$MODE" = 'update-workspace' ] && [ "$SOURCE_STATE" != 'release-aligned' ]; then
-  fail "la actualización del workspace requiere una fuente release-aligned"
+if [ "$MODE" = 'update-vault' ] && [ "$SOURCE_STATE" != 'release-aligned' ]; then
+  fail "la actualización del vault requiere una fuente release-aligned"
 fi
-if [ "$MODE" = 'update-workspace' ] && [ -d "$WORKSPACE" ] && [ "$(workspace_data_compatibility)" != 'compatible' ]; then
-  fail "el formato del workspace requiere una migración confirmada"
+if [ "$MODE" = 'update-vault' ] && [ -d "$WORKSPACE" ] && [ "$(vault_data_compatibility)" != 'compatible' ]; then
+  fail "el formato del vault requiere una migración confirmada"
 fi
-if [ -f "$VERSION_FILE" ] && [ "$(marker_workspace_kind)" != 'consumer' ]; then
-  fail 'el manifiesto no pertenece a un workspace de consumidor'
+if [ -f "$VERSION_FILE" ] && [ "$(marker_vault_kind)" != 'consumer' ]; then
+  fail 'el manifiesto no pertenece a un vault de consumidor'
 fi
+[ ! -d "$LEGACY_WORKSPACE" ] || fail 'existe mem/workspace; ejecuta --migrate-workspace-to-vault explícitamente'
 if [ "$INTEGRATE_CODEX" = true ]; then
   validate_codex_integration
 fi
-if [ "$MODE" = 'update-workspace' ]; then
-  case "$(workspace_state)" in
+if [ "$MODE" = 'update-vault' ]; then
+  case "$(vault_state)" in
     legacy-compatible|compatible-update-available|aligned) ;;
-    *) fail "la actualización del workspace no avanzaría la versión registrada del skill" ;;
+    *) fail "la actualización del vault no avanzaría la versión registrada del skill" ;;
   esac
 fi
 
@@ -369,10 +441,10 @@ WORKSPACE_EXISTED=false
 [ -d "$WORKSPACE" ] && WORKSPACE_EXISTED=true
 mkdir -p "$WORKSPACE/records"
 if [ ! -e "$WORKSPACE/INDEX.md" ]; then
-  cp "$SOURCE_ROOT/templates/workspace/INDEX.md" "$WORKSPACE/INDEX.md"
+  cp "$SOURCE_ROOT/templates/vault/INDEX.md" "$WORKSPACE/INDEX.md"
 fi
 
-if [ "$MODE" = 'update-workspace' ] || [ ! -f "$VERSION_FILE" ]; then
+if [ "$MODE" = 'update-vault' ] || [ ! -f "$VERSION_FILE" ]; then
   CREATED_AT=$(date -u +%Y-%m-%d)
   if [ "$WORKSPACE_EXISTED" = true ]; then
     CREATED_AT=$(read_marker created_at 2>/dev/null || printf 'unknown')
@@ -385,4 +457,4 @@ if [ "$INTEGRATE_CODEX" = true ]; then
   install_codex_integration
 fi
 
-printf 'instancia de memoria lista: %s (workspace: %s)\n' "$MEM_DIR" "$(workspace_state)"
+printf 'instancia de memoria lista: %s (vault: %s)\n' "$MEM_DIR" "$(vault_state)"
