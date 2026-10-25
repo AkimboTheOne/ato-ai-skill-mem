@@ -2,7 +2,7 @@
 
 ## Propiedad
 
-`mem/SKILL.md`, `mem/VERSION`, `mem/WORKSPACE_FORMAT`, `mem/references/`,
+`mem/SKILL.md`, `mem/VERSION`, `mem/VAULT_FORMAT`, `mem/references/`,
 `mem/templates/` y `mem/scripts/` son enlaces simbólicos al skill canónico.
 `mem/vault/` pertenece al proyecto consumidor y debe ser una carpeta real,
 versionable y no sobrescribible por el bootstrap.
@@ -11,16 +11,28 @@ versionable y no sobrescribible por el bootstrap.
 
 ```text
 vault/
-├── INDEX.md
-├── .ato-ai-skill-mem-version.yml
-└── records/
-    └── YYYY-MM-DD--slug.md
+├── AGENTS.md
+├── 00_inbox/decisions-pending/
+├── 10_areas/
+├── 20_domains/<domain-id>/
+│   ├── AGENTS.md
+│   ├── domain.yml
+│   ├── INDEX.md
+│   ├── records/
+│   └── resources/
+├── 30_resources/
+├── 40_archive/
+├── 50_daily/
+├── 60_exports/
+├── _indexes/
+├── _maps/
+└── _templates/
 ```
 
 ## Alineación de versión
 
 `VERSION` en la raíz canónica es la versión SemVer declarada y
-`WORKSPACE_FORMAT` es el entero que identifica el formato de datos soportado.
+`VAULT_FORMAT` es el entero que identifica el formato de datos soportado.
 Un release válido debe estar en `master` y tener el tag Git exacto
 `v<VERSION>` en el mismo commit. El bootstrap no consulta la red: valida solo
 el checkout local.
@@ -50,7 +62,7 @@ en desarrollo.
 ## Integración de agentes
 
 Un consumidor puede declarar una integración local en
-`.ato-ai-skill-mem.yml`. El formato `2` fija `vault.path` en
+`.ato-ai-skill-mem.yml`. El formato `3` fija `vault.path` en
 `mem/vault` y admite únicamente `integrations.codex.adapter_path` con el
 valor `.agents/skills/ato-ai-project-mem`. El namespace `integrations` queda
 reservado para adaptadores futuros, pero valores adicionales se rechazan hasta
@@ -62,13 +74,39 @@ no es un enlace hacia la fuente y no debe acceder al vault de fuente. Si
 la configuración, ruta o contenido preexistente difiere, el bootstrap falla
 sin reemplazarlo ni modificar `AGENTS.md`.
 
-El formato `1` es heredado. Un vault anterior sin manifiesto, o con
-`workspace_format`, requiere migración explícita al formato `2`; el bootstrap
-no lo convierte automáticamente.
+Los formatos `1` y `2` son heredados. El formato `3` añade el scaffold
+modular y dominios portables. La migración crea propuestas en
+`00_inbox/decisions-pending/`; no asigna registros a un dominio por
+similitud semántica.
 
-`INDEX.md` es el punto de entrada de lectura. Mantiene un resumen de los
-registros activos y una sección de registros retirados. Los registros no se
-mueven al retirarse, de modo que sus enlaces sigan siendo estables.
+Una instancia con `vault_format: 2` se migra mediante
+`--migrate-vault-format`. La preparación conserva el manifiesto en formato
+`2` y crea las propuestas necesarias. Tras mover los registros raíz de forma
+explícita, `--migrate-vault-format --finalize` archiva el `INDEX.md` heredado
+en `40_archive/legacy-root-INDEX.md`, sin sobrescribir, y escribe el
+manifiesto de formato `3`. Si hay registros pendientes o un conflicto, falla
+sin actualizar el manifiesto ni mover el índice.
+
+`vault/AGENTS.md` y `_indexes/INDEX.md` son el punto de entrada de lectura.
+Cada dominio mantiene su propio `INDEX.md`; los dominios son la única unidad
+portable y sus `AGENTS.md` no pueden relajar las reglas maestras.
+Una vault de formato `3` no conserva `INDEX.md` en la raíz.
+
+## Dominio portable
+
+`domain.yml` debe incluir `format`, `id`, `title`, `status`, `scope`, `areas`
+y `routing`. El baseline valida exclusivamente `routing.rules: []`: la CLI no
+ejecuta routing automático. Cualquier evolución debe ser determinista, basarse
+en metadata explícita y quedar definida en el contrato, la CLI y las pruebas
+antes de habilitarse; cada movimiento debe registrarse en
+`_indexes/action-log.md`. No se admite clasificación por similitud, confianza
+ni historial de decisiones.
+
+`scripts/vault.sh` y `scripts/vault.ps1` exponen `init-layout`,
+`create-domain`, `check`, `migration-plan` y `migration-apply`. La primera
+operación crea propuestas para registros raíz heredados; la segunda mueve solo
+un registro y dominio seleccionados explícitamente, sin sobrescribir destinos.
+Si no puede registrar la acción, revierte el movimiento y falla.
 
 ## Esquema de registros
 

@@ -1,4 +1,4 @@
-format: 2
+format: 3
 vault:
   path: mem/vault
 integrations:

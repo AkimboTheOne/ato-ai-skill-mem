@@ -1,0 +1,8 @@
+format: 1
+id: DOMAIN_ID
+title: DOMAIN_TITLE
+status: active
+scope: DOMAIN_SCOPE
+areas: []
+routing:
+  rules: []

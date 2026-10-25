@@ -6,45 +6,139 @@ try {
     $project = Join-Path $temp 'consumer'
     New-Item -ItemType Directory -Path $project | Out-Null
     & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project
-    if (-not (Test-Path (Join-Path $project 'mem/vault/INDEX.md'))) { throw 'falta el índice del vault' }
-    $marker = Get-Content (Join-Path $project 'mem/vault/.ato-ai-skill-mem-version.yml') -Raw
-    if ($marker -notmatch '(?m)^vault_format: 2$') { throw 'falta el formato del vault' }
-    & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -IntegrateCodex
-    if ((Get-Content (Join-Path $project '.ato-ai-skill-mem.yml') -Raw) -notmatch 'mem/vault') { throw 'la integración no apunta al vault' }
+    $vault = Join-Path $project 'mem/vault'
+    if (-not ((Get-Item -LiteralPath (Join-Path $project 'mem/VAULT_FORMAT') -Force).LinkType -eq 'SymbolicLink')) { throw 'VAULT_FORMAT debe ser un enlace simbólico' }
+    foreach ($path in @('AGENTS.md','00_inbox/decisions-pending','20_domains','_templates')) { if (-not (Test-Path (Join-Path $vault $path))) { throw "falta $path" } }
+    if ((Get-Content (Join-Path $vault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3$') { throw 'formato incorrecto' }
+    & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id alpha -Title Alpha
+    if (-not (Test-Path (Join-Path $vault '20_domains/alpha/domain.yml'))) { throw 'dominio ausente' }
+    & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    Copy-Item -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml') -Destination (Join-Path $vault '20_domains/alpha/domain.yml.saved')
+    (Get-Content -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml.saved') | Where-Object { $_ -notmatch '^scope:' }) | Set-Content (Join-Path $vault '20_domains/alpha/domain.yml')
+    try {
+        & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+        throw 'check debía rechazar metadata incompleta'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'check debía rechazar metadata incompleta') { throw }
+    }
+    Move-Item -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml.saved') -Destination (Join-Path $vault '20_domains/alpha/domain.yml') -Force
+    '# Índice raíz inválido' | Set-Content (Join-Path $vault 'INDEX.md')
+    try {
+        & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+        throw 'check debía rechazar INDEX.md en raíz'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'check debía rechazar INDEX.md en raíz') { throw }
+    }
+    Remove-Item -LiteralPath (Join-Path $vault 'INDEX.md') -Force
+    & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id api-gateway -Title 'Arquitectura: "R&D/Platform"'
+    if ((Get-Content (Join-Path $vault '20_domains/api-gateway/domain.yml') -Raw) -notlike '*title: "Arquitectura: \"R&D/Platform\""*') { throw 'título de dominio incorrecto' }
+    try {
+        & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id multilinea -Title "primera`nsegunda"
+        throw 'el título multilínea debía fallar'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'el título multilínea debía fallar') { throw }
+    }
+    if (Test-Path (Join-Path $vault '20_domains/multilinea')) { throw 'quedó un dominio parcial' }
+    New-Item -ItemType Directory -Path (Join-Path $vault 'records') | Out-Null
+    '# Legacy record' | Set-Content (Join-Path $vault 'records/2026-10-25--legacy.md')
+    & (Join-Path $root 'scripts/vault.ps1') migration-plan -Vault $vault
+    if (-not (Test-Path (Join-Path $vault '00_inbox/decisions-pending/2026-10-25--legacy.md'))) { throw 'propuesta pendiente ausente' }
+    & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $vault -Domain alpha -Record '2026-10-25--legacy.md'
+    if (-not (Test-Path (Join-Path $vault '20_domains/alpha/records/2026-10-25--legacy.md'))) { throw 'registro no migrado' }
+    '# Protected root file' | Set-Content (Join-Path $vault 'guard.md')
+    try {
+        & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $vault -Domain alpha -Record '../guard.md'
+        throw 'la migración debía rechazar rutas en --record'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'la migración debía rechazar rutas en --record') { throw }
+    }
+    if (-not (Test-Path (Join-Path $vault 'guard.md'))) { throw 'se movió un archivo fuera de records' }
+    if (Test-Path (Join-Path $vault '20_domains/alpha/guard.md')) { throw 'se escribió fuera de records del dominio' }
+    '# Rollback record' | Set-Content (Join-Path $vault 'records/2026-10-25--rollback.md')
+    Move-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md') -Destination (Join-Path $vault '_indexes/action-log.md.saved')
+    New-Item -ItemType Directory -Path (Join-Path $vault '_indexes/action-log.md') | Out-Null
+    try {
+        & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $vault -Domain alpha -Record '2026-10-25--rollback.md'
+        throw 'la migración debía fallar si el log no está disponible'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'la migración debía fallar si el log no está disponible') { throw }
+    }
+    if (-not (Test-Path (Join-Path $vault 'records/2026-10-25--rollback.md'))) { throw 'el registro no fue revertido' }
+    if (Test-Path (Join-Path $vault '20_domains/alpha/records/2026-10-25--rollback.md')) { throw 'el destino quedó tras un rollback' }
+    Remove-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md') -Recurse -Force
+    Move-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md.saved') -Destination (Join-Path $vault '_indexes/action-log.md')
+    Move-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md') -Destination (Join-Path $vault '_indexes/action-log.md.saved')
+    New-Item -ItemType Directory -Path (Join-Path $vault '_indexes/action-log.md') | Out-Null
+    try {
+        & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+        throw 'check debía rechazar un archivo canónico convertido en directorio'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'check debía rechazar un archivo canónico convertido en directorio') { throw }
+    }
+    Remove-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md') -Recurse -Force
+    Move-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md.saved') -Destination (Join-Path $vault '_indexes/action-log.md')
 
-    $legacy = Join-Path $temp 'legacy'
-    New-Item -ItemType Directory -Path (Join-Path $legacy 'mem/workspace/records') -Force | Out-Null
-    $legacyIndex = Join-Path $legacy 'mem/workspace/INDEX.md'
-    [System.IO.File]::WriteAllText($legacyIndex, "# Legacy memory`nLínea preservada`n", [System.Text.UTF8Encoding]::new($false))
-    $legacyIndexHash = (Get-FileHash $legacyIndex).Hash
-    'record' | Set-Content (Join-Path $legacy 'mem/workspace/records/one.md')
-    @('format: 1','workspace_kind: consumer','workspace_format: 1','skill_version: 0.1.0','created_at: 2025-01-01') | Set-Content (Join-Path $legacy 'mem/workspace/.ato-ai-skill-mem-version.yml')
-    & (Join-Path $root 'scripts/bootstrap.ps1') -Target $legacy -MigrateWorkspaceToVault
-    if (Test-Path (Join-Path $legacy 'mem/workspace')) { throw 'la ruta heredada no fue migrada' }
-    if (-not (Test-Path (Join-Path $legacy 'mem/vault/INDEX.md'))) { throw 'falta el vault migrado' }
-    if ((Get-FileHash (Join-Path $legacy 'mem/vault/INDEX.md')).Hash -ne $legacyIndexHash) { throw 'el índice no fue preservado' }
-    if (-not (Test-Path (Join-Path $legacy 'mem/vault/records/one.md'))) { throw 'los records no fueron preservados' }
-    if ((Get-Content (Join-Path $legacy 'mem/vault/.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2$') { throw 'el manifiesto no fue actualizado' }
+    $migrationProject = Join-Path $temp 'migration-consumer'
+    $migrationVault = Join-Path $migrationProject 'mem/vault'
+    New-Item -ItemType Directory -Path (Join-Path $migrationVault 'records') -Force | Out-Null
+    @('format: 1','vault_kind: consumer','vault_format: 2','skill_version: 0.2.0','source_revision: old','source_tag: v0.2.0','created_at: 2026-01-01','updated_at: 2026-01-01') | Set-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml')
+    '# Índice legado' | Set-Content (Join-Path $migrationVault 'INDEX.md')
+    Copy-Item -LiteralPath (Join-Path $migrationVault 'INDEX.md') -Destination (Join-Path $temp 'legacy-index.expected')
+    '# Registro legado' | Set-Content (Join-Path $migrationVault 'records/2026-01-01--legacy&record.md')
+    & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat
+    if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2$') { throw 'el manifiesto cambió antes de finalizar' }
+    if (-not (Test-Path (Join-Path $migrationVault '00_inbox/decisions-pending/2026-01-01--legacy&record.md'))) { throw 'propuesta con carácter especial ausente' }
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat -Finalize
+        throw 'la finalización debía rechazar registros raíz pendientes'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'la finalización debía rechazar registros raíz pendientes') { throw }
+    }
+    if (-not (Test-Path (Join-Path $migrationVault 'INDEX.md'))) { throw 'el índice se movió antes de finalizar' }
+    & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $migrationVault -Id migrated -Title Migrated
+    & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $migrationVault -Domain migrated -Record '2026-01-01--legacy&record.md'
+    & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat -Finalize
+    if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3$') { throw 'el manifiesto no llegó al formato 3' }
+    if (Test-Path (Join-Path $migrationVault 'INDEX.md')) { throw 'el índice legado no fue archivado' }
+    if ((Get-FileHash (Join-Path $temp 'legacy-index.expected')).Hash -ne (Get-FileHash (Join-Path $migrationVault '40_archive/legacy-root-INDEX.md')).Hash) { throw 'el índice legado cambió durante el archivado' }
+    & (Join-Path $root 'scripts/vault.ps1') check -Vault $migrationVault
 
-    $conflict = Join-Path $temp 'conflict'
-    New-Item -ItemType Directory -Path (Join-Path $conflict 'mem/workspace') -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $conflict 'mem/vault') -Force | Out-Null
-    @('format: 1','workspace_kind: consumer','workspace_format: 1') | Set-Content (Join-Path $conflict 'mem/workspace/.ato-ai-skill-mem-version.yml')
-    try { & (Join-Path $root 'scripts/bootstrap.ps1') -Target $conflict -MigrateWorkspaceToVault; throw 'aceptó un destino conflictivo' } catch { if ($_.Exception.Message -eq 'aceptó un destino conflictivo') { throw } }
-    if (-not (Test-Path (Join-Path $conflict 'mem/workspace/.ato-ai-skill-mem-version.yml'))) { throw 'el conflicto modificó el origen' }
+    $conflictProject = Join-Path $temp 'conflict-consumer'
+    $conflictVault = Join-Path $conflictProject 'mem/vault'
+    New-Item -ItemType Directory -Path (Join-Path $conflictVault '40_archive') -Force | Out-Null
+    @('format: 1','vault_kind: consumer','vault_format: 2','skill_version: 0.2.0','source_revision: old','source_tag: v0.2.0','created_at: 2026-01-01','updated_at: 2026-01-01') | Set-Content (Join-Path $conflictVault '.ato-ai-skill-mem-version.yml')
+    '# Índice legado' | Set-Content (Join-Path $conflictVault 'INDEX.md')
+    '# Archivo existente' | Set-Content (Join-Path $conflictVault '40_archive/legacy-root-INDEX.md')
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target $conflictProject -MigrateVaultFormat -Finalize
+        throw 'la finalización debía rechazar un archivo de archivo existente'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'la finalización debía rechazar un archivo de archivo existente') { throw }
+    }
+    if ((Get-Content (Join-Path $conflictVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2$') { throw 'el manifiesto cambió tras un conflicto' }
+    if (-not (Test-Path (Join-Path $conflictVault 'INDEX.md'))) { throw 'el índice cambió tras un conflicto' }
 
-    $sourceFixture = Join-Path $temp 'source-fixture'
-    Copy-Item -LiteralPath $root -Destination $sourceFixture -Recurse
-    Move-Item -LiteralPath (Join-Path $sourceFixture 'vault') -Destination (Join-Path $sourceFixture 'workspace')
-    @('format: 1','workspace_kind: source','workspace_format: 1','skill_version: 0.1.0','created_at: unknown') | Set-Content (Join-Path $sourceFixture 'workspace/.ato-ai-skill-mem-version.yml')
-    & (Join-Path $sourceFixture 'scripts/bootstrap.ps1') -MigrateSourceWorkspaceToVault
-    if ((Test-Path (Join-Path $sourceFixture 'workspace')) -or -not (Test-Path (Join-Path $sourceFixture 'vault/.ato-ai-skill-mem-version.yml'))) { throw 'el vault fuente no fue migrado' }
-
-    $scriptText = Get-Content (Join-Path $root 'scripts/bootstrap.ps1') -Raw
-    if ($scriptText.IndexOf('Write-Marker $oldCreated $markerTemp') -gt $scriptText.IndexOf('Move-Item -LiteralPath $legacyWorkspace -Destination $workspace')) { throw 'el manifiesto no se prepara antes del movimiento' }
-    if ($scriptText -notmatch 'la migración fue revertida' -or $scriptText -notmatch 'Move-Item -LiteralPath \$workspace -Destination \$legacyWorkspace') { throw 'falta el rollback PowerShell' }
-    $status = & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -Status | Out-String
-    if ($status -notmatch 'vault\.state: aligned' -or $status -match 'workspace\.state') { throw 'el diagnóstico conserva vocabulario operativo antiguo' }
-    Write-Output 'pruebas de bootstrap PowerShell superadas'
+    $ambiguousProject = Join-Path $temp 'ambiguous-consumer'
+    $ambiguousVault = Join-Path $ambiguousProject 'mem/vault'
+    New-Item -ItemType Directory -Path $ambiguousVault -Force | Out-Null
+    @('format: 1','vault_kind: consumer','vault_format: 2','vault_format: 2','skill_version: 0.2.0','created_at: 2026-01-01') | Set-Content (Join-Path $ambiguousVault '.ato-ai-skill-mem-version.yml')
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target $ambiguousProject -MigrateVaultFormat
+        throw 'la migración debía rechazar un manifiesto ambiguo'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'la migración debía rechazar un manifiesto ambiguo') { throw }
+    }
+    if (Test-Path (Join-Path $ambiguousVault 'AGENTS.md')) { throw 'un manifiesto ambiguo modificó el layout' }
+    Write-Output 'pruebas de bootstrap y vault PowerShell superadas'
 }
 finally { if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force } }

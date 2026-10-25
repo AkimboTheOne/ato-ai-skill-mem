@@ -5,6 +5,7 @@ set -eu
 TARGET=''
 MODE=''
 INTEGRATE_CODEX=false
+FINALIZE=false
 
 select_mode() {
   [ -z "$MODE" ] || fail 'solo se puede seleccionar una operación'
@@ -23,6 +24,9 @@ Opciones:
   --update-vault        Actualiza el manifiesto de un vault compatible existente.
   --migrate-workspace-to-vault
                         Migra explícitamente mem/workspace a mem/vault.
+  --migrate-vault-format
+                        Prepara la migración explícita de formato 2 a formato 3.
+  --finalize            Finaliza --migrate-vault-format tras resolver registros raíz.
   --source-status       Informa la alineación del vault del repositorio fuente.
   --update-source-vault
                         Actualiza el manifiesto del vault fuente desde un release.
@@ -56,6 +60,14 @@ while [ "$#" -gt 0 ]; do
       select_mode 'migrate-workspace-to-vault'
       shift
       ;;
+    --migrate-vault-format)
+      select_mode 'migrate-vault-format'
+      shift
+      ;;
+    --finalize)
+      FINALIZE=true
+      shift
+      ;;
     --source-status)
       select_mode 'source-status'
       shift
@@ -84,6 +96,7 @@ done
 
 [ -n "$MODE" ] || MODE='bootstrap'
 [ "$INTEGRATE_CODEX" = false ] || [ "$MODE" = 'bootstrap' ] || fail '--integrate-codex solo se admite durante la instalación'
+[ "$FINALIZE" = false ] || [ "$MODE" = 'migrate-vault-format' ] || fail '--finalize solo se admite con --migrate-vault-format'
 
 case "$MODE" in
   source-status|update-source-vault|migrate-source-workspace-to-vault)
@@ -114,7 +127,7 @@ else
   CODEX_ADAPTER_DIR=$TARGET_ROOT/.agents/skills/ato-ai-project-mem
 fi
 
-for required in SKILL.md VERSION WORKSPACE_FORMAT references templates scripts templates/vault/SKILL-VERSION.yml templates/vault/INDEX.md templates/integrations/host-config.yml templates/integrations/codex/SKILL.md; do
+for required in SKILL.md VERSION VAULT_FORMAT references templates scripts scripts/vault.sh templates/vault/SKILL-VERSION.yml templates/vault-layout/AGENTS.md templates/integrations/host-config.yml templates/integrations/codex/SKILL.md; do
   [ -e "$SOURCE_ROOT/$required" ] || fail "falta el componente canónico $required en $SOURCE_ROOT"
 done
 
@@ -122,20 +135,19 @@ SKILL_VERSION=$(tr -d '[:space:]' < "$SOURCE_ROOT/VERSION")
 if ! printf '%s\n' "$SKILL_VERSION" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' >/dev/null; then
   fail "VERSION debe contener una versión semántica numérica (X.Y.Z)"
 fi
-CURRENT_WORKSPACE_FORMAT=$(tr -d '[:space:]' < "$SOURCE_ROOT/WORKSPACE_FORMAT")
-if ! printf '%s\n' "$CURRENT_WORKSPACE_FORMAT" | grep -E '^[1-9][0-9]*$' >/dev/null; then
-  fail "WORKSPACE_FORMAT debe contener un entero positivo"
+CURRENT_VAULT_FORMAT=$(tr -d '[:space:]' < "$SOURCE_ROOT/VAULT_FORMAT")
+if ! printf '%s\n' "$CURRENT_VAULT_FORMAT" | grep -E '^[1-9][0-9]*$' >/dev/null; then
+  fail "VAULT_FORMAT debe contener un entero positivo"
 fi
 EXPECTED_TAG="v$SKILL_VERSION"
 SOURCE_REVISION=$(git -C "$SOURCE_ROOT" rev-parse HEAD 2>/dev/null || printf 'unknown')
 SOURCE_BRANCH=$(git -C "$SOURCE_ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null || printf 'detached-or-unavailable')
 MASTER_REVISION=$(git -C "$SOURCE_ROOT" rev-parse master 2>/dev/null || printf 'unavailable')
 TAG_REVISION=$(git -C "$SOURCE_ROOT" rev-list -n 1 "$EXPECTED_TAG" 2>/dev/null || printf 'unavailable')
-SOURCE_DIRTY=$(git -C "$SOURCE_ROOT" status --porcelain -- AGENTS.md README.md SKILL.md VERSION WORKSPACE_FORMAT references templates scripts 2>/dev/null || printf 'unknown')
 SOURCE_WORKTREE_DIRTY=$(git -C "$SOURCE_ROOT" status --porcelain 2>/dev/null || printf 'unknown')
 SOURCE_TAG='unreleased'
 SOURCE_STATE='not-release-aligned'
-if [ "$SOURCE_BRANCH" = 'master' ] && [ "$SOURCE_REVISION" = "$MASTER_REVISION" ] && [ "$SOURCE_REVISION" = "$TAG_REVISION" ] && [ -z "$SOURCE_DIRTY" ]; then
+if [ "$SOURCE_BRANCH" = 'master' ] && [ "$SOURCE_REVISION" = "$MASTER_REVISION" ] && [ "$SOURCE_REVISION" = "$TAG_REVISION" ] && [ -z "$SOURCE_WORKTREE_DIRTY" ]; then
   SOURCE_TAG=$EXPECTED_TAG
   SOURCE_STATE='release-aligned'
 fi
@@ -150,6 +162,10 @@ CODEX_ADAPTER_TEMPLATE=$SOURCE_ROOT/templates/integrations/codex/SKILL.md
 read_marker() {
   marker_key=$1
   sed -n "s/^$marker_key: *//p" "$VERSION_FILE" | sed -n '1p' | tr -d '"'
+}
+
+marker_key_count() {
+  awk -F: -v key="$1" '$1 == key { count++ } END { print count + 0 }' "$VERSION_FILE"
 }
 
 marker_vault_format() {
@@ -187,7 +203,7 @@ vault_data_compatibility() {
       return
     fi
     printf '%s\n' 'absent'
-  elif [ "$(marker_vault_format)" = "$CURRENT_WORKSPACE_FORMAT" ] && [ -n "$(read_marker vault_format 2>/dev/null || true)" ]; then
+  elif [ "$(marker_vault_format)" = "$CURRENT_VAULT_FORMAT" ] && [ -n "$(read_marker vault_format 2>/dev/null || true)" ]; then
     printf '%s\n' 'compatible'
   else
     printf '%s\n' 'migration-required'
@@ -230,18 +246,23 @@ vault_state() {
   fi
 }
 
-write_marker() {
+render_marker() {
   marker_created_at=$1
+  marker_destination=$2
   marker_date=$(date -u +%Y-%m-%d)
   sed \
     -e "s/^vault_kind: .*/vault_kind: $EXPECTED_WORKSPACE_KIND/" \
     -e "s/^skill_version: .*/skill_version: $SKILL_VERSION/" \
-    -e "s/^vault_format: .*/vault_format: $CURRENT_WORKSPACE_FORMAT/" \
+    -e "s/^vault_format: .*/vault_format: $CURRENT_VAULT_FORMAT/" \
     -e "s/^source_revision: .*/source_revision: $SOURCE_REVISION/" \
     -e "s/^source_tag: .*/source_tag: $SOURCE_TAG/" \
     -e "s/^created_at: .*/created_at: $marker_created_at/" \
     -e "s/^updated_at: .*/updated_at: $marker_date/" \
-    "$SOURCE_ROOT/templates/vault/SKILL-VERSION.yml" > "$VERSION_FILE"
+    "$SOURCE_ROOT/templates/vault/SKILL-VERSION.yml" > "$marker_destination"
+}
+
+write_marker() {
+  render_marker "$1" "$VERSION_FILE"
 }
 
 codex_adapter_is_managed() {
@@ -284,7 +305,7 @@ print_status() {
   printf 'source.revision: %s\n' "$SOURCE_REVISION"
   printf 'source.state: %s\n' "$SOURCE_STATE"
   printf 'vault.format: %s\n' "$(marker_vault_format)"
-  printf 'vault.expected_format: %s\n' "$CURRENT_WORKSPACE_FORMAT"
+  printf 'vault.expected_format: %s\n' "$CURRENT_VAULT_FORMAT"
   printf 'vault.data_compatibility: %s\n' "$(vault_data_compatibility)"
   printf 'vault.kind: %s\n' "$(marker_vault_kind)"
   printf 'vault.expected_kind: %s\n' "$EXPECTED_WORKSPACE_KIND"
@@ -317,7 +338,7 @@ migrate_workspace_to_vault() {
     DESTINATION=$1
     sed -e "s/^vault_kind: .*/vault_kind: $EXPECTED_WORKSPACE_KIND/" \
       -e "s/^skill_version: .*/skill_version: $SKILL_VERSION/" \
-      -e "s/^vault_format: .*/vault_format: $CURRENT_WORKSPACE_FORMAT/" \
+      -e "s/^vault_format: .*/vault_format: $CURRENT_VAULT_FORMAT/" \
       -e "s/^source_revision: .*/source_revision: $SOURCE_REVISION/" \
       -e "s/^source_tag: .*/source_tag: $SOURCE_TAG/" \
       -e "s/^created_at: .*/created_at: $CREATED_AT/" \
@@ -338,6 +359,49 @@ migrate_workspace_to_vault() {
   printf 'migración completada: %s -> %s\n' "$LEGACY_WORKSPACE" "$WORKSPACE"
 }
 
+has_root_records() {
+  [ -d "$WORKSPACE/records" ] && find "$WORKSPACE/records" -maxdepth 1 -type f -name '*.md' -print -quit | grep -q .
+}
+
+migrate_vault_format() {
+  [ -d "$WORKSPACE" ] || fail 'la migración de formato requiere una vault existente'
+  [ ! -d "$LEGACY_WORKSPACE" ] || fail 'existe mem/workspace; ejecuta --migrate-workspace-to-vault explícitamente'
+  [ -f "$VERSION_FILE" ] || fail 'la migración de formato requiere un manifiesto de formato 2'
+  [ "$(marker_key_count vault_format)" = 1 ] && [ "$(marker_key_count vault_kind)" = 1 ] || fail 'el manifiesto de formato 2 es ambiguo'
+  [ "$(read_marker vault_format)" = 2 ] || fail 'la migración de formato solo admite vault_format: 2'
+  [ "$(read_marker vault_kind)" = consumer ] || fail 'la migración de formato solo admite vault_kind: consumer'
+  sh "$SOURCE_ROOT/scripts/vault.sh" migration-plan --vault "$WORKSPACE"
+  if [ "$FINALIZE" = false ]; then
+    printf 'migración de formato preparada: resuelve los registros raíz y ejecuta --migrate-vault-format --finalize\n'
+    return
+  fi
+  has_root_records && fail 'la migración de formato tiene registros raíz pendientes'
+  LEGACY_INDEX=$WORKSPACE/INDEX.md
+  ARCHIVED_INDEX=$WORKSPACE/40_archive/legacy-root-INDEX.md
+  [ ! -e "$LEGACY_INDEX" ] || [ ! -e "$ARCHIVED_INDEX" ] || fail "el índice legado ya existe en el archivo: $ARCHIVED_INDEX"
+  CREATED_AT=$(read_marker created_at 2>/dev/null || printf unknown)
+  [ -n "$CREATED_AT" ] || CREATED_AT=unknown
+  MARKER_TMP=$(mktemp "$WORKSPACE/.ato-ai-vault-marker.XXXXXX") || fail 'no se pudo preparar el manifiesto de formato 3'
+  if ! render_marker "$CREATED_AT" "$MARKER_TMP"; then
+    rm -f "$MARKER_TMP"
+    fail 'no se pudo preparar el manifiesto de formato 3'
+  fi
+  MOVED_INDEX=false
+  if [ -e "$LEGACY_INDEX" ]; then
+    if ! mv "$LEGACY_INDEX" "$ARCHIVED_INDEX"; then
+      rm -f "$MARKER_TMP"
+      fail 'no se pudo archivar el índice legado'
+    fi
+    MOVED_INDEX=true
+  fi
+  if ! mv "$MARKER_TMP" "$VERSION_FILE"; then
+    [ "$MOVED_INDEX" = false ] || mv "$ARCHIVED_INDEX" "$LEGACY_INDEX" || fail 'no se pudo escribir el manifiesto y la reversión del índice también falló'
+    rm -f "$MARKER_TMP"
+    fail 'no se pudo escribir el manifiesto; la migración fue revertida'
+  fi
+  printf 'migración de formato completada: vault_format 2 -> 3\n'
+}
+
 if [ "$MODE" = 'status' ] || [ "$MODE" = 'source-status' ]; then
   print_status
   exit 0
@@ -348,6 +412,11 @@ if [ "$MODE" = 'migrate-workspace-to-vault' ] || [ "$MODE" = 'migrate-source-wor
     [ -e "$MEM_DIR" ] && [ -d "$MEM_DIR" ] || fail "la instancia no es un directorio: $MEM_DIR"
   fi
   migrate_workspace_to_vault
+  exit 0
+fi
+
+if [ "$MODE" = 'migrate-vault-format' ]; then
+  migrate_vault_format
   exit 0
 fi
 
@@ -428,21 +497,19 @@ ensure_link() {
   fi
 }
 
-for linked_item in SKILL.md VERSION WORKSPACE_FORMAT references templates scripts; do
+for linked_item in SKILL.md VERSION VAULT_FORMAT references templates scripts; do
   validate_link_destination "$SOURCE_ROOT/$linked_item" "$MEM_DIR/$linked_item"
 done
 
 mkdir -p "$MEM_DIR"
-for linked_item in SKILL.md VERSION WORKSPACE_FORMAT references templates scripts; do
+for linked_item in SKILL.md VERSION VAULT_FORMAT references templates scripts; do
   ensure_link "$SOURCE_ROOT/$linked_item" "$MEM_DIR/$linked_item"
 done
 
 WORKSPACE_EXISTED=false
 [ -d "$WORKSPACE" ] && WORKSPACE_EXISTED=true
-mkdir -p "$WORKSPACE/records"
-if [ ! -e "$WORKSPACE/INDEX.md" ]; then
-  cp "$SOURCE_ROOT/templates/vault/INDEX.md" "$WORKSPACE/INDEX.md"
-fi
+mkdir -p "$WORKSPACE"
+sh "$SOURCE_ROOT/scripts/vault.sh" init-layout --vault "$WORKSPACE"
 
 if [ "$MODE" = 'update-vault' ] || [ ! -f "$VERSION_FILE" ]; then
   CREATED_AT=$(date -u +%Y-%m-%d)

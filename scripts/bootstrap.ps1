@@ -4,6 +4,8 @@ param(
     [switch]$Status,
     [switch]$UpdateVault,
     [switch]$MigrateWorkspaceToVault,
+    [switch]$MigrateVaultFormat,
+    [switch]$Finalize,
     [switch]$SourceStatus,
     [switch]$UpdateSourceVault,
     [switch]$MigrateSourceWorkspaceToVault,
@@ -24,12 +26,15 @@ function Fail([string]$Message) {
     throw "error: $Message"
 }
 
-$operationCount = [int]$Status.IsPresent + [int]$UpdateVault.IsPresent + [int]$MigrateWorkspaceToVault.IsPresent + [int]$SourceStatus.IsPresent + [int]$UpdateSourceVault.IsPresent + [int]$MigrateSourceWorkspaceToVault.IsPresent
+$operationCount = [int]$Status.IsPresent + [int]$UpdateVault.IsPresent + [int]$MigrateWorkspaceToVault.IsPresent + [int]$MigrateVaultFormat.IsPresent + [int]$SourceStatus.IsPresent + [int]$UpdateSourceVault.IsPresent + [int]$MigrateSourceWorkspaceToVault.IsPresent
 if ($operationCount -gt 1) {
     Fail 'solo se puede seleccionar una operación'
 }
 if ($IntegrateCodex -and $operationCount -gt 0) {
     Fail '-IntegrateCodex solo se admite durante la instalación'
+}
+if ($Finalize -and -not $MigrateVaultFormat) {
+    Fail '-Finalize solo se admite con -MigrateVaultFormat'
 }
 $sourceModeCount = [int]$SourceStatus.IsPresent + [int]$UpdateSourceVault.IsPresent + [int]$MigrateSourceWorkspaceToVault.IsPresent
 if ($sourceModeCount -gt 0 -and -not [string]::IsNullOrWhiteSpace($Target)) {
@@ -91,7 +96,7 @@ function Assert-LinkDestination([string]$Source, [string]$Destination) {
     }
 }
 
-foreach ($required in @('SKILL.md', 'VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts', 'templates/vault/SKILL-VERSION.yml', 'templates/vault/INDEX.md', 'templates/integrations/host-config.yml', 'templates/integrations/codex/SKILL.md')) {
+foreach ($required in @('SKILL.md', 'VERSION', 'VAULT_FORMAT', 'references', 'templates', 'scripts', 'scripts/vault.ps1', 'templates/vault/SKILL-VERSION.yml', 'templates/vault-layout/AGENTS.md', 'templates/integrations/host-config.yml', 'templates/integrations/codex/SKILL.md')) {
     if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot $required))) {
         Fail "falta el componente canónico $required en $sourceRoot"
     }
@@ -101,9 +106,9 @@ $skillVersion = (Get-Content -LiteralPath (Join-Path $sourceRoot 'VERSION') -Raw
 if ($skillVersion -notmatch '^\d+\.\d+\.\d+$') {
     Fail 'VERSION debe contener una versión semántica numérica (X.Y.Z)'
 }
-$currentWorkspaceFormat = (Get-Content -LiteralPath (Join-Path $sourceRoot 'WORKSPACE_FORMAT') -Raw).Trim()
-if ($currentWorkspaceFormat -notmatch '^[1-9]\d*$') {
-    Fail 'WORKSPACE_FORMAT debe contener un entero positivo'
+$currentVaultFormat = (Get-Content -LiteralPath (Join-Path $sourceRoot 'VAULT_FORMAT') -Raw).Trim()
+if ($currentVaultFormat -notmatch '^[1-9]\d*$') {
+    Fail 'VAULT_FORMAT debe contener un entero positivo'
 }
 $expectedTag = "v$skillVersion"
 function Get-GitValue([string[]]$Arguments, [string]$Fallback) {
@@ -118,13 +123,6 @@ $sourceRevision = Get-GitValue @('rev-parse', 'HEAD') 'unknown'
 $sourceBranch = Get-GitValue @('symbolic-ref', '--quiet', '--short', 'HEAD') 'detached-or-unavailable'
 $masterRevision = Get-GitValue @('rev-parse', 'master') 'unavailable'
 $tagRevision = Get-GitValue @('rev-list', '-n', '1', $expectedTag) 'unavailable'
-$sourceDirty = & git -C $sourceRoot status --porcelain -- AGENTS.md README.md SKILL.md VERSION WORKSPACE_FORMAT references templates scripts 2>$null
-if ($LASTEXITCODE -ne 0) {
-    $sourceDirty = 'unknown'
-}
-else {
-    $sourceDirty = ($sourceDirty -join "`n").Trim()
-}
 $sourceWorktreeDirty = & git -C $sourceRoot status --porcelain 2>$null
 if ($LASTEXITCODE -ne 0) {
     $sourceWorktreeDirty = 'unknown'
@@ -134,7 +132,7 @@ else {
 }
 $sourceTag = 'unreleased'
 $sourceState = 'not-release-aligned'
-if ($sourceBranch -eq 'master' -and $sourceRevision -eq $masterRevision -and $sourceRevision -eq $tagRevision -and [string]::IsNullOrEmpty($sourceDirty)) {
+if ($sourceBranch -eq 'master' -and $sourceRevision -eq $masterRevision -and $sourceRevision -eq $tagRevision -and [string]::IsNullOrEmpty($sourceWorktreeDirty)) {
     $sourceTag = $expectedTag
     $sourceState = 'release-aligned'
 }
@@ -143,6 +141,10 @@ function Get-MarkerValue([string]$Key) {
     $line = Get-Content -LiteralPath $versionFile | Where-Object { $_ -match "^${Key}:\s*(.*)$" } | Select-Object -First 1
     if ($null -eq $line) { return '' }
     return (($line -replace "^${Key}:\s*", '') -replace '"', '').Trim()
+}
+function Get-MarkerKeyCount([string]$Key) {
+    if (-not (Test-Path -LiteralPath $versionFile)) { return 0 }
+    return @((Get-Content -LiteralPath $versionFile | Where-Object { $_ -match "^${Key}:" })).Count
 }
 function Get-MarkerWorkspaceFormat {
     if (-not (Test-Path -LiteralPath $versionFile)) { return '1' }
@@ -160,7 +162,7 @@ function Get-MarkerWorkspaceKind {
 }
 function Get-WorkspaceDataCompatibility {
     if (-not (Test-Path -LiteralPath $workspace)) { if (Test-Path -LiteralPath $legacyWorkspace) { return 'migration-required' }; return 'absent' }
-    if ((Get-MarkerWorkspaceFormat) -eq $currentWorkspaceFormat -and -not [string]::IsNullOrWhiteSpace((Get-MarkerValue 'vault_format'))) { return 'compatible' }
+    if ((Get-MarkerWorkspaceFormat) -eq $currentVaultFormat -and -not [string]::IsNullOrWhiteSpace((Get-MarkerValue 'vault_format'))) { return 'compatible' }
     return 'migration-required'
 }
 function Get-VersionRelation([string]$WorkspaceVersion) {
@@ -193,7 +195,7 @@ function Write-Marker([string]$CreatedAt, [string]$Destination = $versionFile) {
     $marker = Get-Content -LiteralPath (Join-Path $sourceRoot 'templates/vault/SKILL-VERSION.yml') -Raw
     $marker = $marker -replace '(?m)^vault_kind: .*$', "vault_kind: $expectedWorkspaceKind"
     $marker = $marker -replace '(?m)^skill_version: .*$', "skill_version: $skillVersion"
-    $marker = $marker -replace '(?m)^vault_format: .*$', "vault_format: $currentWorkspaceFormat"
+    $marker = $marker -replace '(?m)^vault_format: .*$', "vault_format: $currentVaultFormat"
     $marker = $marker -replace '(?m)^source_revision: .*$', "source_revision: $sourceRevision"
     $marker = $marker -replace '(?m)^source_tag: .*$', "source_tag: $sourceTag"
     $marker = $marker -replace '(?m)^created_at: .*$', "created_at: $CreatedAt"
@@ -249,7 +251,7 @@ function Write-Status {
     Write-Output "source.revision: $sourceRevision"
     Write-Output "source.state: $sourceState"
     Write-Output "vault.format: $(Get-MarkerWorkspaceFormat)"
-    Write-Output "vault.expected_format: $currentWorkspaceFormat"
+    Write-Output "vault.expected_format: $currentVaultFormat"
     Write-Output "vault.data_compatibility: $(Get-WorkspaceDataCompatibility)"
     Write-Output "vault.kind: $(Get-MarkerWorkspaceKind)"
     Write-Output "vault.expected_kind: $expectedWorkspaceKind"
@@ -312,6 +314,51 @@ if ($MigrateWorkspaceToVault -or $MigrateSourceWorkspaceToVault) {
     exit 0
 }
 
+if ($MigrateVaultFormat) {
+    if (-not (Test-Path -LiteralPath $workspace -PathType Container)) { Fail 'la migración de formato requiere una vault existente' }
+    if (Test-Path -LiteralPath $legacyWorkspace -PathType Container) { Fail 'existe mem/workspace; ejecuta -MigrateWorkspaceToVault explícitamente' }
+    if (-not (Test-Path -LiteralPath $versionFile -PathType Leaf)) { Fail 'la migración de formato requiere un manifiesto de formato 2' }
+    if ((Get-MarkerKeyCount 'vault_format') -ne 1 -or (Get-MarkerKeyCount 'vault_kind') -ne 1) { Fail 'el manifiesto de formato 2 es ambiguo' }
+    if ((Get-MarkerValue 'vault_format') -ne '2') { Fail 'la migración de formato solo admite vault_format: 2' }
+    if ((Get-MarkerValue 'vault_kind') -ne 'consumer') { Fail 'la migración de formato solo admite vault_kind: consumer' }
+    & (Join-Path $sourceRoot 'scripts/vault.ps1') migration-plan -Vault $workspace
+    if (-not $Finalize) {
+        Write-Output 'migración de formato preparada: resuelve los registros raíz y ejecuta -MigrateVaultFormat -Finalize'
+        exit 0
+    }
+    $rootRecords = Join-Path $workspace 'records'
+    if ((Test-Path -LiteralPath $rootRecords -PathType Container) -and $null -ne (Get-ChildItem -LiteralPath $rootRecords -File -Filter '*.md' | Select-Object -First 1)) { Fail 'la migración de formato tiene registros raíz pendientes' }
+    $legacyIndex = Join-Path $workspace 'INDEX.md'
+    $archivedIndex = Join-Path $workspace '40_archive/legacy-root-INDEX.md'
+    if ((Test-Path -LiteralPath $legacyIndex) -and (Test-Path -LiteralPath $archivedIndex)) { Fail "el índice legado ya existe en el archivo: $archivedIndex" }
+    $createdAt = Get-MarkerValue 'created_at'
+    if ([string]::IsNullOrWhiteSpace($createdAt)) { $createdAt = 'unknown' }
+    $markerTemp = Join-Path $workspace ('.ato-ai-vault-marker-' + [guid]::NewGuid() + '.yml')
+    $movedIndex = $false
+    try {
+        Write-Marker $createdAt $markerTemp
+        if (Test-Path -LiteralPath $legacyIndex) {
+            Move-Item -LiteralPath $legacyIndex -Destination $archivedIndex
+            $movedIndex = $true
+        }
+        try {
+            Move-Item -LiteralPath $markerTemp -Destination $versionFile -Force
+        }
+        catch {
+            if ($movedIndex) {
+                try { Move-Item -LiteralPath $archivedIndex -Destination $legacyIndex }
+                catch { throw "no se pudo escribir el manifiesto y la reversión del índice también falló: $($_.Exception.Message)" }
+            }
+            throw 'no se pudo escribir el manifiesto; la migración fue revertida'
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $markerTemp) { Remove-Item -LiteralPath $markerTemp -Force -ErrorAction SilentlyContinue }
+    }
+    Write-Output 'migración de formato completada: vault_format 2 -> 3'
+    exit 0
+}
+
 if ($UpdateSourceVault) {
     if (-not (Test-Path -LiteralPath $workspace)) {
         Fail 'la actualización del vault fuente requiere vault/'
@@ -368,21 +415,18 @@ if ($UpdateVault -and (Get-WorkspaceState) -notin @('legacy-compatible', 'compat
 }
 if (Test-Path -LiteralPath $legacyWorkspace -PathType Container) { Fail 'existe mem/workspace; ejecuta -MigrateWorkspaceToVault explícitamente' }
 
-foreach ($linkedItem in @('SKILL.md', 'VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts')) {
+foreach ($linkedItem in @('SKILL.md', 'VERSION', 'VAULT_FORMAT', 'references', 'templates', 'scripts')) {
     Assert-LinkDestination (Join-Path $sourceRoot $linkedItem) (Join-Path $memDir $linkedItem)
 }
 
 [System.IO.Directory]::CreateDirectory($memDir) | Out-Null
-foreach ($linkedItem in @('SKILL.md', 'VERSION', 'WORKSPACE_FORMAT', 'references', 'templates', 'scripts')) {
+foreach ($linkedItem in @('SKILL.md', 'VERSION', 'VAULT_FORMAT', 'references', 'templates', 'scripts')) {
     Ensure-Symlink (Join-Path $sourceRoot $linkedItem) (Join-Path $memDir $linkedItem)
 }
 
 $workspaceExisted = Test-Path -LiteralPath $workspace
-[System.IO.Directory]::CreateDirectory((Join-Path $workspace 'records')) | Out-Null
-$index = Join-Path $workspace 'INDEX.md'
-if (-not (Test-Path -LiteralPath $index)) {
-    Copy-Item -LiteralPath (Join-Path $sourceRoot 'templates/vault/INDEX.md') -Destination $index
-}
+[System.IO.Directory]::CreateDirectory($workspace) | Out-Null
+& (Join-Path $sourceRoot 'scripts/vault.ps1') init-layout -Vault $workspace
 
 if ($UpdateVault -or -not (Test-Path -LiteralPath $versionFile)) {
     $createdAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')

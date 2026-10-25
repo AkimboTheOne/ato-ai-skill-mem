@@ -2,9 +2,9 @@
 # inicializó o actualizó explícitamente este vault; no es contenido de memoria.
 format: 1
 vault_kind: source
-vault_format: 2
-skill_version: 0.2.0
-source_revision: 440437435859a8f624ae578cc7710d3a79770785
+vault_format: 3
+skill_version: 0.3.0
+source_revision: 38150ece3e49acc53a4341c3fe524a1952c583cb
 source_tag: unreleased
 created_at: unknown
 updated_at: 2026-10-25

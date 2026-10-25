@@ -12,7 +12,8 @@ está exclusivamente en `mem/vault/`.
 1. Lee y sigue `mem/SKILL.md` antes de consultar o modificar memoria.
 2. Ejecuta `mem/scripts/bootstrap.sh --target . --status` o el equivalente de
    PowerShell para diagnosticar versión, formato y compatibilidad sin escribir.
-3. Lee `mem/vault/INDEX.md` y solo los registros pertinentes.
+3. Lee `mem/vault/AGENTS.md`, `_indexes/INDEX.md` y solo el dominio pertinente
+   en `mem/vault/20_domains/`.
 4. Escribe memoria únicamente por petición humana explícita.
 
 No uses el `vault/` del repositorio fuente del skill. No copies, reemplaces

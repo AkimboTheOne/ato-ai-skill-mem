@@ -1,56 +1,95 @@
 #!/bin/sh
-
 set -eu
-
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 TEMP_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEMP_ROOT"' EXIT
-
 PROJECT=$TEMP_ROOT/consumer
 mkdir -p "$PROJECT"
-printf '%s\n' before > "$PROJECT/AGENTS.md"
-cp "$PROJECT/AGENTS.md" "$PROJECT/AGENTS.before"
-
 "$ROOT/scripts/bootstrap.sh" --target "$PROJECT"
-[ -f "$PROJECT/mem/vault/INDEX.md" ]
-[ -f "$PROJECT/mem/vault/.ato-ai-skill-mem-version.yml" ]
-[ "$(sed -n 's/^vault_kind: *//p' "$PROJECT/mem/vault/.ato-ai-skill-mem-version.yml")" = consumer ]
-[ "$(sed -n 's/^vault_format: *//p' "$PROJECT/mem/vault/.ato-ai-skill-mem-version.yml")" = 2 ]
-[ -d "$PROJECT/mem/vault/records" ]
-cmp -s "$PROJECT/AGENTS.md" "$PROJECT/AGENTS.before"
-"$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --status | grep -F -x 'vault.state: aligned' >/dev/null
+VAULT=$PROJECT/mem/vault
+[ -L "$PROJECT/mem/VAULT_FORMAT" ]
+[ -f "$VAULT/AGENTS.md" ]
+[ -d "$VAULT/00_inbox/decisions-pending" ]
+[ -d "$VAULT/20_domains" ]
+[ -d "$VAULT/_templates" ]
+[ "$(sed -n 's/^vault_format: *//p' "$VAULT/.ato-ai-skill-mem-version.yml")" = 3 ]
+sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id alpha --title Alpha
+[ -f "$VAULT/20_domains/alpha/AGENTS.md" ]
+[ -f "$VAULT/20_domains/alpha/domain.yml" ]
+sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+cp "$VAULT/20_domains/alpha/domain.yml" "$VAULT/20_domains/alpha/domain.yml.saved"
+grep -v '^scope:' "$VAULT/20_domains/alpha/domain.yml.saved" > "$VAULT/20_domains/alpha/domain.yml"
+if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+mv "$VAULT/20_domains/alpha/domain.yml.saved" "$VAULT/20_domains/alpha/domain.yml"
+printf '%s\n' '# Índice raíz inválido' > "$VAULT/INDEX.md"
+if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+rm "$VAULT/INDEX.md"
+sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id api-gateway --title 'Arquitectura: "R&D/Platform"'
+[ "$(sed -n 's/^title: *//p' "$VAULT/20_domains/api-gateway/domain.yml")" = '"Arquitectura: \"R&D/Platform\""' ]
+if sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id Alpha >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id multilinea --title 'primera
+segunda' >/dev/null 2>&1; then exit 1; fi
+[ ! -e "$VAULT/20_domains/multilinea" ]
+mkdir -p "$VAULT/records"
+printf '%s\n' '# Legacy record' > "$VAULT/records/2026-10-25--legacy.md"
+sh "$ROOT/scripts/vault.sh" migration-plan --vault "$VAULT"
+[ -f "$VAULT/00_inbox/decisions-pending/2026-10-25--legacy.md" ]
+sh "$ROOT/scripts/vault.sh" migration-apply --vault "$VAULT" --domain alpha --record 2026-10-25--legacy.md
+[ -f "$VAULT/20_domains/alpha/records/2026-10-25--legacy.md" ]
+grep -F 'migration-apply' "$VAULT/_indexes/action-log.md" >/dev/null
+printf '%s\n' '# Protected root file' > "$VAULT/guard.md"
+if sh "$ROOT/scripts/vault.sh" migration-apply --vault "$VAULT" --domain alpha --record ../guard.md >/dev/null 2>&1; then exit 1; fi
+[ -f "$VAULT/guard.md" ]
+[ ! -e "$VAULT/20_domains/alpha/guard.md" ]
+printf '%s\n' '# Rollback record' > "$VAULT/records/2026-10-25--rollback.md"
+mv "$VAULT/_indexes/action-log.md" "$VAULT/_indexes/action-log.md.saved"
+mkdir "$VAULT/_indexes/action-log.md"
+if sh "$ROOT/scripts/vault.sh" migration-apply --vault "$VAULT" --domain alpha --record 2026-10-25--rollback.md >/dev/null 2>&1; then exit 1; fi
+[ -f "$VAULT/records/2026-10-25--rollback.md" ]
+[ ! -e "$VAULT/20_domains/alpha/records/2026-10-25--rollback.md" ]
+rm -rf "$VAULT/_indexes/action-log.md"
+mv "$VAULT/_indexes/action-log.md.saved" "$VAULT/_indexes/action-log.md"
+mv "$VAULT/_indexes/action-log.md" "$VAULT/_indexes/action-log.md.saved"
+mkdir "$VAULT/_indexes/action-log.md"
+if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+rm -rf "$VAULT/_indexes/action-log.md"
+mv "$VAULT/_indexes/action-log.md.saved" "$VAULT/_indexes/action-log.md"
 
-"$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --integrate-codex
-cmp -s "$PROJECT/.ato-ai-skill-mem.yml" "$ROOT/templates/integrations/host-config.yml"
-grep -F -x '  path: mem/vault' "$PROJECT/.ato-ai-skill-mem.yml" >/dev/null
-grep -F 'mem/vault' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev/null
+MIGRATION_PROJECT=$TEMP_ROOT/migration-consumer
+mkdir -p "$MIGRATION_PROJECT/mem/vault/records"
+MIGRATION_VAULT=$MIGRATION_PROJECT/mem/vault
+printf '%s\n' 'format: 1' 'vault_kind: consumer' 'vault_format: 2' 'skill_version: 0.2.0' 'source_revision: old' 'source_tag: v0.2.0' 'created_at: 2026-01-01' 'updated_at: 2026-01-01' > "$MIGRATION_VAULT/.ato-ai-skill-mem-version.yml"
+printf '%s\n' '# Índice legado' > "$MIGRATION_VAULT/INDEX.md"
+cp "$MIGRATION_VAULT/INDEX.md" "$TEMP_ROOT/legacy-index.expected"
+printf '%s\n' '# Registro legado' > "$MIGRATION_VAULT/records/2026-01-01--legacy&record.md"
+"$ROOT/scripts/bootstrap.sh" --target "$MIGRATION_PROJECT" --migrate-vault-format
+[ "$(sed -n 's/^vault_format: *//p' "$MIGRATION_VAULT/.ato-ai-skill-mem-version.yml")" = 2 ]
+[ -f "$MIGRATION_VAULT/00_inbox/decisions-pending/2026-01-01--legacy&record.md" ]
+if "$ROOT/scripts/bootstrap.sh" --target "$MIGRATION_PROJECT" --migrate-vault-format --finalize >/dev/null 2>&1; then exit 1; fi
+[ -f "$MIGRATION_VAULT/INDEX.md" ]
+sh "$ROOT/scripts/vault.sh" create-domain --vault "$MIGRATION_VAULT" --id migrated --title Migrated
+sh "$ROOT/scripts/vault.sh" migration-apply --vault "$MIGRATION_VAULT" --domain migrated --record '2026-01-01--legacy&record.md'
+"$ROOT/scripts/bootstrap.sh" --target "$MIGRATION_PROJECT" --migrate-vault-format --finalize
+[ "$(sed -n 's/^vault_format: *//p' "$MIGRATION_VAULT/.ato-ai-skill-mem-version.yml")" = 3 ]
+[ ! -e "$MIGRATION_VAULT/INDEX.md" ]
+cmp "$TEMP_ROOT/legacy-index.expected" "$MIGRATION_VAULT/40_archive/legacy-root-INDEX.md"
+sh "$ROOT/scripts/vault.sh" check --vault "$MIGRATION_VAULT"
 
-LEGACY=$TEMP_ROOT/legacy
-mkdir -p "$LEGACY/mem/workspace/records"
-printf '%s\n' '# Legacy memory' > "$LEGACY/mem/workspace/INDEX.md"
-printf '%s\n' record > "$LEGACY/mem/workspace/records/one.md"
-cat > "$LEGACY/mem/workspace/.ato-ai-skill-mem-version.yml" <<'EOF'
-format: 1
-workspace_kind: consumer
-workspace_format: 1
-skill_version: 0.1.0
-created_at: 2025-01-01
-EOF
-"$ROOT/scripts/bootstrap.sh" --target "$LEGACY" --status | grep -F -x 'vault.data_compatibility: migration-required' >/dev/null
-if "$ROOT/scripts/bootstrap.sh" --target "$LEGACY" >/dev/null 2>&1; then exit 1; fi
-"$ROOT/scripts/bootstrap.sh" --target "$LEGACY" --migrate-workspace-to-vault
-[ ! -e "$LEGACY/mem/workspace" ]
-[ -f "$LEGACY/mem/vault/records/one.md" ]
-[ "$(cat "$LEGACY/mem/vault/INDEX.md")" = '# Legacy memory' ]
-[ "$(sed -n 's/^vault_format: *//p' "$LEGACY/mem/vault/.ato-ai-skill-mem-version.yml")" = 2 ]
+CONFLICT_PROJECT=$TEMP_ROOT/conflict-consumer
+mkdir -p "$CONFLICT_PROJECT/mem/vault/40_archive"
+CONFLICT_VAULT=$CONFLICT_PROJECT/mem/vault
+printf '%s\n' 'format: 1' 'vault_kind: consumer' 'vault_format: 2' 'skill_version: 0.2.0' 'source_revision: old' 'source_tag: v0.2.0' 'created_at: 2026-01-01' 'updated_at: 2026-01-01' > "$CONFLICT_VAULT/.ato-ai-skill-mem-version.yml"
+printf '%s\n' '# Índice legado' > "$CONFLICT_VAULT/INDEX.md"
+printf '%s\n' '# Archivo existente' > "$CONFLICT_VAULT/40_archive/legacy-root-INDEX.md"
+if "$ROOT/scripts/bootstrap.sh" --target "$CONFLICT_PROJECT" --migrate-vault-format --finalize >/dev/null 2>&1; then exit 1; fi
+[ "$(sed -n 's/^vault_format: *//p' "$CONFLICT_VAULT/.ato-ai-skill-mem-version.yml")" = 2 ]
+[ -f "$CONFLICT_VAULT/INDEX.md" ]
 
-CONFLICT=$TEMP_ROOT/conflict
-mkdir -p "$CONFLICT/mem/workspace" "$CONFLICT/mem/vault"
-printf '%s\n' old > "$CONFLICT/mem/workspace/INDEX.md"
-if "$ROOT/scripts/bootstrap.sh" --target "$CONFLICT" --migrate-workspace-to-vault >/dev/null 2>&1; then exit 1; fi
-[ -d "$CONFLICT/mem/workspace" ]
-
-if "$ROOT/scripts/bootstrap.sh" --target "$ROOT" --status >/dev/null 2>&1; then exit 1; fi
-"$ROOT/scripts/bootstrap.sh" --source-status | grep -F -x 'vault.kind: source' >/dev/null
-
-printf 'pruebas de bootstrap superadas\n'
+AMBIGUOUS_PROJECT=$TEMP_ROOT/ambiguous-consumer
+mkdir -p "$AMBIGUOUS_PROJECT/mem/vault"
+AMBIGUOUS_VAULT=$AMBIGUOUS_PROJECT/mem/vault
+printf '%s\n' 'format: 1' 'vault_kind: consumer' 'vault_format: 2' 'vault_format: 2' 'skill_version: 0.2.0' 'created_at: 2026-01-01' > "$AMBIGUOUS_VAULT/.ato-ai-skill-mem-version.yml"
+if "$ROOT/scripts/bootstrap.sh" --target "$AMBIGUOUS_PROJECT" --migrate-vault-format >/dev/null 2>&1; then exit 1; fi
+[ ! -e "$AMBIGUOUS_VAULT/AGENTS.md" ]
+printf 'pruebas de bootstrap y vault superadas\n'

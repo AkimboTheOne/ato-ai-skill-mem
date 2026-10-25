@@ -7,7 +7,7 @@ este archivo no las duplica.
 
 ## Versionado del skill y del vault
 
-Al cargar el skill, lee `VERSION`, `WORKSPACE_FORMAT` y, si existe,
+Al cargar el skill, lee `VERSION`, `VAULT_FORMAT` y, si existe,
 `vault/.ato-ai-skill-mem-version.yml`. Comunica el diagnóstico de estado,
 versión, formato, compatibilidad y modo antes de operar memoria. Aplica los
 modos, su orden de prioridad y las condiciones de actualización definidos en
@@ -34,7 +34,7 @@ compuesta. Sigue el contrato de contexto y propiedad del vault de
 delegar en esta skill, pero no cambian quién posee los datos ni habilitan una
 integración automática. El bootstrap implementa instalación de proyecto y un
 adaptador de Codex; otros contextos requieren instrucciones explícitas del
-anfitrión. No afirmes sincronización automática o fusión entre workspaces de
+anfitrión. No afirmes sincronización automática o fusión entre vaults de
 proyectos distintos: Git puede versionar la memoria de cada consumidor,
 mientras que compartir conocimiento entre proyectos requiere promoción
 deliberada.
