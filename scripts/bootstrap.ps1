@@ -25,6 +25,14 @@ $sourceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 function Fail([string]$Message) {
     throw "error: $Message"
 }
+function Test-LocalFile([string]$Path) {
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    return $null -ne $item -and -not $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink'
+}
+function Test-LocalDirectory([string]$Path) {
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    return $null -ne $item -and $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink'
+}
 
 $operationCount = [int]$Status.IsPresent + [int]$UpdateVault.IsPresent + [int]$MigrateWorkspaceToVault.IsPresent + [int]$MigrateVaultFormat.IsPresent + [int]$SourceStatus.IsPresent + [int]$UpdateSourceVault.IsPresent + [int]$MigrateSourceWorkspaceToVault.IsPresent
 if ($operationCount -gt 1) {
@@ -321,13 +329,15 @@ if ($MigrateVaultFormat) {
     if ((Get-MarkerKeyCount 'vault_format') -ne 1 -or (Get-MarkerKeyCount 'vault_kind') -ne 1) { Fail 'el manifiesto de formato 2 es ambiguo' }
     if ((Get-MarkerValue 'vault_format') -ne '2') { Fail 'la migración de formato solo admite vault_format: 2' }
     if ((Get-MarkerValue 'vault_kind') -ne 'consumer') { Fail 'la migración de formato solo admite vault_kind: consumer' }
-    & (Join-Path $sourceRoot 'scripts/vault.ps1') migration-plan -Vault $workspace
     if (-not $Finalize) {
+        & (Join-Path $sourceRoot 'scripts/vault.ps1') migration-plan -Vault $workspace
         Write-Output 'migración de formato preparada: resuelve los registros raíz y ejecuta -MigrateVaultFormat -Finalize'
         exit 0
     }
     $rootRecords = Join-Path $workspace 'records'
-    if ((Test-Path -LiteralPath $rootRecords -PathType Container) -and $null -ne (Get-ChildItem -LiteralPath $rootRecords -File -Filter '*.md' | Select-Object -First 1)) { Fail 'la migración de formato tiene registros raíz pendientes' }
+    foreach ($directory in @('00_inbox','10_areas','20_domains','30_resources','40_archive','50_daily','60_exports','_indexes','_maps','_templates')) { if (-not (Test-LocalDirectory (Join-Path $workspace $directory))) { Fail 'la finalización requiere una migración de formato previamente preparada' } }
+    foreach ($file in @('AGENTS.md','_indexes/INDEX.md','_indexes/action-log.md','_maps/INDEX.md')) { if (-not (Test-LocalFile (Join-Path $workspace $file))) { Fail 'la finalización requiere una migración de formato previamente preparada' } }
+    if ((Test-Path -LiteralPath $rootRecords -PathType Container) -and $null -ne (Get-ChildItem -LiteralPath $rootRecords -Force | Select-Object -First 1)) { Fail "la migración de formato tiene contenido pendiente en records/: $((Get-ChildItem -LiteralPath $rootRecords -Force | Select-Object -First 1).FullName)" }
     $legacyIndex = Join-Path $workspace 'INDEX.md'
     $archivedIndex = Join-Path $workspace '40_archive/legacy-root-INDEX.md'
     if ((Test-Path -LiteralPath $legacyIndex) -and (Test-Path -LiteralPath $archivedIndex)) { Fail "el índice legado ya existe en el archivo: $archivedIndex" }

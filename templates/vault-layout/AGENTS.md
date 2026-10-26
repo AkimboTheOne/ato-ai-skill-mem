@@ -1,11 +1,11 @@
 # Guía maestra de la vault
 
-Esta vault es un módulo contextual portable. Lee primero `_indexes/INDEX.md`,
-los mapas o áreas relevantes y después abre únicamente el dominio necesario.
+Esta vault es un módulo contextual portable. `SKILL.md` define activación,
+autoridad y precedencia. Para leer, abre primero `_indexes/INDEX.md`, los mapas
+o áreas relevantes y después únicamente el dominio necesario.
 
 ## Reglas no anulables
 
-- Escribe, mueve, archiva o exporta contenido solo por petición explícita.
 - El baseline actual no ejecuta reglas de routing automáticas:
   `domain.yml` declara `routing.rules: []`. Cualquier extensión futura debe
   ser determinista, basarse exclusivamente en metadata explícita y quedar
@@ -16,5 +16,5 @@ los mapas o áreas relevantes y después abre únicamente el dominio necesario.
   un conflicto.
 - Envía los casos sin regla aplicable a `00_inbox/decisions-pending/`.
 
-Los `AGENTS.md` de dominio pueden añadir contexto local, pero no relajan estas
-reglas.
+Los `AGENTS.md` de dominio pueden añadir contexto local o restricciones, pero
+no relajan estas reglas ni las de `SKILL.md`.

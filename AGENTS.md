@@ -7,11 +7,10 @@ este archivo no las duplica.
 
 ## Versionado del skill y del vault
 
-Al cargar el skill, lee `VERSION`, `VAULT_FORMAT` y, si existe,
-`vault/.ato-ai-skill-mem-version.yml`. Comunica el diagnóstico de estado,
-versión, formato, compatibilidad y modo antes de operar memoria. Aplica los
-modos, su orden de prioridad y las condiciones de actualización definidos en
-[SKILL.md](SKILL.md); no los reinterpretes ni los dupliques aquí.
+Al activar memoria, ejecuta `scripts/bootstrap.* --source-status` como
+diagnóstico único y comunica el resultado antes de leer. La lectura directa de
+archivos de versión y manifiesto es alternativa solo si el comando no está
+disponible. Aplica los modos y autoridad definidos en [SKILL.md](SKILL.md).
 
 El manifiesto de este vault tiene `vault_kind: source`. Para
 consultarlo usa `scripts/bootstrap.* --source-status` (o `-SourceStatus`).
@@ -27,6 +26,13 @@ Este repositorio fuente expone un adaptador estático de descubrimiento en
 integración `--integrate-codex` sigue perteneciendo exclusivamente a proyectos
 consumidores y crea un punto de descubrimiento separado para
 `mem/vault/`.
+
+Para ejecutar un ciclo reutilizable de optimización, usa el dominio
+`vault/20_domains/engineering-prompts/`: lee su `AGENTS.md`, el `INDEX.md` y
+el registro activo `2026-10-25--engineering-optimization-loop.md`. La frase
+“Ejecuta un ciclo de optimización” activa `Question → Eliminate → Simplify →
+Bound Scope → Check Stability` sobre el objetivo y contexto actuales. El
+ciclo produce análisis y un plan; no autoriza cambios persistentes.
 
 La capacidad puede ser invocada desde un proyecto, un agente o una skill
 compuesta. Sigue el contrato de contexto y propiedad del vault de

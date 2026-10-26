@@ -359,8 +359,15 @@ migrate_workspace_to_vault() {
   printf 'migración completada: %s -> %s\n' "$LEGACY_WORKSPACE" "$WORKSPACE"
 }
 
-has_root_records() {
-  [ -d "$WORKSPACE/records" ] && find "$WORKSPACE/records" -maxdepth 1 -type f -name '*.md' -print -quit | grep -q .
+finalization_layout_ready() {
+  [ -f "$WORKSPACE/AGENTS.md" ] && [ ! -L "$WORKSPACE/AGENTS.md" ] || return 1
+  for dir in 00_inbox 10_areas 20_domains 30_resources 40_archive 50_daily 60_exports _indexes _maps _templates; do [ -d "$WORKSPACE/$dir" ] && [ ! -L "$WORKSPACE/$dir" ] || return 1; done
+  for file in _indexes/INDEX.md _indexes/action-log.md _maps/INDEX.md; do [ -f "$WORKSPACE/$file" ] && [ ! -L "$WORKSPACE/$file" ] || return 1; done
+  return 0
+}
+
+root_records_pending() {
+  [ -d "$WORKSPACE/records" ] && find "$WORKSPACE/records" -mindepth 1 -maxdepth 1 -print -quit | grep -q .
 }
 
 migrate_vault_format() {
@@ -370,12 +377,13 @@ migrate_vault_format() {
   [ "$(marker_key_count vault_format)" = 1 ] && [ "$(marker_key_count vault_kind)" = 1 ] || fail 'el manifiesto de formato 2 es ambiguo'
   [ "$(read_marker vault_format)" = 2 ] || fail 'la migración de formato solo admite vault_format: 2'
   [ "$(read_marker vault_kind)" = consumer ] || fail 'la migración de formato solo admite vault_kind: consumer'
-  sh "$SOURCE_ROOT/scripts/vault.sh" migration-plan --vault "$WORKSPACE"
   if [ "$FINALIZE" = false ]; then
+    sh "$SOURCE_ROOT/scripts/vault.sh" migration-plan --vault "$WORKSPACE"
     printf 'migración de formato preparada: resuelve los registros raíz y ejecuta --migrate-vault-format --finalize\n'
     return
   fi
-  has_root_records && fail 'la migración de formato tiene registros raíz pendientes'
+  finalization_layout_ready || fail 'la finalización requiere una migración de formato previamente preparada'
+  root_records_pending && fail "la migración de formato tiene contenido pendiente en records/: $(find "$WORKSPACE/records" -mindepth 1 -maxdepth 1 -print -quit)"
   LEGACY_INDEX=$WORKSPACE/INDEX.md
   ARCHIVED_INDEX=$WORKSPACE/40_archive/legacy-root-INDEX.md
   [ ! -e "$LEGACY_INDEX" ] || [ ! -e "$ARCHIVED_INDEX" ] || fail "el índice legado ya existe en el archivo: $ARCHIVED_INDEX"

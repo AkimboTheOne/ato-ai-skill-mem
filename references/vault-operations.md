@@ -8,6 +8,16 @@ Las operaciones cambian archivos solo cuando se invocan expresamente. No
 clasifican contenido por significado, no usan historial como señal y no
 sincronizan vaults.
 
+`SKILL.md` define activación, propiedad, modos y autorización. Esta referencia
+describe únicamente comandos, efectos y fallos; `check` es de solo lectura y
+los demás métodos mutan solo cuando se solicitan conforme al contrato.
+
+La supervisión no añade un comando: combina `check` con una revisión
+documental de todos los `AGENTS.md` e `INDEX.md` de los dominios cuando la
+persona la solicita, cuando termina una operación estructural o cuando el
+diagnóstico detecta una inconsistencia. El resultado distingue validaciones y
+recomendaciones de cualquier cambio persistente.
+
 ## Interfaces equivalentes
 
 En macOS y Linux:
@@ -53,15 +63,16 @@ Crea el único paquete portable: `20_domains/<id>/`. Incluye `domain.yml`,
 minúsculas, dígitos y guiones, tener entre 1 y 63 caracteres, y no puede
 coincidir con un dominio existente. Si no se indica `--title`, se usa el ID.
 
-El título debe ser una sola línea. La CLI lo serializa como un valor YAML
-entrecomillado y prepara el paquete en una ubicación temporal: si una plantilla
-falla, no queda un dominio parcial.
+El título debe ser no vacío, no estar compuesto solo por espacios y ocupar una
+sola línea. La CLI lo serializa como un valor YAML entrecomillado y prepara el
+paquete en una ubicación temporal: si una plantilla falla, no queda un dominio
+parcial.
 
 El `domain.yml` inicial declara un alcance contextual, estado `active`, áreas
 vacías y `routing.rules: []`. El agente o una persona completa propósito,
 límites, vocabulario, fuentes aceptadas y áreas antes de registrar conocimiento
 allí. Las reglas del `AGENTS.md` de dominio pueden restringir el contexto, pero
-no relajar las reglas maestras de la vault.
+no relajar las reglas maestras de la vault ni autorizar operaciones persistentes.
 
 ## `check`
 
@@ -80,7 +91,9 @@ el contrato, las dos CLI y sus pruebas; solo podrá usar metadata explícita y
 deberá registrar cada movimiento en `_indexes/action-log.md`.
 
 `check` también exige que los índices, el log de acciones y las plantillas
-canónicas sean archivos regulares. En cada dominio valida `format: 1`, `id`,
+canónicas sean archivos locales, no enlaces simbólicos. Examina todas las
+entradas de `20_domains/`, incluidas las ocultas; rechaza archivos, enlaces y
+directorios que no sean paquetes válidos. En cada dominio valida `format: 1`, `id`,
 `title`, `status`, `scope`, `areas` y el baseline de routing. Una vault de
 formato `3` con un `INDEX.md` en raíz no es canónica: el índice legado debe
 permanecer archivado en `40_archive/`.
@@ -94,7 +107,9 @@ permanecer archivado en `40_archive/`.
 Inicializa el layout que falte e inventaría archivos `records/*.md` de una
 vault heredada. Por cada uno crea, si falta, una propuesta en
 `00_inbox/decisions-pending/`. No mueve registros, no interpreta su significado
-y no asigna dominios. Las propuestas representan una decisión humana pendiente.
+y no asigna dominios. Primero valida todos los conflictos y publica las nuevas
+propuestas como lote; una propuesta no regular impide publicar propuestas
+parciales. Las propuestas representan una decisión humana pendiente.
 
 ## `migration-apply`
 

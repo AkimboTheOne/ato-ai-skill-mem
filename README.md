@@ -26,6 +26,14 @@ consumer-project/
 
 El vault de este repositorio es una vault de fuente. No comparte contenido ni se sincroniza automáticamente con vaults consumidoras.
 
+El repositorio también expone `.agents/skills/ato-ai-source-mem/`, un adaptador
+de descubrimiento exclusivo de la vault fuente. Su función es diagnosticar,
+leer y proponer sobre `vault/` cuando una tarea necesita memoria del producto;
+no instala consumidores ni recibe autoridad adicional para cambiar datos. El
+adaptador de Codex de un consumidor, en cambio, vive en
+`.agents/skills/ato-ai-project-mem/` dentro del proyecto consumidor y opera
+solo sobre `mem/vault/`.
+
 ## Vault modular
 
 El formato `3` organiza la memoria como un módulo contextual portable:
@@ -37,6 +45,9 @@ El formato `3` organiza la memoria como un módulo contextual portable:
 - `_indexes/action-log.md` registra movimientos explícitos.
 
 Los AGENTS de dominio pueden añadir o restringir contexto, pero no habilitan inferencia adaptativa, sincronización automática, sobrescrituras ni movimientos sin trazabilidad.
+
+El contrato operativo, incluida la activación contextual y la autoridad de
+cambios, está en [SKILL.md](SKILL.md).
 
 ## Instalación y diagnóstico
 
@@ -58,48 +69,10 @@ Windows PowerShell:
 
 El bootstrap crea el scaffold de formato `3` solo en vaults nuevas y nunca reemplaza contenido existente. Vaults de formatos anteriores requieren migración explícita.
 
-Una vault de formato `2` se migra en dos fases: `--migrate-vault-format` crea
-el layout y las propuestas sin cambiar el manifiesto; después de mover cada
-registro raíz de forma explícita, `--migrate-vault-format --finalize` archiva
-el `INDEX.md` heredado en `40_archive/legacy-root-INDEX.md` y actualiza el
-manifiesto a formato `3`. La finalización rechaza registros pendientes o un
-archivo de archivo existente.
-
-## CLI de vault
-
-La CLI es determinista y no clasifica contenido por significado.
-
-```sh
-./scripts/vault.sh init-layout --vault /ruta/a/vault
-./scripts/vault.sh create-domain --vault /ruta/a/vault --id arquitectura --title Arquitectura
-./scripts/vault.sh check --vault /ruta/a/vault
-./scripts/vault.sh migration-plan --vault /ruta/a/vault
-./scripts/vault.sh migration-apply --vault /ruta/a/vault --domain arquitectura --record 2026-10-25--decision.md
-```
-
-PowerShell usa los mismos comandos:
-
-```powershell
-.\scripts\vault.ps1 init-layout -Vault C:\ruta\a\vault
-.\scripts\vault.ps1 create-domain -Vault C:\ruta\a\vault -Id arquitectura -Title Arquitectura
-.\scripts\vault.ps1 check -Vault C:\ruta\a\vault
-```
-
-La migración de formato usa el bootstrap equivalente:
-
-```sh
-./scripts/bootstrap.sh --target /absolute/path/to/consumer-project --migrate-vault-format
-./scripts/bootstrap.sh --target /absolute/path/to/consumer-project --migrate-vault-format --finalize
-```
-
-```powershell
-.\scripts\bootstrap.ps1 -Target C:\path\to\consumer-project -MigrateVaultFormat
-.\scripts\bootstrap.ps1 -Target C:\path\to\consumer-project -MigrateVaultFormat -Finalize
-```
-
-`migration-plan` crea propuestas para registros raíz heredados; no los asigna por similitud semántica. `migration-apply` mueve un registro seleccionado, evita sobrescrituras y añade una entrada auditable al log.
-
-El baseline valida `routing.rules: []`; todavía no ejecuta reglas de routing automáticas. Cualquier extensión futura deberá usar únicamente metadata explícita y ampliar de forma conjunta el contrato, la CLI y sus pruebas.
+La CLI, los efectos de cada método y los pasos detallados de migración están
+en [references/vault-operations.md](references/vault-operations.md). El
+contrato de datos y layout está en
+[references/instance-contract.md](references/instance-contract.md).
 
 ## Versiones y release
 

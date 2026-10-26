@@ -84,12 +84,16 @@ Una instancia con `vault_format: 2` se migra mediante
 `2` y crea las propuestas necesarias. Tras mover los registros raíz de forma
 explícita, `--migrate-vault-format --finalize` archiva el `INDEX.md` heredado
 en `40_archive/legacy-root-INDEX.md`, sin sobrescribir, y escribe el
-manifiesto de formato `3`. Si hay registros pendientes o un conflicto, falla
-sin actualizar el manifiesto ni mover el índice.
+manifiesto de formato `3`. La finalización exige que el layout ya esté
+preparado y que `records/` esté vacío; si hay archivos, enlaces o un conflicto,
+falla sin actualizar el manifiesto, crear scaffold ni mover el índice.
 
 `vault/AGENTS.md` y `_indexes/INDEX.md` son el punto de entrada de lectura.
-Cada dominio mantiene su propio `INDEX.md`; los dominios son la única unidad
-portable y sus `AGENTS.md` no pueden relajar las reglas maestras.
+La activación obtiene además una composición ligera desde cada `domain.yml`,
+sin cargar todos los registros. Cada dominio mantiene su propio `AGENTS.md` e
+`INDEX.md`; el primero define contexto local y el segundo navegación. Los
+dominios son la única unidad portable y sus reglas no pueden relajar las
+reglas maestras.
 Una vault de formato `3` no conserva `INDEX.md` en la raíz.
 
 ## Dominio portable
@@ -101,6 +105,12 @@ en metadata explícita y quedar definida en el contrato, la CLI y las pruebas
 antes de habilitarse; cada movimiento debe registrarse en
 `_indexes/action-log.md`. No se admite clasificación por similitud, confianza
 ni historial de decisiones.
+
+La supervisión de calidad usa `check` y revisa, cuando se solicita o después
+de una operación estructural, todos los `AGENTS.md` e `INDEX.md` de los
+dominios. Es una revisión de solo lectura para detectar incoherencias,
+referencias obsoletas, dominios o registros fuera de los índices y duplicación
+de instrucciones. No corrige ni reorganiza contenido automáticamente.
 
 `scripts/vault.sh` y `scripts/vault.ps1` exponen `init-layout`,
 `create-domain`, `check`, `migration-plan` y `migration-apply`. La primera
