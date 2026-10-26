@@ -1,0 +1,12 @@
+format: 1
+id: project-context
+title: "Project Context"
+status: active
+scope: contextual
+areas:
+  - architecture
+  - engineering
+  - governance
+  - project-history
+routing:
+  rules: []

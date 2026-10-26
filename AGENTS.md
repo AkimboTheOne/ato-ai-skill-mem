@@ -34,6 +34,12 @@ el registro activo `2026-10-25--engineering-optimization-loop.md`. La frase
 Bound Scope → Check Stability` sobre el objetivo y contexto actuales. El
 ciclo produce análisis y un plan; no autoriza cambios persistentes.
 
+Para recontextualizar la evolución del proyecto, usa el dominio
+`vault/20_domains/project-context/`: lee su `AGENTS.md`, `INDEX.md` y el
+registro activo `2026-10-26--project-evolution-0-3-0.md`. Ese registro resume
+el contrato `0.3.0`, la migración modular, la gobernanza, los adaptadores y los
+pendientes de release; no sustituye las fuentes normativas ni autoriza cambios.
+
 La capacidad puede ser invocada desde un proyecto, un agente o una skill
 compuesta. Sigue el contrato de contexto y propiedad del vault de
 `SKILL.md`: las instrucciones del agente o de la skill anfitriona pueden
