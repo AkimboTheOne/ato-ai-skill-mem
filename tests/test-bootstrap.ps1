@@ -15,6 +15,9 @@ try {
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
     & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id alpha -Title Alpha
     if (-not (Test-Path (Join-Path $vault '20_domains/alpha/domain.yml'))) { throw 'dominio ausente' }
+    $alphaDomainFile = Join-Path $vault '20_domains/alpha/domain.yml'
+    $alphaDomainText = (Get-Content -LiteralPath $alphaDomainFile -Raw) -replace "(?<!`r)`n", "`r`n"
+    [System.IO.File]::WriteAllText($alphaDomainFile, $alphaDomainText)
     foreach ($invalidId in @('Alpha', 'API-Gateway')) {
         try {
             & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id $invalidId -Title Invalid

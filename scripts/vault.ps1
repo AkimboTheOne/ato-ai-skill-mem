@@ -75,9 +75,9 @@ function Test-Vault {
         $status = ([regex]::Match($raw, '(?m)^status:\s*(.+)$')).Groups[1].Value.Trim()
         $scope = ([regex]::Match($raw, '(?m)^scope:\s*(.+)$')).Groups[1].Value.Trim()
         if (-not (Test-ValidId $domainId) -or $_.Name -ne $domainId) { Fail "id inválido: $domain" }
-        if ($format -ne '1' -or [string]::IsNullOrWhiteSpace($title) -or [string]::IsNullOrWhiteSpace($scope) -or ($raw -notmatch '(?m)^areas: \[\]$' -and $raw -notmatch '(?ms)^areas:\r?\n  - ') -or $status -notin @('active','archived')) { Fail "metadata incompleta: $domainId" }
+        if ($format -ne '1' -or [string]::IsNullOrWhiteSpace($title) -or [string]::IsNullOrWhiteSpace($scope) -or ($raw -notmatch '(?m)^areas: \[\]\r?$' -and $raw -notmatch '(?ms)^areas:\r?\n  - ') -or $status -notin @('active','archived')) { Fail "metadata incompleta: $domainId" }
         if ($ids.ContainsKey($domainId)) { Fail "id duplicado: $domainId" }; $ids[$domainId] = $true
-        if ($raw -notmatch '(?m)^routing:$' -or $raw -notmatch '(?m)^  rules: \[\]$') { Fail "routing no determinista o inválido: $domainId" }
+        if ($raw -notmatch '(?m)^routing:\r?$' -or $raw -notmatch '(?m)^  rules: \[\]\r?$') { Fail "routing no determinista o inválido: $domainId" }
     }
 }
 function New-MigrationPlan {
