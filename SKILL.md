@@ -1,195 +1,172 @@
 ---
 name: ato-ai-skill-mem
-description: Administra memoria curada, local y versionable para un proyecto y sus agentes. Úsala cuando una tarea requiera consultar, registrar, actualizar, retirar o reemplazar decisiones, convenciones, aprendizajes o contexto de proyecto.
+description: Administra memoria Markdown curada, local y versionable para un proyecto. Úsala cuando una tarea requiera decisiones, convenciones, historial o contexto persistente; no la uses para trabajo que no dependa de memoria.
 ---
 
-# ATO AI Skill Mem
+# Memoria Skill (ATO AI Skill)
 
-## Propósito
+## Propósito y límites
 
-Este skill mantiene una memoria explícita y legible por personas en
-`workspace/`. Es una memoria compartida por el proyecto: cada registro indica
-su autor, pero no existen subespacios separados por agente en el baseline.
+Este skill administra una vault de conocimiento explícito y legible por
+personas. Una vault es almacenamiento persistente y modular: los paquetes
+portables viven en `20_domains/`. No captura conversaciones, no infiere
+aprendizajes para persistirlos y no es un segundo cerebro.
 
-El skill administra conocimiento curado. No captura automáticamente
-conversaciones, no infiere aprendizajes para persistirlos y no funciona como un
-segundo cerebro.
+Usa español para la conversación, la documentación y los diagnósticos para
+personas. Conserva en inglés los identificadores, rutas, comandos y valores
+de contrato consumidos por herramientas. Un proyecto consumidor puede
+documentar otro idioma de trabajo en sus instrucciones locales.
 
-## Idioma
+No incorpores RAG, bases vectoriales, búsqueda semántica, clasificación por
+confianza, aprendizaje adaptativo, ejecución en segundo plano, sincronización
+automática ni fusión de vaults.
 
-Usa español para la conversación, el razonamiento expuesto, la documentación,
-las plantillas y los diagnósticos para personas. Conserva en inglés los
-identificadores de programación, nombres de archivos, comandos, claves y
-valores de contratos consumidos por herramientas, y términos técnicos
-establecidos. Un proyecto consumidor puede definir otro idioma de trabajo en
-sus instrucciones locales.
+## Activación y autoridad
 
-## Activación
+Activa esta skill de forma contextual cuando la tarea necesite una decisión
+previa, una convención, una restricción, una lección aprendida o contexto
+duradero del proyecto. No la actives para trabajo ordinario que pueda
+resolverse sin memoria persistente.
 
-Actívalo cuando una petición requiera historia o memoria del proyecto, por
-ejemplo decisiones previas, convenciones, restricciones, lecciones aprendidas
-o contexto activo. También se activa ante una instrucción explícita de guardar,
-actualizar, retirar o reemplazar memoria.
+La activación habilita diagnóstico y lectura; nunca implica una autorización
+para persistir datos. Una persona debe pedir de forma expresa y acotada cada
+creación, actualización, retiro, reemplazo, movimiento, archivo, exportación
+o cambio estructural. Una propuesta no persistente no equivale a esa petición.
 
-No lo actives para tareas que no dependen de memoria persistente.
+Sigue las cuatro clases de operación y no saltes de una a otra:
 
-## Contextos de invocación e integración
-
-La skill puede ser invocada desde tres contextos. El contexto cambia quién
-presenta la instrucción; no cambia la propiedad ni la ruta de la memoria:
-
-| Contexto | Uso | Soporte actual |
+| Clase | Acción permitida | Autoridad |
 | --- | --- | --- |
-| Skill en proyecto | Una skill local del proyecto consulta la memoria del proyecto. | Soportado por la instalación `--target`; Codex puede añadir el adaptador explícito. |
-| Skill en agente | Las instrucciones de un agente delegan la consulta o escritura solicitada en esta skill. | Patrón documental: el agente anfitrión debe referenciar la skill y declarar el proyecto objetivo. |
-| Skill en skill | Una skill compuesta declara esta skill como dependencia para tareas de memoria. | Patrón documental: la skill anfitriona debe referenciar la dependencia y el proyecto propietario. |
+| Diagnóstico | Resolver fuente o consumidor y comprobar versión, formato y modo. | Activación contextual. |
+| Lectura selectiva | Consultar solo la guía, índice, dominio y registros necesarios. | Activación contextual y modo compatible. |
+| Propuesta | Recomendar un registro, dominio o migración sin cambiar archivos. | Activación contextual. |
+| Cambio persistente | Escribir, mover, retirar, archivar, exportar o cambiar estructura. | Petición humana explícita y acotada. |
 
-En los tres casos, antes de operar identifica el proyecto propietario y usa
-su workspace configurado. La ruta del skill invocador o del agente no
-determina por sí sola dónde guardar memoria. Para un consumidor soportado, el
-workspace es `mem/workspace/` dentro del proyecto anfitrión. No uses el
-`workspace/` del repositorio fuente como destino de un consumidor ni crees
-workspaces privados junto al agente o skill. Si un repositorio que contiene
-una skill necesita memoria para desarrollar ese proyecto, puede ser
-consumidor por derecho propio: instala la instancia en `mem/` y conserva allí
-su `mem/workspace/`, separado de cualquier workspace de los proyectos que
-atienda.
+## Resolver el contexto y operar
 
-Las integraciones en agente o skill anfitriones deben conservar la evaluación
-de carga, la lectura selectiva y la escritura explícita definidas aquí. No
-copien este documento para crear una política paralela: declaren la
-dependencia, cómo invocarla y cuál es el proyecto objetivo. Si el runtime no
-puede resolver esa dependencia o ruta de forma explícita, informa la
-limitación y no adivines otro workspace.
+Primero identifica el proyecto propietario y el tipo de vault. Una instancia
+consumidora usa `mem/vault/` dentro del proyecto anfitrión; el repositorio
+canónico usa su propio `vault/` con `vault_kind: source`. La ruta del agente o
+skill invocador no determina dónde se guarda la memoria. No uses la vault
+fuente como destino de un consumidor, no crees vaults privados junto a un
+agente y no compartas registros entre proyectos.
 
-El bootstrap implementa instalación en proyectos y un adaptador de Codex; no
-instala automáticamente la skill en agentes o skills de otras plataformas.
-El workspace de cada consumidor puede versionarse con el repositorio de ese
-proyecto. Compartir o promover conocimiento entre proyectos es una acción
-separada y deliberada; no hay sincronización automática ni fusión de
-workspaces.
+Las instrucciones de un agente o de una skill anfitriona pueden solicitar esta
+skill y declarar el proyecto objetivo, pero no transfieren propiedad ni
+autoridad de escritura. Si el runtime no puede resolver ambas cosas de forma
+explícita, informa la limitación y no adivines una vault alternativa.
 
-## Lectura selectiva
+Al activar, ejecuta una sola vez `--status` para consumidores o
+`--source-status` para la fuente y comunica fuente, versiones, formatos,
+compatibilidad y modo recomendado. Estos comandos son el diagnóstico
+autoritativo de solo lectura. Lee directamente `VERSION`, `VAULT_FORMAT` y el
+manifiesto solo si el comando correspondiente no está disponible.
 
-1. Ejecuta la evaluación de carga antes de usar o modificar memoria.
-2. Lee `workspace/INDEX.md`.
-3. Identifica los enlaces relevantes para la tarea actual.
-4. Abre solo esos registros en `workspace/records/`.
-5. Explica qué información de memoria modificó la decisión si resulta material.
+Después del diagnóstico, identifica la composición mínima de la vault sin
+cargar todos sus registros: confirma los directorios canónicos, lee el
+`AGENTS.md` maestro y `_indexes/INDEX.md`, observa los mapas disponibles y
+recorre la metadata de cada `20_domains/<id>/domain.yml` (`id`, `title`,
+`status`, `scope`, `areas` y `routing`). Comunica el número y estado de los
+dominios y cualquier inconsistencia visible. El `AGENTS.md` y el `INDEX.md` de
+un dominio se leen completos solo cuando ese dominio sea pertinente para la
+tarea.
 
-No cargues todos los registros por defecto.
+Elige un único modo en este orden:
 
-## Evaluación de carga
+1. **Instalación pendiente:** no existe la vault. Recomienda instalarla; no la
+   crea sin petición humana explícita.
+2. **Planificación de migración:** el formato es incompatible. No interpreta
+   datos como compatibles ni escribe; explica el impacto y espera confirmación.
+3. **Vault más nuevo:** la versión registrada es mayor. No rebaja el
+   manifiesto; recomienda la fuente publicada correspondiente.
+4. **Desarrollo sin promoción:** la fuente no está `release-aligned`. Puede
+   leer datos compatibles, pero no recomienda ni ejecuta actualizaciones.
+5. **Operación compatible:** puede consultar registros y proponer cambios.
 
-Al cargar el skill, lee `VERSION`, `WORKSPACE_FORMAT` y, si existe,
-`workspace/.ato-ai-skill-mem-version.yml`. Expón un diagnóstico breve y
-visible con: estado de la fuente, versión fuente y registrada, formato fuente
-y registrado, compatibilidad de datos y modo recomendado. Si el instalador
-está disponible, `--status` aporta esos mismos datos sin escribir.
+Ante formato incompatible, manifiesto ambiguo o propiedad no autorizada,
+detén la operación de memoria sin modificar datos. No conviertas un diagnóstico
+en instalación, migración o reparación automática.
 
-Elige un único modo aplicando estas reglas en orden de prioridad:
+Para una lectura compatible, sigue este orden: `AGENTS.md` maestro,
+`_indexes/INDEX.md`, mapas o áreas relevantes, y únicamente el `AGENTS.md`,
+`INDEX.md` y registros del dominio pertinente. No cargues todos los registros
+por defecto. Explica qué información de memoria fue material para la decisión.
 
-1. **Instalación pendiente:** el workspace no existe. Recomienda instalar la
-   instancia; no lo hace salvo petición humana explícita.
-2. **Planificación de migración:** el formato es incompatible. No escribe ni
-   interpreta registros como compatibles; explica el impacto, propone pasos y
-   espera confirmación humana explícita.
-3. **Workspace más nuevo:** la versión registrada es mayor. No rebaja el
-   manifiesto; recomienda seleccionar la fuente publicada correspondiente.
-4. **Desarrollo sin promoción:** la fuente no es `release-aligned`. Puede leer
-   datos compatibles, pero no recomienda ni ejecuta una actualización de
-   manifiesto.
-5. **Operación compatible:** el formato es compatible y el workspace está
-   alineado, heredado o requiere una actualización compatible. Lee y usa los
-   registros normalmente; recomienda actualizar el manifiesto solo bajo las
-   condiciones de versionado.
+## Supervisión de la vault
 
-## Escritura explícita
+La supervisión es una revisión de solo lectura que se activa cuando la persona
+solicita auditar, supervisar, optimizar o revisar la vault, cuando una
+operación estructural termina, o cuando el diagnóstico señala una
+inconsistencia. Ejecuta `scripts/vault.sh check` o `scripts/vault.ps1 check` y
+revisa todos los `AGENTS.md` e `INDEX.md` de los dominios para detectar reglas
+que contradigan la precedencia, dominios ausentes de los índices, registros no
+enlazados, metadata incoherente, referencias obsoletas y duplicación de
+instrucciones que aumente el contexto.
 
-Solo modifica `workspace/` cuando una persona pida expresamente registrar,
-actualizar, retirar o reemplazar memoria. Una propuesta de cambio puede
-presentarse sin escribir archivos.
+Distingue siempre entre validación, recomendación y mutación. La supervisión
+puede señalar incumplimientos y proponer una reducción de contexto, pero no
+crea propuestas, actualiza índices, corrige agentes, mueve registros, activa
+routing ni modifica la vault sin una orden humana explícita y acotada.
 
-Al crear un registro:
+## Cambios persistentes
 
-1. Usa una plantilla de `templates/records/`.
-2. Nómbralo `YYYY-MM-DD--slug.md` dentro de `workspace/records/`.
-3. Completa el front matter y la evidencia disponible.
-4. Añade un enlace y un resumen de una línea a `workspace/INDEX.md`.
+Antes de cambiar la vault, confirma que la petición humana identifica el
+resultado y el alcance. Conserva contenido, evidencia y enlaces; no
+sobrescribas ni borres datos para resolver conflictos. Un reemplazo crea un
+sucesor, marca el antecedente `retired`, mantiene `superseded_by`/
+`supersedes` y conserva la referencia histórica en el índice.
 
-Al reemplazar un registro:
+Los registros nuevos usan una plantilla de `templates/records/`, un nombre
+`YYYY-MM-DD--slug.md`, front matter con evidencia disponible y una entrada de
+una línea en el `INDEX.md` del dominio. Si no existe un dominio inequívoco,
+prepara una propuesta en `00_inbox/decisions-pending/`; no clasifiques por
+similitud semántica.
 
-1. Crea el registro sucesor.
-2. Cambia el anterior a `status: retired`.
-3. Añade `superseded_by` en el anterior y `supersedes` en el nuevo.
-4. Sustituye el enlace activo en `workspace/INDEX.md`; conserva la referencia
-   histórica en la sección de retirados.
+La interfaz canónica es `scripts/vault.sh` y `scripts/vault.ps1`. Consulta
+[references/vault-operations.md](references/vault-operations.md) para los
+comandos, sus efectos y fallos. `init-layout`, `create-domain`,
+`migration-plan` y `migration-apply` requieren petición humana expresa;
+`check` no modifica contenido. Tras una operación estructural solicitada,
+ejecuta `check` y comunica el resultado.
 
-No borres un registro solo porque haya quedado obsoleto.
+La migración de formato `2` a `3` es explícita y en dos fases mediante el
+bootstrap: preparar propuestas y layout, después finalizar solo cuando no haya
+contenido pendiente en `records/`. La finalización archiva el índice heredado,
+actualiza el manifiesto solo al final y conserva el estado anterior ante un
+conflicto. No la ejecutes al diagnosticar o leer.
 
-## Restricciones
+## Precedencia local
 
-- No guardes secretos, credenciales, tokens, datos personales sensibles ni
-  transcripciones completas de conversaciones.
-- No escribas de manera automática al cerrar una tarea o sesión.
-- No introduzcas bases vectoriales, RAG, servicios externos, sincronización
-  automática entre proyectos ni ejecución en segundo plano.
-- No sobrescribas contenido existente durante una actualización de la
-  instalación.
+La precedencia es: reglas globales de este skill → `vault/AGENTS.md` →
+`20_domains/<id>/AGENTS.md` → operación explícita de la persona. Las reglas
+locales pueden aportar vocabulario, fuentes aceptadas y restricciones; nunca
+pueden ampliar autoridad ni habilitar inferencia persistente, sincronización,
+routing autónomo, sobrescritura o movimientos no auditables.
 
-## Versionado y alineación
+El baseline de `domain.yml` exige `routing.rules: []`. No existe
+`auto_apply`. Cualquier extensión futura requiere cambio explícito de contrato,
+implementación equivalente en Bash y PowerShell, pruebas de trazabilidad y
+reglas basadas solo en metadata declarada.
 
-`VERSION` declara la versión SemVer del skill y `WORKSPACE_FORMAT` el formato
-de datos que el skill sabe operar. Una versión distribuible debe corresponder
-al tag Git `v<VERSION>` aplicado al commit de `master`.
+## Versionado, release e integración
 
-`workspace/.ato-ai-skill-mem-version.yml` es un manifiesto visible, separado
-de los registros de memoria: guarda la versión, revisión, tag y fechas de la
-última inicialización o actualización explícita, incluido su
-`workspace_format` y `workspace_kind`. `workspace_kind: consumer` identifica
-la memoria de una instancia; `workspace_kind: source` identifica la memoria
-documental del repositorio canónico. No contiene secretos ni estado inferido.
-Si el manifiesto no existe o no incluye esos campos, el workspace se trata
-como formato heredado `1` y tipo `consumer`.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. El
+manifiesto visible registra versión, revisión, tag, fechas, `vault_format` y
+`vault_kind`; no contiene secretos ni estado inferido. Los formatos `1` y `2`
+son heredados; detectar uno incompatible produce un diagnóstico y una
+propuesta, nunca una migración automática.
 
-La revisión y el tag son evidencia auditable del origen; la compatibilidad y
-el modo de operación se deciden por el formato y la versión SemVer. Así, una
-revisión distinta no fuerza por sí sola una migración ni una actualización.
+Una distribución válida requiere el tag `v<VERSION>` en `master`. La fuente
+puede leerse durante desarrollo si los datos son compatibles, pero su marcador
+solo se actualiza con `--update-source-vault` desde un checkout limpio y
+release-aligned; la operación no crea tags ni commits.
 
-El formato `1` debe mantenerse compatible durante `0.x` y `1.x`: versiones
-nuevas del skill pueden operar esos datos sin reescribir registros. Una futura
-migración de paradigma solo puede introducirse a partir de `2.0.0`, con un
-formato nuevo, pasos documentados y confirmación humana explícita. Detectar un
-formato incompatible debe producir un diagnóstico y propuesta, no una
-migración automática.
+`--integrate-codex` crea un adaptador consumidor separado y no modifica el
+`AGENTS.md` del proyecto. Para una integración manual, consulta
+[references/agents-integration.md](references/agents-integration.md). El
+contrato de layout está en [references/instance-contract.md](references/instance-contract.md).
 
-Usa `scripts/bootstrap.sh --target <project> --status` (o el equivalente de
-PowerShell) para inspeccionar la alineación sin modificar datos. Si el
-workspace requiere actualizar su marcador, usa `--update-workspace`; esta
-rutina requiere una instancia existente, una fuente `release-aligned` y
-preserva `INDEX.md` y
-`records/` íntegramente. Una fuente que no esté en `master` y taggeada se
-informa como `not-release-aligned`; no debe presentarse como una distribución
-publicada ni usarse para actualizar una marca existente.
-
-Un proyecto consumidor puede exponer el skill a Codex mediante un adaptador
-local y explícito. `--integrate-codex` crea
-`.ato-ai-skill-mem.yml` y `.agents/skills/ato-ai-project-mem/SKILL.md`; este
-último es un archivo local que delega en `mem/SKILL.md` y fija
-`mem/workspace/` como su único workspace. No enlaza el adaptador directamente
-a la fuente ni modifica `AGENTS.md`. La configuración declara rutas, no
-autoriza escrituras de memoria. El formato actual reserva integraciones para
-otros agentes, pero solo implementa `codex`.
-
-El repositorio canónico conserva su propio `workspace/` sin enlaces simbólicos
-ni instalación recursiva. Su marcador referencia el último release que lo
-validó, por lo que un checkout de desarrollo posterior puede leerse si es
-compatible, pero opera en desarrollo sin promoción. Usa `--source-status` para
-consultarlo y `--update-source-workspace` solo desde un checkout limpio en
-`master` cuyo `HEAD` sea `v<VERSION>`; esta operación escribe únicamente el
-marcador y requiere una revisión y commit humano posterior.
-
-Consulta [references/instance-contract.md](references/instance-contract.md)
-para el formato canónico, [references/agents-integration.md](references/agents-integration.md)
-para la integración manual en proyectos consumidores y [templates/](templates/)
-para las plantillas.
+El repositorio canónico expone `.agents/skills/ato-ai-source-mem/` como punto
+de entrada para la vault fuente. Los adaptadores fuente y consumidor fijan su
+propia ruta y remiten a este contrato para modos y autoridad; ninguno amplía
+las capacidades del skill.

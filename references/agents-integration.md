@@ -4,6 +4,11 @@ El bootstrap no modifica instrucciones de agentes. Copia este bloque de forma
 manual al AGENTS.md del proyecto consumidor cuando quieras activar la memoria
 del proyecto:
 
+Este documento describe consumidores. El adaptador fuente
+`.agents/skills/ato-ai-source-mem/` pertenece exclusivamente al repositorio
+canónico: diagnostica y consulta `vault/`, no se instala en consumidores ni
+reemplaza el adaptador local de Codex.
+
 Si el proyecto usa Codex, también puede crear el adaptador de descubrimiento
 local con `--integrate-codex`. Es independiente de este bloque y no modifica
 `AGENTS.md`.
@@ -12,21 +17,10 @@ local con `--integrate-codex`. Es independiente de este bloque y no modifica
 ## Memoria del proyecto
 
 Cuando una tarea dependa de decisiones, convenciones, lecciones o contexto
-duradero del proyecto, lee `mem/SKILL.md`, `mem/VERSION`,
-`mem/WORKSPACE_FORMAT` y, si existe,
-`mem/workspace/.ato-ai-skill-mem-version.yml`.
-
-Al cargar el skill, comunica un diagnóstico breve de fuente, versiones,
-formatos, compatibilidad de datos y modo recomendado antes de operar memoria.
-Aplica la evaluación de carga y el orden de modos de `mem/SKILL.md`; ese
-documento es la fuente canónica para compatibilidad, actualizaciones y
-migraciones. Solo en operación compatible, lee `mem/workspace/INDEX.md` y
-abre los registros relevantes para la tarea. Los demás modos deben producir
-una recomendación visible sin escribir datos.
-
-No escribas, retires ni reemplaces memoria del proyecto salvo petición humana
-explícita. No guardes secretos, credenciales, datos sensibles ni
-transcripciones completas de conversaciones en el workspace.
+duradero del proyecto, sigue `mem/SKILL.md`. La vault de este proyecto es
+exclusivamente `mem/vault/`; para tareas ordinarias no cargues memoria. El
+skill canónico define diagnóstico, modos, lectura selectiva y autoridad. No
+uses la vault fuente ni sincronices contenido entre vaults.
 ~~~
 
 ## Migración desde una integración administrada

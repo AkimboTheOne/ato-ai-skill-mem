@@ -1,0 +1,11 @@
+format: 1
+id: engineering-prompts
+title: "Engineering Optimization Prompts"
+status: active
+scope: contextual
+areas:
+  - engineering
+  - governance
+  - optimization
+routing:
+  rules: []

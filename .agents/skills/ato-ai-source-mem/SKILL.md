@@ -1,22 +1,25 @@
 ---
 name: ato-ai-source-mem
-description: Consulta y administra la memoria documental del repositorio fuente de ato-ai-skill-mem. Úsala cuando una tarea de este repositorio requiera decisiones, convenciones, lecciones o contexto persistente.
+description: Consulta la memoria documental de la fuente de ato-ai-skill-mem cuando una tarea requiera decisiones, contratos, convenciones, historial o evolución persistente del producto.
 ---
 
-# Memoria del repositorio fuente
+# Memoria fuente de ato-ai-skill-mem
 
-Este adaptador es exclusivo de `ato-ai-skill-mem`. El comportamiento canónico
-está en `SKILL.md` de la raíz del repositorio y su memoria documental está
-exclusivamente en `workspace/`.
+Este adaptador es el punto de entrada para la vault fuente del repositorio y
+opera exclusivamente sobre `vault/`. Actívalo para tareas que dependan de
+decisiones, contratos, convenciones o historial del producto; no para trabajo
+ordinario. No accede a `mem/vault/`, no instala consumidores y no sincroniza
+datos.
 
-1. Lee y sigue `SKILL.md`, `VERSION`, `WORKSPACE_FORMAT` y, si existe,
-   `workspace/.ato-ai-skill-mem-version.yml` antes de operar memoria.
-2. Ejecuta `scripts/bootstrap.sh --source-status` o el equivalente de
-   PowerShell para diagnosticar versión, formato, compatibilidad y modo sin
-   escribir.
-3. Solo en operación compatible o desarrollo sin promoción, lee
-   `workspace/INDEX.md` y los registros pertinentes.
-4. Escribe memoria únicamente por petición humana explícita.
+Al activarlo, ejecuta `scripts/bootstrap.sh --source-status` (o
+`scripts/bootstrap.ps1 -SourceStatus`) como diagnóstico único. Si no está
+disponible, consulta directamente `VERSION`, `VAULT_FORMAT` y el manifiesto.
+Después sigue [SKILL.md](../../../SKILL.md) para composición, modos, lectura
+selectiva, supervisión, precedencia, autoridad y detención. Toda consulta
+fuente permanece dentro de `vault/`; nunca uses `--target .`.
 
-No uses `mem/workspace/`, no ejecutes `--target .` y no copies, reemplaces ni
-sincronices `workspace/` con workspaces de proyectos consumidores.
+Carga [source-workflows.md](references/source-workflows.md) solo para una
+consulta de decisiones, revisión histórica, propuesta de conocimiento nuevo o
+cambio solicitado que requiera un flujo específico de la fuente. Las
+mutaciones, migraciones y releases usan exclusivamente los procedimientos
+canónicos enlazados desde `SKILL.md`.
