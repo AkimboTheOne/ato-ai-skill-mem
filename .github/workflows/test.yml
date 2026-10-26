@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  bash:
+    name: Bash (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Bash tests
+        shell: bash
+        run: ./tests/test-bootstrap.sh
+      - name: Verify worktree is clean
+        shell: bash
+        run: git diff --exit-code
+
+  powershell:
+    name: PowerShell (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run PowerShell tests
+        shell: pwsh
+        run: ./tests/test-bootstrap.ps1
+      - name: Verify worktree is clean
+        shell: pwsh
+        run: git diff --exit-code

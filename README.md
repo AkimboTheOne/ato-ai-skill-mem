@@ -76,7 +76,7 @@ contrato de datos y layout está en
 
 ## Versiones y release
 
-`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión actual es `0.3.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión actual es `0.3.1` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
 
 Consulta la vault de fuente con:
 
