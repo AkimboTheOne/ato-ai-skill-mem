@@ -11,7 +11,7 @@ try {
     $consumerAdapter = Get-Content -LiteralPath (Join-Path $project '.agents/skills/ato-ai-project-mem/SKILL.md') -Raw
     if ($consumerAdapter -notmatch 'mem/vault/' -or $consumerAdapter -notmatch 'mem/SKILL\.md' -or $consumerAdapter -match '--target \.') { throw 'el adaptador consumidor no conserva rutas y autoridad canónicas' }
     foreach ($path in @('AGENTS.md','00_inbox/decisions-pending','20_domains','_templates')) { if (-not (Test-Path (Join-Path $vault $path))) { throw "falta $path" } }
-    if ((Get-Content (Join-Path $vault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3$') { throw 'formato incorrecto' }
+    if ((Get-Content (Join-Path $vault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3\r?$') { throw 'formato incorrecto' }
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
     & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id alpha -Title Alpha
     if (-not (Test-Path (Join-Path $vault '20_domains/alpha/domain.yml'))) { throw 'dominio ausente' }
@@ -160,7 +160,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $migrationVault 'INDEX.md') -Destination (Join-Path $temp 'legacy-index.expected')
     '# Registro legado' | Set-Content (Join-Path $migrationVault 'records/2026-01-01--legacy&record.md')
     & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat
-    if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2$') { throw 'el manifiesto cambió antes de finalizar' }
+    if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2\r?$') { throw 'el manifiesto cambió antes de finalizar' }
     if (-not (Test-Path (Join-Path $migrationVault '00_inbox/decisions-pending/2026-01-01--legacy&record.md'))) { throw 'propuesta con carácter especial ausente' }
     try {
         & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat -Finalize
@@ -180,11 +180,11 @@ try {
     catch {
         if ($_.Exception.Message -eq 'la finalización debía rechazar contenido no Markdown') { throw }
     }
-    if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2$') { throw 'el manifiesto cambió con contenido pendiente' }
+    if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2\r?$') { throw 'el manifiesto cambió con contenido pendiente' }
     if (-not (Test-Path (Join-Path $migrationVault 'INDEX.md'))) { throw 'el índice cambió con contenido pendiente' }
     Remove-Item -LiteralPath (Join-Path $migrationVault 'records/legacy.txt') -Force
     & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat -Finalize
-    if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3$') { throw 'el manifiesto no llegó al formato 3' }
+    if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3\r?$') { throw 'el manifiesto no llegó al formato 3' }
     if (Test-Path (Join-Path $migrationVault 'INDEX.md')) { throw 'el índice legado no fue archivado' }
     if ((Get-FileHash (Join-Path $temp 'legacy-index.expected')).Hash -ne (Get-FileHash (Join-Path $migrationVault '40_archive/legacy-root-INDEX.md')).Hash) { throw 'el índice legado cambió durante el archivado' }
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $migrationVault
@@ -203,7 +203,7 @@ try {
     catch {
         if ($_.Exception.Message -eq 'la finalización debía rechazar un archivo de archivo existente') { throw }
     }
-    if ((Get-Content (Join-Path $conflictVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2$') { throw 'el manifiesto cambió tras un conflicto' }
+    if ((Get-Content (Join-Path $conflictVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2\r?$') { throw 'el manifiesto cambió tras un conflicto' }
     if (-not (Test-Path (Join-Path $conflictVault 'INDEX.md'))) { throw 'el índice cambió tras un conflicto' }
 
     $ambiguousProject = Join-Path $temp 'ambiguous-consumer'
