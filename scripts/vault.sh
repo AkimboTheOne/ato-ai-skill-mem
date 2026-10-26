@@ -5,6 +5,15 @@ set -eu
 COMMAND=${1:-}
 [ -n "$COMMAND" ] || { printf '%s\n' 'uso: vault.sh <init-layout|create-domain|check|migration-plan|migration-apply> --vault RUTA [...]' >&2; exit 1; }
 shift
+
+fail() { printf '%s\n' "error: $*" >&2; exit 1; }
+require_value() {
+  [ "$#" -ge 2 ] || fail "$1 requiere un valor"
+  case "$2" in
+    --*) fail "$1 requiere un valor" ;;
+  esac
+}
+
 VAULT=''
 DOMAIN_ID=''
 DOMAIN_TITLE=''
@@ -12,10 +21,10 @@ RECORD=''
 TITLE_SET=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --vault) VAULT=$2; shift 2 ;;
-    --id|--domain) DOMAIN_ID=$2; shift 2 ;;
-    --title) DOMAIN_TITLE=$2; TITLE_SET=true; shift 2 ;;
-    --record) RECORD=$2; shift 2 ;;
+    --vault) require_value "$@"; VAULT=$2; shift 2 ;;
+    --id|--domain) require_value "$@"; DOMAIN_ID=$2; shift 2 ;;
+    --title) require_value "$@"; DOMAIN_TITLE=$2; TITLE_SET=true; shift 2 ;;
+    --record) require_value "$@"; RECORD=$2; shift 2 ;;
     *) printf '%s\n' "error: argumento desconocido: $1" >&2; exit 1 ;;
   esac
 done
@@ -25,7 +34,6 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 SOURCE_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 LAYOUT=$SOURCE_ROOT/templates/vault-layout
 
-fail() { printf '%s\n' "error: $*" >&2; exit 1; }
 valid_id() { printf '%s\n' "$1" | grep -E '^[a-z0-9][a-z0-9-]{0,62}$' >/dev/null; }
 local_file() { [ -f "$1" ] && [ ! -L "$1" ]; }
 local_dir() { [ -d "$1" ] && [ ! -L "$1" ]; }

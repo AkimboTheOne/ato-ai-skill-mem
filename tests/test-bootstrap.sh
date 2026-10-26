@@ -17,6 +17,11 @@ grep -F 'mem/vault/' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev
 grep -F 'mem/SKILL.md' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev/null
 ! grep -F -- '--target .' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev/null
 sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+for option in --vault --id --title --record; do
+  error_file="$TEMP_ROOT/${option#--}.err"
+  if sh "$ROOT/scripts/vault.sh" check "$option" 2>"$error_file"; then exit 1; fi
+  grep -F "error: $option requiere un valor" "$error_file" >/dev/null
+done
 sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id alpha --title Alpha
 [ -f "$VAULT/20_domains/alpha/AGENTS.md" ]
 [ -f "$VAULT/20_domains/alpha/domain.yml" ]

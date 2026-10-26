@@ -18,7 +18,7 @@ if (-not (Test-Path -LiteralPath $Vault -PathType Container)) { Fail "la vault n
 $Vault = (Resolve-Path -LiteralPath $Vault).Path
 $sourceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $layout = Join-Path $sourceRoot 'templates/vault-layout'
-function Test-ValidId([string]$Value) { return $Value -match '^[a-z0-9][a-z0-9-]{0,62}$' }
+function Test-ValidId([string]$Value) { return $Value -cmatch '^[a-z0-9][a-z0-9-]{0,62}$' }
 function Test-LocalFile([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and -not $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink' }
 function Test-LocalDirectory([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink' }
 function Copy-IfMissing([string]$Source, [string]$Destination) { if (-not (Test-Path -LiteralPath $Destination)) { Copy-Item -LiteralPath $Source -Destination $Destination } }
@@ -84,7 +84,6 @@ function New-MigrationPlan {
     Initialize-Layout
     $records = Join-Path $Vault 'records'
     if (-not (Test-Path -LiteralPath $records)) { return }
-    if (-not (Test-LocalDirectory $records)) { Fail "records/ no es un directorio local: $records" }
     if (-not (Test-LocalDirectory $records)) { Fail "records/ no es un directorio local: $records" }
     $recordItems = @(Get-ChildItem -LiteralPath $records -Force | Where-Object { $_.Name -like '*.md' })
     foreach ($record in $recordItems) {

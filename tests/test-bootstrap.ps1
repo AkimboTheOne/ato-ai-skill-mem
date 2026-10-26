@@ -15,6 +15,16 @@ try {
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
     & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id alpha -Title Alpha
     if (-not (Test-Path (Join-Path $vault '20_domains/alpha/domain.yml'))) { throw 'dominio ausente' }
+    foreach ($invalidId in @('Alpha', 'API-Gateway')) {
+        try {
+            & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id $invalidId -Title Invalid
+            throw "create-domain debía rechazar ID con mayúsculas: $invalidId"
+        }
+        catch {
+            if ($_.Exception.Message -eq "create-domain debía rechazar ID con mayúsculas: $invalidId") { throw }
+        }
+        if (@(Get-ChildItem -LiteralPath (Join-Path $vault '20_domains') -Force | Where-Object { $_.Name -ceq $invalidId }).Count -gt 0) { throw "quedó un dominio inválido: $invalidId" }
+    }
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
     Copy-Item -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml') -Destination (Join-Path $vault '20_domains/alpha/domain.yml.saved')
     (Get-Content -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml.saved') | Where-Object { $_ -notmatch '^scope:' }) | Set-Content (Join-Path $vault '20_domains/alpha/domain.yml')
