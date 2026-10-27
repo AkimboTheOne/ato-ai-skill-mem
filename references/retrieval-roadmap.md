@@ -37,6 +37,8 @@ La fase inmediata usa `build` y `retrieve`:
 
 El benchmark humano inicial vive en `tests/retrieval/eval_cases.json` y exige
 `recall@5 >= 0.80` para considerar estable el retrieval léxico.
+La evaluación explícita se ejecuta con `python tests/retrieval/evaluate.py` y
+falla si no alcanza ese umbral.
 
 ## Gates de evolución
 
