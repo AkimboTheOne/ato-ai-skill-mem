@@ -159,9 +159,16 @@ class RetrievalTests(unittest.TestCase):
 class RetrievalEvaluationTests(unittest.TestCase):
     def test_human_dataset_recall_at_five(self) -> None:
         dataset = json.loads((ROOT / "tests/retrieval/eval_cases.json").read_text(encoding="utf-8"))
+        cases = dataset["cases"]
+        self.assertGreaterEqual(len(cases), 12)
+        case_ids = [case["id"] for case in cases]
+        self.assertEqual(len(case_ids), len(set(case_ids)))
         root = ROOT / "vault"
         hits = 0
-        for case in dataset["cases"]:
+        for case in cases:
+            self.assertTrue(case["query"].strip())
+            for expected_path in case["expected_paths"]:
+                self.assertTrue((root / expected_path).exists(), expected_path)
             _, results = retrieve(root, case["query"], limit=5)
             result_paths = {result.path for result in results}
             if result_paths.intersection(case["expected_paths"]):

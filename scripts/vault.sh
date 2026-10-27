@@ -40,24 +40,6 @@ local_dir() { [ -d "$1" ] && [ ! -L "$1" ]; }
 copy_if_missing() { [ -e "$2" ] || cp "$1" "$2"; }
 yaml_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 single_line() { [ "$(printf '%s\n' "$1" | wc -l | tr -d '[:space:]')" = 1 ]; }
-manifest_value() { sed -n "s/^$2: *//p" "$1" | sed -n '1p'; }
-check_rag_manifest() {
-  manifest=$1
-  [ "$(manifest_value "$manifest" schema)" = 1 ] || fail "manifiesto RAG inválido: schema: $manifest"
-  [ "$(manifest_value "$manifest" kind)" = rag-index ] || fail "manifiesto RAG inválido: kind: $manifest"
-  status=$(manifest_value "$manifest" status)
-  case "$status" in pending|ready|stale|invalid) ;; *) fail "manifiesto RAG inválido: status: $manifest" ;; esac
-  for key in source_vault source_revision source_scope content_fingerprint chunking retrieval_kind; do
-    value=$(manifest_value "$manifest" "$key")
-    [ -n "$value" ] || fail "manifiesto RAG incompleto: $key: $manifest"
-  done
-  expected_source=$(CDPATH= cd -- "$VAULT" && pwd -P)
-  [ "$(manifest_value "$manifest" source_vault)" = "$expected_source" ] || fail "manifiesto RAG inconsistente: source_vault: $manifest"
-  printf '%s\n' "$(manifest_value "$manifest" source_revision)" | grep -E '^[0-9a-fA-F]{40}$' >/dev/null || fail "manifiesto RAG inválido: source_revision: $manifest"
-  printf '%s\n' "$(manifest_value "$manifest" content_fingerprint)" | grep -E '^sha256:[0-9a-fA-F]{64}$' >/dev/null || fail "manifiesto RAG inválido: content_fingerprint: $manifest"
-  grep -E '^embedding:[[:space:]]*$' "$manifest" >/dev/null || fail "manifiesto RAG incompleto: embedding: $manifest"
-  grep -E '^  status:[[:space:]]+(pending|ready|disabled)[[:space:]]*$' "$manifest" >/dev/null || fail "manifiesto RAG inválido: embedding.status: $manifest"
-}
 check_rag_runtime() {
   runtime=$VAULT/99_runtime
   [ ! -e "$runtime" ] && [ ! -L "$runtime" ] && return 0
@@ -76,7 +58,6 @@ check_rag_runtime() {
   manifest=$rag/manifest.yml
   if [ -e "$manifest" ] || [ -L "$manifest" ]; then
     local_file "$manifest" || fail '99_runtime/rag/manifest.yml no es un archivo local'
-    check_rag_manifest "$manifest"
   fi
 }
 init_layout() {

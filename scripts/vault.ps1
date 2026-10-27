@@ -23,27 +23,6 @@ function Test-LocalFile([string]$Path) { $item = Get-Item -LiteralPath $Path -Fo
 function Test-LocalDirectory([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink' }
 function Copy-IfMissing([string]$Source, [string]$Destination) { if (-not (Test-Path -LiteralPath $Destination)) { Copy-Item -LiteralPath $Source -Destination $Destination } }
 function ConvertTo-YamlQuoted([string]$Value) { return '"' + $Value.Replace('\', '\\').Replace('"', '\"') + '"' }
-function Get-ManifestValue([string]$Path, [string]$Key) {
-    $line = Get-Content -LiteralPath $Path | Where-Object { $_ -match "^$([regex]::Escape($Key)):\s*(.*)$" } | Select-Object -First 1
-    if ($null -eq $line) { return '' }
-    return ([regex]::Match($line, "^$([regex]::Escape($Key)):\s*(.*)$")).Groups[1].Value.Trim()
-}
-function Test-RagManifest([string]$Path) {
-    if ((Get-ManifestValue $Path 'schema') -ne '1') { Fail "manifiesto RAG inválido: schema: $Path" }
-    if ((Get-ManifestValue $Path 'kind') -ne 'rag-index') { Fail "manifiesto RAG inválido: kind: $Path" }
-    $status = Get-ManifestValue $Path 'status'
-    if ($status -notin @('pending','ready','stale','invalid')) { Fail "manifiesto RAG inválido: status: $Path" }
-    foreach ($key in @('source_vault','source_revision','source_scope','content_fingerprint','chunking','retrieval_kind')) {
-        if ([string]::IsNullOrWhiteSpace((Get-ManifestValue $Path $key))) { Fail "manifiesto RAG incompleto: ${key}: $Path" }
-    }
-    $expectedSource = (Resolve-Path -LiteralPath $Vault).Path
-    if ((Get-ManifestValue $Path 'source_vault') -ne $expectedSource) { Fail "manifiesto RAG inconsistente: source_vault: $Path" }
-    if ((Get-ManifestValue $Path 'source_revision') -notmatch '^[0-9a-fA-F]{40}$') { Fail "manifiesto RAG inválido: source_revision: $Path" }
-    if ((Get-ManifestValue $Path 'content_fingerprint') -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "manifiesto RAG inválido: content_fingerprint: $Path" }
-    $raw = Get-Content -LiteralPath $Path -Raw
-    if ($raw -notmatch '(?m)^embedding:\s*$') { Fail "manifiesto RAG incompleto: embedding: $Path" }
-    if ($raw -notmatch '(?m)^  status:\s+(pending|ready|disabled)\s*$') { Fail "manifiesto RAG inválido: embedding.status: $Path" }
-}
 function Test-RagRuntime {
     $runtime = Join-Path $Vault '99_runtime'
     $runtimeItem = Get-Item -LiteralPath $runtime -Force -ErrorAction SilentlyContinue
@@ -64,7 +43,6 @@ function Test-RagRuntime {
     $manifestItem = Get-Item -LiteralPath $manifest -Force -ErrorAction SilentlyContinue
     if ($null -ne $manifestItem) {
         if (-not (Test-LocalFile $manifest)) { Fail '99_runtime/rag/manifest.yml no es un archivo local' }
-        Test-RagManifest $manifest
     }
 }
 function Initialize-Layout {

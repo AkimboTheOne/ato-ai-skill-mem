@@ -174,10 +174,10 @@ documentados en [references/python-cli.md](references/python-cli.md); el
 roadmap gobernado está en [references/retrieval-roadmap.md](references/retrieval-roadmap.md).
 
 La ubicación técnica reservada para una futura persistencia es
-`99_runtime/rag/`. Su `manifest.yml` deberá conservar provenance y sus datos
-derivados vivirán en `indexes/*/data/`, ignorados por Git. La ausencia de esa
-extensión mantiene válida una vault formato `3`; `check` solo la valida cuando
-está presente.
+`99_runtime/rag/`. La ausencia de esa extensión mantiene válida una vault
+formato `3`; `check` solo valida su estructura local cuando está presente. El
+contrato detallado de la reserva está en
+[references/instance-contract.md](references/instance-contract.md).
 
 La migración de formato `2` a `3` es explícita y en dos fases mediante el
 bootstrap: preparar propuestas y layout, después finalizar solo cuando no haya

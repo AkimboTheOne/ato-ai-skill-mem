@@ -179,11 +179,11 @@ directorios que no sean paquetes válidos. En cada dominio valida `format: 1`, `
 formato `3` con un `INDEX.md` en raíz no es canónica: el índice legado debe
 permanecer archivado en `40_archive/`.
 
-Cuando existe `99_runtime/`, `check` valida `99_runtime/rag/`, sus índices y
-los directorios `data/` como rutas locales. También valida un
-`manifest.yml` presente: `schema: 1`, `kind: rag-index`, estado permitido,
-provenance, chunking, tipo de retrieval y estado de embedding. Una vault sin
-esa extensión sigue siendo válida.
+Cuando existe `99_runtime/`, `check` valida `99_runtime/rag/`, sus índices,
+los directorios `data/` y un `manifest.yml` presente como rutas locales. No
+interpreta todavía el esquema semántico del manifiesto: esa responsabilidad
+se activará junto con la primera operación que genere índices persistentes.
+Una vault sin esa extensión sigue siendo válida.
 
 ## `migration-plan`
 

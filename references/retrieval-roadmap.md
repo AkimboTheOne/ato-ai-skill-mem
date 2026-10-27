@@ -16,10 +16,12 @@ compatibilidad del formato `3`:
 └── indexes/<index-id>/data/
 ```
 
-El manifiesto será legible y versionable, con `source_revision` y
-`content_fingerprint` para detectar estado `stale` o `invalid`. Los datos de
-índice serán derivados, reconstruibles e ignorados por Git. Ninguna fase puede
-modificar la memoria documental automáticamente.
+El manifiesto será legible y versionable cuando exista un productor explícito.
+Su esquema semántico se definirá en una propuesta posterior junto con la
+operación de persistencia, invalidación y rollback. Los datos de índice serán
+derivados, reconstruibles e ignorados por Git. Ninguna fase puede modificar la
+memoria documental automáticamente. El layout base está definido en
+[instance-contract.md](instance-contract.md).
 
 ## Estado actual
 

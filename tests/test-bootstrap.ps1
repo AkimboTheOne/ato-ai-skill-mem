@@ -184,22 +184,18 @@ try {
     if ((Get-Content (Join-Path $vault '.gitignore') -Raw) -notmatch '99_runtime/rag/indexes/\*/data/') { throw 'falta regla de ignorado para datos RAG' }
     Remove-Item -LiteralPath (Join-Path $vault '99_runtime') -Recurse -Force
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    New-Item -ItemType SymbolicLink -Path (Join-Path $vault '99_runtime') -Target $temp | Out-Null
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar runtime simbólico' }
+    catch { if ($_.Exception.Message -eq 'check debía rechazar runtime simbólico') { throw } }
+    Remove-Item -LiteralPath (Join-Path $vault '99_runtime') -Force
     New-Item -ItemType Directory -Path (Join-Path $vault '99_runtime') | Out-Null
     New-Item -ItemType SymbolicLink -Path (Join-Path $vault '99_runtime/rag') -Target $temp | Out-Null
     try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar rag simbólico' }
     catch { if ($_.Exception.Message -eq 'check debía rechazar rag simbólico') { throw } }
     Remove-Item -LiteralPath (Join-Path $vault '99_runtime/rag') -Force
     New-Item -ItemType Directory -Path (Join-Path $vault '99_runtime/rag/indexes/sample/data') -Force | Out-Null
-    @('schema: 1','kind: rag-index','status: pending',"source_vault: $((Resolve-Path $vault).Path)",'source_revision: 0000000000000000000000000000000000000000','source_scope: all','content_fingerprint: sha256:0000000000000000000000000000000000000000000000000000000000000000','chunking: heading','retrieval_kind: lexical','embedding:','  status: pending') | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
+    '# Manifiesto futuro reservado' | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
-    Copy-Item -LiteralPath (Join-Path $vault '99_runtime/rag/manifest.yml') -Destination (Join-Path $vault '99_runtime/rag/manifest.yml.valid')
-    (Get-Content (Join-Path $vault '99_runtime/rag/manifest.yml.valid') -Raw) -replace '(?m)^source_vault:.*$', 'source_vault: /tmp/other-vault' | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
-    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar provenance RAG inconsistente' }
-    catch { if ($_.Exception.Message -eq 'check debía rechazar provenance RAG inconsistente') { throw } }
-    Move-Item -LiteralPath (Join-Path $vault '99_runtime/rag/manifest.yml.valid') -Destination (Join-Path $vault '99_runtime/rag/manifest.yml') -Force
-    (Get-Content (Join-Path $vault '99_runtime/rag/manifest.yml') -Raw) -replace '(?m)^kind: rag-index$', 'kind: invalid' | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
-    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar manifiesto RAG inválido' }
-    catch { if ($_.Exception.Message -eq 'check debía rechazar manifiesto RAG inválido') { throw } }
     Remove-Item -LiteralPath (Join-Path $vault '99_runtime') -Recurse -Force
     & (Join-Path $root 'scripts/vault.ps1') init-layout -Vault $vault
     Copy-Item -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml') -Destination (Join-Path $vault '20_domains/alpha/domain.yml.saved')

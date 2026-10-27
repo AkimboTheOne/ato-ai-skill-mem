@@ -195,20 +195,16 @@ sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
 grep -F '99_runtime/rag/indexes/*/data/' "$VAULT/.gitignore" >/dev/null
 rm -rf "$VAULT/99_runtime"
 sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+ln -s "$TEMP_ROOT" "$VAULT/99_runtime"
+if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+rm "$VAULT/99_runtime"
 mkdir -p "$VAULT/99_runtime"
 ln -s "$TEMP_ROOT" "$VAULT/99_runtime/rag"
 if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
 rm "$VAULT/99_runtime/rag"
 mkdir -p "$VAULT/99_runtime/rag/indexes/sample/data"
-printf '%s\n' 'schema: 1' 'kind: rag-index' 'status: pending' "source_vault: $(CDPATH= cd -- "$VAULT" && pwd -P)" 'source_revision: 0000000000000000000000000000000000000000' 'source_scope: all' 'content_fingerprint: sha256:0000000000000000000000000000000000000000000000000000000000000000' 'chunking: heading' 'retrieval_kind: lexical' 'embedding:' '  status: pending' > "$VAULT/99_runtime/rag/manifest.yml"
+printf '%s\n' '# Manifiesto futuro reservado' > "$VAULT/99_runtime/rag/manifest.yml"
 sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
-cp "$VAULT/99_runtime/rag/manifest.yml" "$VAULT/99_runtime/rag/manifest.yml.valid"
-sed 's#^source_vault:.*#source_vault: /tmp/other-vault#' "$VAULT/99_runtime/rag/manifest.yml.valid" > "$VAULT/99_runtime/rag/manifest.yml"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
-mv "$VAULT/99_runtime/rag/manifest.yml.valid" "$VAULT/99_runtime/rag/manifest.yml"
-sed 's/^kind: rag-index$/kind: invalid/' "$VAULT/99_runtime/rag/manifest.yml" > "$VAULT/99_runtime/rag/manifest.yml.invalid"
-mv "$VAULT/99_runtime/rag/manifest.yml.invalid" "$VAULT/99_runtime/rag/manifest.yml"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
 rm -rf "$VAULT/99_runtime"
 sh "$ROOT/scripts/vault.sh" init-layout --vault "$VAULT"
 cp "$VAULT/20_domains/alpha/domain.yml" "$VAULT/20_domains/alpha/domain.yml.saved"

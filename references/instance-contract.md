@@ -41,21 +41,17 @@ Cuando existe, su estructura local es:
 └── indexes/<index-id>/data/
 ```
 
-`manifest.yml` es legible, versionable y conserva provenance del índice.
-`indexes/*/data/` contiene artefactos derivados y reconstruibles, por lo que
-debe ignorarse en Git. La ausencia de `99_runtime` mantiene la compatibilidad
-con vaults existentes de formato `3`; si aparece, `check` exige que
-`99_runtime`, `rag`, los índices y sus directorios `data/` sean directorios
-locales y no enlaces simbólicos.
+`manifest.yml` será legible, versionable y conservará provenance cuando exista
+un productor de índices. `indexes/*/data/` contendrá artefactos derivados y
+reconstruibles, por lo que debe ignorarse en Git. La ausencia de
+`99_runtime` mantiene la compatibilidad con vaults existentes de formato `3`;
+si aparece, `check` exige que `99_runtime`, `rag`, los índices, sus
+directorios `data/` y un `manifest.yml` presente sean rutas locales y no
+enlaces simbólicos.
 
-El manifiesto reservado usa `schema: 1`, `kind: rag-index`, `status` (`pending`,
-`ready`, `stale` o `invalid`), `source_vault` con la ruta absoluta canónica de
-la vault, `source_revision` como SHA-1 de 40 caracteres, `source_scope`,
-`content_fingerprint` como `sha256:<64 hex>`, `chunking`, `retrieval_kind` y
-un bloque `embedding` cuyo `status` inicial es `pending`. `check` rechaza un
-provenance que no identifica la vault actual o que no cumple estos formatos.
-El manifiesto describe estado derivado; nunca concede autoridad para
-modificar la memoria documental.
+El esquema semántico del manifiesto queda pendiente hasta que exista una
+operación explícita que genere índices persistentes. Esta reserva no concede
+autoridad para modificar la memoria documental.
 
 ## Alineación de versión
 

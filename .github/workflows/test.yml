@@ -5,6 +5,20 @@ on:
   pull_request:
 
 jobs:
+  python:
+    name: Python CLI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run Python tests
+        run: python -m unittest discover -s tests -p 'test_*.py'
+      - name: Smoke install and CLI
+        shell: bash
+        run: sh ./tests/test-install.sh
+
   bash:
     name: Bash (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

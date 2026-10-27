@@ -139,36 +139,17 @@ python3 -m venv .venv
 python -m pip install .
 ```
 
-Comandos disponibles:
-
-```sh
-ato-mem check --vault /ruta/a/vault
-ato-mem find --vault /ruta/a/vault --pattern 'project-context'
-ato-mem relate --vault /ruta/a/vault --format json
-ato-mem build --vault /ruta/a/vault --format json
-ato-mem retrieve --vault /ruta/a/vault --query 'vault fuente versión' --limit 5 --format json
-```
-
-El CLI solo lee vaults formato `3`, no crea cachés ni índices y no accede a
-la red. `check` audita front matter, relaciones e índices; `find` busca regex
-en todos los archivos `.md`; `relate` extrae únicamente enlaces y relaciones
-declaradas; `build` genera chunks estructurales transitorios y `retrieve`
-aplica ranking léxico explicable. La inferencia lingüística, embeddings y
-generación RAG quedan fuera de esta fase.
-
-La salida usa texto legible por defecto o JSON con `--format json`. El código
-`0` indica éxito sin hallazgos, `1` hallazgos o ausencia de coincidencias y
-`2` errores de uso, entrada o lectura. El contrato completo está en
-[references/python-cli.md](references/python-cli.md).
-El roadmap gobernado hacia retrieval semántico y RAG está en
+Para verificar la instalación en un entorno temporal, ejecuta
+`sh tests/test-install.sh`. Los comandos, formatos, límites y códigos de
+salida del CLI están en [references/python-cli.md](references/python-cli.md).
+La interfaz solo lee vaults formato `3`, no crea cachés ni índices y no accede
+a la red. El roadmap gobernado hacia retrieval semántico y RAG está en
 [references/retrieval-roadmap.md](references/retrieval-roadmap.md).
 
 El layout reserva `99_runtime/rag/` para una futura persistencia gobernada de
-índices. `manifest.yml` será legible, versionable y conservará provenance;
-`indexes/*/data/` será reconstruible y quedará ignorado en Git. La extensión
-es opcional y no convierte esos artefactos en memoria canónica. `ato-mem`
-todavía no escribe allí: `build` y `retrieve` continúan trabajando solo en
-memoria.
+índices. La extensión es opcional y no convierte esos artefactos en memoria
+canónica; el contrato de la reserva está en
+[references/instance-contract.md](references/instance-contract.md).
 
 ## Límites
 
