@@ -29,7 +29,12 @@ class MicrosoftCopilotPackageTests(unittest.TestCase):
             with ZipFile(output) as archive:
                 self.assertEqual(
                     archive.namelist(),
-                    ["SKILL.md", "connection-contract.md", "package-metadata.json"],
+                    [
+                        "SKILL.md",
+                        "capability-contract.md",
+                        "connection-contract.md",
+                        "package-metadata.json",
+                    ],
                 )
                 skill = archive.read("SKILL.md").decode("utf-8")
                 self.assertIn("name: ato-ai-skill-mem-microsoft-365-copilot", skill)
@@ -37,6 +42,13 @@ class MicrosoftCopilotPackageTests(unittest.TestCase):
                 contract = archive.read("connection-contract.md").decode("utf-8")
                 self.assertIn("memory_check", contract)
                 self.assertIn("memory_retrieve", contract)
+                capability_contract = archive.read("capability-contract.md").decode("utf-8")
+                self.assertIn("`inspect`", capability_contract)
+                self.assertIn("`search`", capability_contract)
+                self.assertIn("`fetch`", capability_contract)
+                self.assertIn("`transform`", capability_contract)
+                self.assertIn("Microsoft 365 Copilot", capability_contract)
+                self.assertIn("GitHub Copilot", skill)
                 package_metadata = json.loads(archive.read("package-metadata.json"))
                 self.assertEqual(package_metadata["skill_version"], (ROOT / "VERSION").read_text().strip())
                 self.assertEqual(package_metadata["vault_format"], 3)

@@ -4,6 +4,32 @@ Este archivo describe la capacidad externa que puede conectar un agente de
 Microsoft 365 Copilot con una vault. El ZIP no implementa la capacidad ni
 concede acceso a una vault por sí mismo.
 
+La homologación portable está en `capability-contract.md`. Este contrato
+conserva las operaciones `memory_*` del MVP y las relaciona con las
+capacidades semánticas del skill principal:
+
+| Operación de conexión | Capacidad portable |
+| --- | --- |
+| `memory_check` | `inspect` |
+| `memory_retrieve` | `search` |
+| recuperación de un resultado citado | `fetch` |
+| procesamiento temporal de contenido recuperado | `transform` |
+
+`transform` no se implementa en este ZIP. Cuando esté disponible, Copilot
+puede ejecutarla mediante su Code Interpreter sobre contenido previamente
+obtenido; no debe usarse para seleccionar otra vault ni para persistir cambios.
+
+## Modos de conexión
+
+- Con `grounding`, SharePoint, OneDrive o un conector de Microsoft 365
+  proporciona la evidencia bajo sus permisos. Las citas y el ranking son
+  responsabilidad de esa superficie.
+- Con `tool`, un MCP, REST o CLI futuro expone operaciones explícitas y debe
+  respetar `capability-contract.md`.
+
+El contrato es portable entre Microsoft 365 Copilot/Agent Builder y Copilot
+Studio. No es GitHub Copilot ni un servidor MCP.
+
 ## `memory_check`
 
 Entrada:

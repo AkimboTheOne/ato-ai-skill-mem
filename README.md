@@ -88,7 +88,7 @@ contrato de datos y layout está en
 
 ## Versiones y release
 
-`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.7.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.8.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
 
 La política editorial clasifica `X` como cambio no retrocompatible, `Y` como
 nueva capacidad pública retrocompatible y `Z` como corrección o ajuste sin
@@ -121,7 +121,7 @@ En resumen:
   operación explícita correspondiente y no sobrescriben contenido existente.
 - Las operaciones source usan `vault/`; las operaciones consumer usan
   `mem/vault/` y no comparten registros.
-- `VAULT_FORMAT=3` permanece sin cambios en `0.7.0`; no se añade routing,
+- `VAULT_FORMAT=3` permanece sin cambios en `0.8.0`; no se añade routing,
   sincronización automática ni estado persistente oculto.
 
 ## CLI Python complementario
@@ -170,10 +170,12 @@ vault ni los scripts del runtime local:
 python3 scripts/package-microsoft-copilot.py --output /tmp/ato-ai-skill-mem-copilot.zip
 ```
 
-El ZIP contiene instrucciones adaptadas y el contrato read-only de conexión.
+El ZIP contiene instrucciones adaptadas, el contrato read-only de conexión y
+el contrato portable `capability-contract.md`, que homologa `inspect`,
+`search`, `fetch` y `transform` con las primitivas del skill principal.
 No implementa un connector o MCP ni sincroniza la memoria automáticamente.
-No es una integración de GitHub Copilot. El standard harness de Copilot Studio
-requiere una integración distinta y queda fuera de este MVP.
+La proyección es para Microsoft 365 Copilot, Agent Builder y Copilot Studio;
+no es una integración de GitHub Copilot.
 
 El layout reserva `99_runtime/rag/` para una futura persistencia gobernada de
 índices. La extensión es opcional y no convierte esos artefactos en memoria

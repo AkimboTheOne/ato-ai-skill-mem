@@ -7,6 +7,9 @@ description: Consulta memoria Markdown curada y versionable desde Microsoft 365 
 
 Esta skill está dirigida a Microsoft 365 Copilot y sus declarative agents. No
 es una skill de GitHub Copilot ni define el standard harness de Copilot Studio.
+El contrato portable incluido en `capability-contract.md` describe cómo
+proyectar las capacidades del skill principal en Agent Builder o Copilot
+Studio, mediante grounding o herramientas explícitas.
 
 Usa esta skill solo cuando la solicitud dependa de decisiones, convenciones,
 historial o contexto estable del proyecto. No la uses como memoria de

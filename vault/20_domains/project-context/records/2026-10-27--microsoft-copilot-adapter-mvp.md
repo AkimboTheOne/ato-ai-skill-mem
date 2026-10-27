@@ -11,6 +11,7 @@ sources:
   - VERSION
   - VAULT_FORMAT
   - references/runtime-boundary.md
+  - references/capability-contract.md
   - templates/integrations/microsoft-copilot/SKILL.md
   - templates/integrations/microsoft-copilot/connection-contract.md
   - scripts/package-microsoft-copilot.py
@@ -29,23 +30,28 @@ superseded_by: null
 El adaptador no tiene vida propia: la skill principal, `VERSION` y las reglas
 de propiedad de la vault siguen siendo la fuente de verdad.
 
-La integración es una capacidad pública retrocompatible y por ello se clasifica
-como cambio `minor`: la versión de desarrollo pasa de `0.6.0` a `0.7.0`,
-mientras `VAULT_FORMAT` permanece en `3`.
+La integración inicial fue `0.7.0`; la homologación portable de capacidades se
+incorpora como el siguiente cambio público `minor`, `0.8.0`, mientras
+`VAULT_FORMAT` permanece en `3`.
 
 El primer destino es Microsoft 365 Copilot mediante Agent Builder y
 declarative agents. La integración genera un ZIP cargable con un `SKILL.md`
-adaptado y un contrato read-only. No es una integración de GitHub Copilot. El
-standard harness de Copilot Studio requiere otro contrato y queda fuera de
-este MVP. No se implementa todavía una API, MCP, connector, sincronización ni
-escritura remota.
+adaptado, un contrato read-only de conexión y un contrato portable de
+capacidades. No es una integración de GitHub Copilot. La proyección documental
+es portable entre Agent Builder y Copilot Studio, pero no promete las mismas
+fuentes, permisos, citas o modelos. No se implementa todavía una API, MCP,
+connector, sincronización ni escritura remota.
 
 ## Alcance operativo
 
-El contrato mínimo expone conceptualmente `memory_check` y
-`memory_retrieve`. Ambas operaciones deben conservar alcance autorizado,
-provenance y citas. Si la capacidad externa no está configurada, el agente
-debe informar que la memoria no está conectada y no inventar resultados.
+El contrato mínimo conserva `memory_check` y `memory_retrieve` por
+compatibilidad y los homologa a `inspect` y `search`. El contrato portable
+también define `fetch` y `transform`: el primero exige un locator y evidencia
+exacta; el segundo procesa temporalmente contenido ya recuperado, sin runtime
+local nuevo ni persistencia. Todas las operaciones deben conservar alcance
+autorizado, provenance y citas. Si la capacidad externa no está configurada,
+el agente debe informar que la memoria no está conectada y no inventar
+resultados.
 
 El empaquetador se ejecuta desde el repositorio fuente y produce un artefacto
 derivado versionado por la fuente. No incluye `vault/`, `.git/`, `AGENTS.md`,
@@ -54,6 +60,8 @@ los scripts de bootstrap ni el CLI local. No modifica la vault.
 ## Evolución y límites
 
 Las instrucciones de Microsoft 365 Copilot se mantienen como una proyección
-específica del contrato principal, no como una doctrina paralela. Cualquier
-ampliación al standard harness de Copilot Studio, a API/MCP o a operaciones de
-escritura requiere una revisión separada de alcance, estabilidad y gobernanza.
+específica del contrato principal, no como una doctrina paralela. SharePoint,
+OneDrive y conectores de Microsoft 365 se consideran perfiles `grounding`;
+MCP, REST, CLI, Confluence y Azure DevOps Wiki son perfiles `tool` futuros.
+Cualquier ampliación concreta requiere una revisión separada de alcance,
+estabilidad y gobernanza.

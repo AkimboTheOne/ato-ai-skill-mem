@@ -8,3 +8,4 @@
 2026-10-27T02:27:53Z | create-record | project-context | explicit-human-request | vault/20_domains/project-context/records/2026-10-26--project-evolution-0-4-0.md | operator
 2026-10-27T02:40:06Z | update-record | project-context | explicit-human-request | vault/20_domains/project-context/records/2026-10-26--project-evolution-0-4-0.md | operator
 2026-10-27T15:21:30Z | create-record | project-context | explicit-human-request | vault/20_domains/project-context/records/2026-10-27--microsoft-copilot-adapter-mvp.md | operator
+2026-10-27T15:30:00Z | update-record | project-context | explicit-human-request | vault/20_domains/project-context/records/2026-10-27--microsoft-copilot-adapter-mvp.md | operator

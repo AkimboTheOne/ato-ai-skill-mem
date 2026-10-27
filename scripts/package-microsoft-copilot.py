@@ -16,6 +16,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_ROOT = ROOT / "templates" / "integrations" / "microsoft-copilot"
 PACKAGE_FILES = ("SKILL.md", "connection-contract.md")
+CAPABILITY_CONTRACT = ROOT / "references" / "capability-contract.md"
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
 
@@ -85,6 +86,8 @@ def validate_templates() -> tuple[str, str, int]:
         path = TEMPLATE_ROOT / relative
         if path.is_symlink() or not path.is_file():
             fail(f"recurso de integración inexistente o no local: {relative}")
+    if CAPABILITY_CONTRACT.is_symlink() or not CAPABILITY_CONTRACT.is_file():
+        fail("falta el contrato de capacidades portable")
     return parse_front_matter(TEMPLATE_ROOT / "SKILL.md")
 
 
@@ -109,6 +112,7 @@ def write_zip(output: Path, version: str) -> None:
     resources: dict[str, bytes] = {
         relative: (TEMPLATE_ROOT / relative).read_bytes() for relative in PACKAGE_FILES
     }
+    resources["capability-contract.md"] = CAPABILITY_CONTRACT.read_bytes()
     resources["package-metadata.json"] = metadata(version)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         for relative in sorted(resources):
