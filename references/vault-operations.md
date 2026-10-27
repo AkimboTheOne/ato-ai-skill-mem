@@ -46,12 +46,14 @@ manifiestos ni registros.
 
 | Operación | Lectura o cambio | Precondición principal |
 | --- | --- | --- |
-| `--status`, `--contextualize`, `--source-status` | solo lectura | vault o fuente resoluble |
+| `--status`, `--contextualize` | solo lectura | consumidor resoluble |
+| `--source-status` | solo lectura | fuente resoluble; no admite `--target` |
 | `--init` | crea scaffold | consumidor sin vault |
 | `--update-vault` | cambia solo el manifiesto | fuente `release-aligned` y formato compatible |
 | `--update-source-vault` | cambia solo el manifiesto fuente | `master`, checkout limpio y tag en `HEAD` |
 | `--migrate-vault-format` | prepara o finaliza migración | petición explícita y registros resueltos |
-| `--migrate-workspace-to-vault` | mueve almacenamiento heredado | destino ausente y manifiesto heredado válido |
+| `--migrate-workspace-to-vault` | mueve `mem/workspace` a `mem/vault` | consumidor, destino ausente y manifiesto heredado válido |
+| `--migrate-source-workspace-to-vault` | mueve `workspace/` a `vault/` | fuente, destino ausente y manifiesto heredado válido |
 | `--integrate-codex` | crea o valida integración | instalación; no sobrescribe rutas existentes |
 
 Las dos implementaciones (`bootstrap.sh` y `bootstrap.ps1`) comparten estas

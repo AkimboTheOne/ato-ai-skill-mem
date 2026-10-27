@@ -3,3 +3,4 @@ context-new	0	vault.context.state=needs-definition;vault.context.next_step=defin
 context-existing-ready	0	vault.context.state=structurally-ready;vault.context.next_step=validate-and-authorize
 context-blocked	0	vault.context.state=blocked;vault.context.next_step=migrate
 source-status	0	source.state=not-release-aligned;vault.state=compatible-update-available|aligned
+source-target-rejected	1	error=source-status no admite --target|las operaciones de fuente no admiten -Target

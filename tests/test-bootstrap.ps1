@@ -9,12 +9,26 @@ try {
         if ($null -eq $line) { throw "escenario contractual ausente: $Scenario" }
         return (($line -split "`t")[2]).Split(';')
     }
+    function Get-ContractExit([string]$Scenario) {
+        $line = Get-Content -LiteralPath $contract | Where-Object { $_ -and -not $_.StartsWith('#') -and ($_ -split "`t")[0] -eq $Scenario } | Select-Object -First 1
+        if ($null -eq $line) { throw "escenario contractual ausente: $Scenario" }
+        return [int](($line -split "`t")[1])
+    }
+    function Invoke-Contract([string]$Scenario, [scriptblock]$Command) {
+        $expectedExit = Get-ContractExit $Scenario
+        $actualExit = 0
+        try { $output = (& $Command) -join "`n" }
+        catch { $output = $_.Exception.Message; $actualExit = 1 }
+        if ($actualExit -ne $expectedExit) { throw "exit code incumplido ($Scenario): esperado $expectedExit, obtenido $actualExit" }
+        return $output
+    }
     function Assert-ContractOutput([string]$Scenario, [string]$Output) {
         foreach ($assertion in @(Get-ContractAssertions $Scenario)) {
             $parts = $assertion.Split('=', 2)
             $matched = $false
             foreach ($alternative in $parts[1].Split('|')) {
-                $expected = "$($parts[0]): $alternative"
+                $prefix = if ($parts[0] -eq 'error') { 'error' } else { $parts[0] }
+                $expected = "$prefix`: $alternative"
                 if ($Output -match "(?m)^$([regex]::Escape($expected))$") { $matched = $true; break }
             }
             if (-not $matched) { throw "contrato incumplido ($Scenario): $assertion" }
@@ -23,13 +37,15 @@ try {
 
     $contextNewProject = Join-Path $temp 'context-new'
     New-Item -ItemType Directory -Path $contextNewProject | Out-Null
-    $contextNewOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $contextNewProject -Contextualize) -join "`n"
+    $contextNewOutput = Invoke-Contract 'context-new' { & (Join-Path $root 'scripts/bootstrap.ps1') -Target $contextNewProject -Contextualize }
     if ($contextNewOutput -notmatch 'vault.initialization.state: new' -or $contextNewOutput -notmatch 'vault.context.wizard.phase.4: validate-and-authorize') { throw 'contextualize no reportó el estado nuevo y el wizard' }
     Assert-ContractOutput 'context-new' $contextNewOutput
     if (Test-Path (Join-Path $contextNewProject 'mem')) { throw 'contextualize creó una instancia nueva' }
 
-    $sourceStatusOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -SourceStatus) -join "`n"
+    $sourceStatusOutput = Invoke-Contract 'source-status' { & (Join-Path $root 'scripts/bootstrap.ps1') -SourceStatus }
     Assert-ContractOutput 'source-status' $sourceStatusOutput
+    $sourceTargetRejectedOutput = Invoke-Contract 'source-target-rejected' { & (Join-Path $root 'scripts/bootstrap.ps1') -SourceStatus -Target $root }
+    Assert-ContractOutput 'source-target-rejected' $sourceTargetRejectedOutput
 
     $stateProject = Join-Path $temp 'state-consumer'
     New-Item -ItemType Directory -Path $stateProject | Out-Null
@@ -47,7 +63,7 @@ try {
     }
     if ((Get-FileHash -LiteralPath $stateMarker).Hash -ne $stateMarkerHash) { throw 'init modificó el manifiesto de una vault existente' }
     & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $stateVault -Id context -Title Context
-    $stateContextOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -Contextualize) -join "`n"
+    $stateContextOutput = Invoke-Contract 'context-existing-ready' { & (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -Contextualize }
     if ($stateContextOutput -notmatch 'vault.initialization.state: existing' -or $stateContextOutput -notmatch 'vault.context.domains.total: 1') { throw 'contextualize no reportó el estado existente estructuralmente listo' }
     Assert-ContractOutput 'context-existing-ready' $stateContextOutput
     $statusMarkerHash = (Get-FileHash -LiteralPath $stateMarker).Hash
@@ -292,7 +308,7 @@ try {
     '# Índice legado' | Set-Content (Join-Path $migrationVault 'INDEX.md')
     Copy-Item -LiteralPath (Join-Path $migrationVault 'INDEX.md') -Destination (Join-Path $temp 'legacy-index.expected')
     '# Registro legado' | Set-Content (Join-Path $migrationVault 'records/2026-01-01--legacy&record.md')
-    $migrationContextOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -Contextualize) -join "`n"
+    $migrationContextOutput = Invoke-Contract 'context-blocked' { & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -Contextualize }
     Assert-ContractOutput 'context-blocked' $migrationContextOutput
     & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat
     if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2\r?$') { throw 'el manifiesto cambió antes de finalizar' }

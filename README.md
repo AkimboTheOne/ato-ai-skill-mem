@@ -105,13 +105,14 @@ queda `aligned`. No fuerces el tag para eliminar esa diferencia.
 
 | Modo | Propiedad | Efecto | Autoridad y precondición |
 | --- | --- | --- | --- |
-| `--contextualize` / `--status` | consumidor o fuente | diagnóstico de solo lectura | activación contextual; no modifica archivos |
+| `--contextualize` / `--status` | consumidor | diagnóstico de solo lectura | activación contextual; no modifica archivos |
 | `--init` | consumidor | crea el scaffold de una vault ausente | petición explícita; el destino debe estar ausente |
 | `--update-vault` | consumidor | actualiza solo el manifiesto compatible | petición explícita, checkout fuente `release-aligned` |
 | `--source-status` | fuente | diagnostica la vault `vault/` | activación contextual; no admite `--target` |
 | `--update-source-vault` | fuente | actualiza solo el manifiesto de la fuente | checkout limpio en `master` con `v<VERSION>` en `HEAD` |
 | `--migrate-vault-format` | consumidor | prepara o finaliza la migración 2 → 3 | petición explícita y resolución humana de registros |
-| `--migrate-workspace-to-vault` | consumidor o fuente | mueve el almacenamiento heredado | petición explícita; no puede existir el destino |
+| `--migrate-workspace-to-vault` | consumidor | mueve `mem/workspace` a `mem/vault` | petición explícita; no puede existir el destino |
+| `--migrate-source-workspace-to-vault` | fuente | mueve `workspace/` a `vault/` | petición explícita; no puede existir el destino |
 | `--integrate-codex` | consumidor | crea o valida el adaptador local | instalación; nunca sobrescribe configuración existente |
 
 Los modos de actualización y migración no clasifican contenido, no sincronizan

@@ -11,6 +11,25 @@ contract_assertions() {
   awk -F '\t' -v scenario="$1" '$1 == scenario { print $3; exit }' "$CONTRACT"
 }
 
+contract_exit() {
+  awk -F '\t' -v scenario="$1" '$1 == scenario { print $2; exit }' "$CONTRACT"
+}
+
+run_contract() {
+  scenario=$1
+  shift
+  set +e
+  output=$("$@" 2>&1)
+  status=$?
+  set -e
+  expected=$(contract_exit "$scenario")
+  [ "$status" = "$expected" ] || {
+    printf 'exit code incumplido (%s): esperado %s, obtenido %s\n' "$scenario" "$expected" "$status" >&2
+    return 1
+  }
+  printf '%s\n' "$output"
+}
+
 assert_contract_output() {
   scenario=$1
   output=$2
@@ -24,7 +43,12 @@ assert_contract_output() {
     alternatives_ifs=$IFS
     IFS='|'
     for alternative in $expected; do
-      if printf '%s\n' "$output" | grep -F "${key}: ${alternative}" >/dev/null; then matched=true; break; fi
+      if [ "$key" = error ]; then
+        pattern="error: ${alternative}"
+      else
+        pattern="${key}: ${alternative}"
+      fi
+      if printf '%s\n' "$output" | grep -F "$pattern" >/dev/null; then matched=true; break; fi
     done
     IFS=$alternatives_ifs
     [ "$matched" = true ] || {
@@ -38,14 +62,16 @@ assert_contract_output() {
 
 CONTEXT_NEW_PROJECT=$TEMP_ROOT/context-new
 mkdir -p "$CONTEXT_NEW_PROJECT"
-context_new_output=$($ROOT/scripts/bootstrap.sh --target "$CONTEXT_NEW_PROJECT" --contextualize)
+context_new_output=$(run_contract context-new "$ROOT/scripts/bootstrap.sh" --target "$CONTEXT_NEW_PROJECT" --contextualize)
 printf '%s\n' "$context_new_output" | grep -F 'vault.initialization.state: new' >/dev/null
 assert_contract_output context-new "$context_new_output"
 printf '%s\n' "$context_new_output" | grep -F 'vault.context.wizard.phase.4: validate-and-authorize' >/dev/null
 [ ! -e "$CONTEXT_NEW_PROJECT/mem" ]
 
-source_status_output=$($ROOT/scripts/bootstrap.sh --source-status)
+source_status_output=$(run_contract source-status "$ROOT/scripts/bootstrap.sh" --source-status)
 assert_contract_output source-status "$source_status_output"
+source_target_rejected_output=$(run_contract source-target-rejected "$ROOT/scripts/bootstrap.sh" --source-status --target "$ROOT")
+assert_contract_output source-target-rejected "$source_target_rejected_output"
 
 STATE_PROJECT=$TEMP_ROOT/state-consumer
 mkdir -p "$STATE_PROJECT"
@@ -57,7 +83,7 @@ STATE_MARKER_HASH=$(cksum "$STATE_MARKER")
 if $ROOT/scripts/bootstrap.sh --target "$STATE_PROJECT" --init >/dev/null 2>&1; then exit 1; fi
 [ "$(cksum "$STATE_MARKER")" = "$STATE_MARKER_HASH" ]
 sh "$ROOT/scripts/vault.sh" create-domain --vault "$STATE_VAULT" --id context --title Context
-state_context_output=$($ROOT/scripts/bootstrap.sh --target "$STATE_PROJECT" --contextualize)
+state_context_output=$(run_contract context-existing-ready "$ROOT/scripts/bootstrap.sh" --target "$STATE_PROJECT" --contextualize)
 printf '%s\n' "$state_context_output" | grep -F 'vault.initialization.state: existing' >/dev/null
 assert_contract_output context-existing-ready "$state_context_output"
 printf '%s\n' "$state_context_output" | grep -F 'vault.context.domains.total: 1' >/dev/null
@@ -241,7 +267,7 @@ printf '%s\n' 'format: 1' 'vault_kind: consumer' 'vault_format: 2' 'skill_versio
 printf '%s\n' '# Índice legado' > "$MIGRATION_VAULT/INDEX.md"
 cp "$MIGRATION_VAULT/INDEX.md" "$TEMP_ROOT/legacy-index.expected"
 printf '%s\n' '# Registro legado' > "$MIGRATION_VAULT/records/2026-01-01--legacy&record.md"
-migration_context_output=$($ROOT/scripts/bootstrap.sh --target "$MIGRATION_PROJECT" --contextualize)
+migration_context_output=$(run_contract context-blocked "$ROOT/scripts/bootstrap.sh" --target "$MIGRATION_PROJECT" --contextualize)
 assert_contract_output context-blocked "$migration_context_output"
 "$ROOT/scripts/bootstrap.sh" --target "$MIGRATION_PROJECT" --migrate-vault-format
 [ "$(sed -n 's/^vault_format: *//p' "$MIGRATION_VAULT/.ato-ai-skill-mem-version.yml")" = 2 ]
