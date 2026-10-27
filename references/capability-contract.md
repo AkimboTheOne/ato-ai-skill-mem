@@ -4,6 +4,11 @@ Este contrato homologa las capacidades del skill principal con runtimes
 externos, incluido Microsoft 365 Copilot, Agent Builder y Copilot Studio. No
 es un protocolo de red ni una implementación de conectores.
 
+Las capacidades read-only de este documento son el perfil estable. El perfil
+experimental de cambios controlados está en
+[`change-control-contract.md`](change-control-contract.md); no altera el modo
+read-only predeterminado.
+
 ## Capacidades
 
 Las capacidades son semánticas y read-only:

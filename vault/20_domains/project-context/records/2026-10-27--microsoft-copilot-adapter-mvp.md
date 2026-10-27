@@ -12,6 +12,7 @@ sources:
   - VAULT_FORMAT
   - references/runtime-boundary.md
   - references/capability-contract.md
+  - references/change-control-contract.md
   - references/integration-alignment.md
   - AGENTS.md
   - templates/integrations/microsoft-copilot/SKILL.md
@@ -77,3 +78,10 @@ La alineación permanente queda documentada en
 `references/integration-alignment.md` y referenciada desde el `AGENTS.md` y
 el `SKILL.md` fuente. La guía de consumidores añade la misma advertencia sin
 modificar automáticamente sus instrucciones.
+
+La siguiente extensión queda definida en
+`references/change-control-contract.md`: `draft_change` y `validate_change`
+son propuestas sin persistencia; `apply_change` solo está disponible con un
+host `controlled` y autorización externa. Microsoft 365 Copilot, Copilot
+Studio y una Vault Documental Agenéntica no deben declarar esa capacidad sin
+una herramienta de escritura, validación y auditoría explícita.

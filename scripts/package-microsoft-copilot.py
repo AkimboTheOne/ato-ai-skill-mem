@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_ROOT = ROOT / "templates" / "integrations" / "microsoft-copilot"
 PACKAGE_FILES = ("SKILL.md", "connection-contract.md")
 CAPABILITY_CONTRACT = ROOT / "references" / "capability-contract.md"
+CHANGE_CONTROL_CONTRACT = ROOT / "references" / "change-control-contract.md"
 SKILL_VERSION_MARKER = "__SKILL_VERSION__"
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
@@ -89,6 +90,8 @@ def validate_templates() -> tuple[str, str, int]:
             fail(f"recurso de integración inexistente o no local: {relative}")
     if CAPABILITY_CONTRACT.is_symlink() or not CAPABILITY_CONTRACT.is_file():
         fail("falta el contrato de capacidades portable")
+    if CHANGE_CONTROL_CONTRACT.is_symlink() or not CHANGE_CONTROL_CONTRACT.is_file():
+        fail("falta el perfil portable de cambios controlados")
     return parse_front_matter(TEMPLATE_ROOT / "SKILL.md")
 
 
@@ -117,6 +120,7 @@ def write_zip(output: Path, version: str) -> None:
             content = content.replace(SKILL_VERSION_MARKER, version)
         resources[relative] = content.encode("utf-8")
     resources["capability-contract.md"] = CAPABILITY_CONTRACT.read_bytes()
+    resources["change-control-contract.md"] = CHANGE_CONTROL_CONTRACT.read_bytes()
     resources["package-metadata.json"] = metadata(version)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         for relative in sorted(resources):

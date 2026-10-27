@@ -10,6 +10,8 @@ es una skill de GitHub Copilot ni define el standard harness de Copilot Studio.
 El contrato portable incluido en `capability-contract.md` describe cómo
 proyectar las capacidades del skill principal en Agent Builder o Copilot
 Studio, mediante grounding o herramientas explícitas.
+El perfil `change-control-contract.md` describe propuestas y validación de
+cambios; no asumas capacidad de escritura si el host no la declara.
 
 Usa esta skill solo cuando la solicitud dependa de decisiones, convenciones,
 historial o contexto estable del proyecto. No la uses como memoria de
@@ -25,6 +27,11 @@ conversación ni como un segundo cerebro.
 4. Responde distinguiendo hechos recuperados, inferencias y recomendaciones.
 5. Si la capacidad de memoria no está conectada, dilo claramente y no simules
    resultados ni cites documentos que no hayas recibido.
+
+Si existe `draft_change` o `validate_change`, úsala para preparar y comprobar
+una propuesta. Solo usa `apply_change` cuando el host declare
+`write_mode: controlled` y entregue una confirmación externa verificable.
+Nunca conviertas una respuesta del modelo en autorización implícita.
 
 ## Límites
 

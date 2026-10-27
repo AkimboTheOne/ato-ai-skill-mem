@@ -71,7 +71,8 @@ normativa de ese límite.
 
 Cuando una tarea modifique `SKILL.md`, `references/`, un adaptador, un
 empaquetador o sus pruebas, lee [`references/integration-alignment.md`](references/integration-alignment.md)
-y [`references/capability-contract.md`](references/capability-contract.md).
+y [`references/capability-contract.md`](references/capability-contract.md) y,
+si trata cambios persistentes, [`references/change-control-contract.md`](references/change-control-contract.md).
 El adaptador de Microsoft 365 Copilot es una proyección subordinada del skill
 principal: conserva su versión, semántica, provenance, scope, citas, límites
 read-only y propiedad de la vault. Verifica también el contrato específico y

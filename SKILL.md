@@ -149,7 +149,10 @@ adaptadores fuente y consumidor fijan su propia ruta y no comparten memoria.
 
 Para modificar una integración o su empaquetado, consulta también
 [references/integration-alignment.md](references/integration-alignment.md) y
-[references/capability-contract.md](references/capability-contract.md). La
+[references/capability-contract.md](references/capability-contract.md). Para
+proponer o aplicar cambios controlados, consulta
+[references/change-control-contract.md](references/change-control-contract.md).
+La
 integración de Microsoft 365 Copilot es una proyección subordinada y no una
 segunda implementación del skill.
 

@@ -20,6 +20,12 @@ inventes capacidades, no mezcles fuentes y conserva `source`, `locator`,
 `revision`, `citation` y `scope`. Esta guía no convierte el consumidor en
 propietario de la vault fuente ni implica sincronización automática.
 
+Si el adaptador distribuye `change-control-contract.md`, el consumidor puede
+generar y validar propuestas con `draft_change` y `validate_change`. Solo debe
+ofrecer `apply_change` cuando el host declare `write_mode: controlled` y
+proporcione autorización, validación y auditoría externas. Grounding de
+SharePoint o OneDrive no concede escritura.
+
 ~~~md
 ## Memoria del proyecto
 

@@ -177,6 +177,8 @@ python3 scripts/package-microsoft-copilot.py --output /tmp/ato-ai-skill-mem-copi
 El ZIP contiene instrucciones adaptadas, el contrato read-only de conexión y
 el contrato portable `capability-contract.md`, que homologa `inspect`,
 `search`, `fetch` y `transform` con las primitivas del skill principal.
+También incluye el perfil `change-control-contract.md`, que define propuestas
+y validación sin activar escritura por defecto.
 No implementa un connector o MCP ni sincroniza la memoria automáticamente.
 La proyección es para Microsoft 365 Copilot, Agent Builder y Copilot Studio;
 no es una integración de GitHub Copilot.

@@ -11,9 +11,11 @@ La precedencia para una integración es:
 
 1. `SKILL.md` y sus contratos normativos.
 2. `references/capability-contract.md` para la homologación portable.
-3. El contrato y las instrucciones específicas del adaptador.
-4. El empaquetador y sus pruebas.
-5. La memoria documental del proyecto como registro de decisiones y límites.
+3. `references/change-control-contract.md` para propuestas y cambios
+   controlados.
+4. El contrato y las instrucciones específicas del adaptador.
+5. El empaquetador y sus pruebas.
+6. La memoria documental del proyecto como registro de decisiones y límites.
 
 Un adaptador es una proyección subordinada. No puede cambiar la semántica,
 autoridad, propiedad de la vault o límites de runtime del skill principal.

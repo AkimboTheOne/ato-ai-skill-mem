@@ -1,4 +1,4 @@
-# Contrato read-only de conexión
+# Contrato de conexión
 
 Este archivo describe la capacidad externa que puede conectar un agente de
 Microsoft 365 Copilot con una vault. El ZIP no implementa la capacidad ni
@@ -29,6 +29,11 @@ obtenido; no debe usarse para seleccionar otra vault ni para persistir cambios.
 
 El contrato es portable entre Microsoft 365 Copilot/Agent Builder y Copilot
 Studio. No es GitHub Copilot ni un servidor MCP.
+
+El perfil portable de cambios controlados está en
+`change-control-contract.md`. Este ZIP no activa escritura: el host debe
+declarar `write_mode` y aportar una autorización externa antes de ofrecer
+`apply_change`. Grounding de SharePoint o OneDrive no concede esa capacidad.
 
 El marcador `__SKILL_VERSION__` se sustituye por `VERSION` al empaquetar. No
 debe editarse manualmente en el ZIP.
