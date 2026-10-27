@@ -68,7 +68,12 @@ La operación de actualización exige `master`, checkout limpio y `HEAD` en
 `v<VERSION>`; conserva
 índice y registros, escribe solo el manifiesto y no crea commits ni tags. Su
 referencia puede apuntar al último release aunque el checkout posterior esté
-en desarrollo.
+en desarrollo. El commit documental posterior puede dejar `source.state:
+not-release-aligned` porque `master` avanza después del tag; eso no invalida el
+release. La comprobación final conserva el tag sobre el commit de release,
+verifica que `master` local y `origin/master` coincidan y exige
+`vault.state: aligned`. Nunca se debe forzar o mover un tag público para
+absorber el commit documental.
 
 ## Integración de agentes
 

@@ -62,3 +62,17 @@ La versión del skill pasa a `0.4.0` sin cambiar `VAULT_FORMAT=3`. El release
 requiere fusionar en `master`, crear manualmente `v0.4.0` sobre el mismo `HEAD`,
 verificar `release-aligned` y ejecutar `--update-source-vault` para actualizar
 solo el manifiesto de la vault fuente. El bootstrap no crea tags ni commits.
+
+## Criterio editorial de publicación y alineación
+
+`source.state: release-aligned` es una precondición del momento de publicar y
+actualizar el manifiesto, no una condición permanente del checkout posterior.
+El tag público debe permanecer inmutable sobre el commit de merge del release.
+Después de confirmar el commit documental del manifiesto, `master` queda una
+revisión después del tag y `source.state: not-release-aligned` es esperado.
+
+La alineación final se declara cuando el tag remoto conserva el commit de
+release, `master` local coincide con `origin/master`, y `vault.state: aligned`
+confirma que `skill_version`, `source_revision` y `source_tag` apuntan al
+release publicado. No se fuerza ni se mueve el tag para incorporar el commit
+documental posterior.

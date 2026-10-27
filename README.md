@@ -95,7 +95,11 @@ Consulta la vault de fuente con:
 ./scripts/bootstrap.sh --source-status
 ```
 
-`--update-source-vault` solo actualiza el manifiesto desde un release válido; no crea commits ni tags.
+`--update-source-vault` solo actualiza el manifiesto desde un release válido;
+no crea commits ni tags. Después de confirmar el commit documental, es normal
+que `source.state` vuelva a `not-release-aligned`: `master` queda después del
+tag, mientras el release sigue identificado por el tag inmutable y la vault
+queda `aligned`. No fuerces el tag para eliminar esa diferencia.
 
 ## Límites
 

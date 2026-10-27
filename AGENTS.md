@@ -16,8 +16,17 @@ El manifiesto de este vault tiene `vault_kind: source`. Para
 consultarlo usa `scripts/bootstrap.* --source-status` (o `-SourceStatus`).
 Solo actualiza su referencia de release mediante la operación explícita de
 fuente, desde `master`, con checkout limpio y el tag `v<VERSION>` en `HEAD`.
-La actualización no crea tags ni commits: una persona revisa y confirma el
-commit documental posterior. Los consumidores usan `mem/vault/` y los
+Esta condición es la precondición temporal para ejecutar la actualización; la
+operación no crea tags ni commits. Después, una persona revisa y confirma el
+commit documental posterior que actualiza el manifiesto. Ese commit avanza
+`master` después del tag, por lo que `source.state: not-release-aligned` vuelve
+a ser esperado y no invalida el release publicado.
+
+El criterio editorial de publicación exige conservar el tag inmutable sobre el
+merge de release, sincronizar `master` local con `origin/master` y comprobar
+`vault.state: aligned` junto con `skill_version`, `source_revision` y
+`source_tag` del manifiesto. No muevas ni fuerces un tag público para incluir
+el commit documental posterior. Los consumidores usan `mem/vault/` y los
 comandos con `--target`; nunca comparten registros con este vault.
 
 Este repositorio fuente expone un adaptador estático de descubrimiento en

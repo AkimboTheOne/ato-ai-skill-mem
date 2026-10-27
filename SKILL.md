@@ -192,6 +192,16 @@ puede leerse durante desarrollo si los datos son compatibles, pero su marcador
 solo se actualiza con `--update-source-vault` desde un checkout limpio y
 release-aligned; la operación no crea tags ni commits.
 
+La publicación tiene dos puntos de control deliberadamente separados: primero
+el tag inmutable `v<VERSION>` sobre el commit de release en `master`; después,
+el commit documental que actualiza el manifiesto mediante
+`--update-source-vault`. Como el segundo commit avanza `master` después del
+tag, `source.state: not-release-aligned` es una observación esperada del
+checkout posterior y no invalida el release. La alineación editorial final se
+comprueba con el tag remoto intacto, `master` local igual a `origin/master`, y
+`vault.state: aligned` con `skill_version`, `source_revision` y `source_tag`
+coherentes. No fuerces ni muevas un tag público para ocultar esa diferencia.
+
 `--integrate-codex` crea un adaptador consumidor separado y no modifica el
 `AGENTS.md` del proyecto. Para una integración manual, consulta
 [references/agents-integration.md](references/agents-integration.md). El
