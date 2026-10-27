@@ -3,8 +3,8 @@
 format: 1
 vault_kind: source
 vault_format: 3
-skill_version: 0.5.1
-source_revision: c52b4f08351ead86f6d4d6d422f0cd26af140869
-source_tag: v0.5.1
+skill_version: 0.6.0
+source_revision: f3efbefa9d2573193caade5be156e0658119fcb8
+source_tag: v0.6.0
 created_at: unknown
 updated_at: 2026-10-27
