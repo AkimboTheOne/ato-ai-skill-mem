@@ -9,8 +9,8 @@ Incluye únicamente conocimiento estable y trazable del producto.
 ## Vocabulario y fuentes
 
 `vault/` es la memoria fuente. `mem/vault/` identifica memorias de proyectos
-consumidores. `VAULT_FORMAT=3` y `VERSION=0.3.1` son el contrato actual de la
-fuente. Las fuentes principales son `SKILL.md`, contratos, guías operativas,
+consumidores. `VAULT_FORMAT=3` y `VERSION=0.4.0` son el contrato de desarrollo
+actual de la fuente. Las fuentes principales son `SKILL.md`, contratos, guías operativas,
 scripts, pruebas y decisiones explícitas de la conversación.
 
 ## Reglas locales

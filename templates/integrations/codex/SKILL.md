@@ -16,3 +16,8 @@ propuesta sin persistirla.
 
 No accedas a la vault fuente, no copies ni sincronices vaults. Las reglas
 canónicas definen toda autoridad y operación persistente.
+
+Si el bootstrap informa `vault.context.state`, acompaña a la persona por las
+fases de contextualización de `mem/SKILL.md`. La salida es diagnóstica: no
+crees un estado persistente ni registres datos sin una petición humana
+explícita.

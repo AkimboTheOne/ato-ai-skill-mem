@@ -1,7 +1,7 @@
 ---
 id: 2026-10-26--project-evolution-0-3-0
 type: project-context
-status: active
+status: retired
 created: 2026-10-26
 updated: 2026-10-26
 scope: project
@@ -15,7 +15,7 @@ sources:
 related:
   - ../engineering-prompts/records/2026-10-25--engineering-optimization-loop.md
 supersedes: null
-superseded_by: null
+superseded_by: "[Siguiente registro](2026-10-26--project-evolution-0-4-0.md)"
 ---
 
 # Evolución del proyecto y decisiones de la versión 0.3.0
