@@ -14,6 +14,7 @@ sources:
   - references/capability-contract.md
   - references/change-control-contract.md
   - references/integration-alignment.md
+  - references/release-readiness.md
   - AGENTS.md
   - templates/integrations/microsoft-copilot/SKILL.md
   - templates/integrations/microsoft-copilot/connection-contract.md
@@ -85,3 +86,18 @@ son propuestas sin persistencia; `apply_change` solo está disponible con un
 host `controlled` y autorización externa. Microsoft 365 Copilot, Copilot
 Studio y una Vault Documental Agenéntica no deben declarar esa capacidad sin
 una herramienta de escritura, validación y auditoría explícita.
+
+La revisión gobernada del contrato exige que la aprobación de `apply_change`
+esté ligada a un digest de la propuesta, revisión validada, fuente, alcance,
+expiración y nonce de un solo uso. También exige payloads específicos para
+`create`, `update`, `retire` y `relate`, evitando que cada host interprete las
+operaciones de forma distinta.
+
+La SemVer del skill no pertenece a una feature individual. La clasificación
+`major`/`minor`/`patch` se decide en el gate de merge sobre el diff final frente
+al último release; las ramas solo describen trabajo o versión base. `VERSION`,
+los artefactos y el tag se actualizan en ese gate, antes de publicar.
+
+El checklist operativo de preparación está en
+`references/release-readiness.md`; documenta gates, validaciones, decisión de
+SemVer y pasos posteriores al tag sin crear por sí mismo ningún release.

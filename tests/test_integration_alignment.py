@@ -12,14 +12,22 @@ class IntegrationAlignmentTests(unittest.TestCase):
         alignment = ROOT / "references" / "integration-alignment.md"
         capability = ROOT / "references" / "capability-contract.md"
         change_control = ROOT / "references" / "change-control-contract.md"
+        release_readiness = ROOT / "references" / "release-readiness.md"
         self.assertTrue(alignment.is_file())
         self.assertTrue(capability.is_file())
         self.assertTrue(change_control.is_file())
+        self.assertTrue(release_readiness.is_file())
         for path in (ROOT / "AGENTS.md", ROOT / "SKILL.md"):
             content = path.read_text(encoding="utf-8")
             self.assertIn("references/integration-alignment.md", content)
             self.assertIn("references/capability-contract.md", content)
         self.assertIn("references/change-control-contract.md", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        self.assertIn("references/release-readiness.md", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("diff", skill)
+        self.assertIn("final", skill)
+        self.assertIn("gate de merge", agents)
 
     def test_consumer_guidance_preserves_subordination_and_provenance(self) -> None:
         content = (ROOT / "references" / "agents-integration.md").read_text(encoding="utf-8")

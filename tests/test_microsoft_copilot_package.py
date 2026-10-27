@@ -54,11 +54,26 @@ class MicrosoftCopilotPackageTests(unittest.TestCase):
                 for operation in ("### `inspect`", "### `search`", "### `fetch`", "### `transform`"):
                     self.assertIn(operation, capability_contract)
                 self.assertIn("Microsoft 365 Copilot", capability_contract)
+                self.assertIn(
+                    f'"skill_version": "{(ROOT / "VERSION").read_text().strip()}"',
+                    capability_contract,
+                )
+                self.assertNotIn("__SKILL_VERSION__", capability_contract)
                 change_contract = archive.read("change-control-contract.md").decode("utf-8")
                 for operation in ("`draft_change`", "`validate_change`", "`apply_change`"):
                     self.assertIn(operation, change_contract)
                 self.assertIn("write_mode", change_contract)
                 self.assertIn("confirmación externa", change_contract)
+                for invariant in (
+                    "proposal_digest",
+                    "expires_at",
+                    "nonce",
+                    "record_type",
+                    "mode: replace|patch",
+                    "replacement_locator",
+                    "target_locator",
+                ):
+                    self.assertIn(invariant, change_contract)
                 self.assertIn("GitHub Copilot", skill)
                 package_metadata = json.loads(archive.read("package-metadata.json"))
                 self.assertEqual(package_metadata["skill_version"], (ROOT / "VERSION").read_text().strip())

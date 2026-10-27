@@ -119,7 +119,9 @@ def write_zip(output: Path, version: str) -> None:
         if relative == "connection-contract.md":
             content = content.replace(SKILL_VERSION_MARKER, version)
         resources[relative] = content.encode("utf-8")
-    resources["capability-contract.md"] = CAPABILITY_CONTRACT.read_bytes()
+    resources["capability-contract.md"] = CAPABILITY_CONTRACT.read_bytes().replace(
+        SKILL_VERSION_MARKER.encode("utf-8"), version.encode("utf-8")
+    )
     resources["change-control-contract.md"] = CHANGE_CONTROL_CONTRACT.read_bytes()
     resources["package-metadata.json"] = metadata(version)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:

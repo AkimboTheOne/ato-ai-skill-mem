@@ -24,7 +24,8 @@ autoridad, propiedad de la vault o límites de runtime del skill principal.
 
 Antes de aceptar un cambio de integración, comprueba que:
 
-- `VERSION` es la versión declarada del skill en desarrollo.
+- `VERSION` es la versión candidata de la integración actual, no la versión
+  definitiva de cada feature.
 - `package-metadata.json.skill_version` coincide con `VERSION`.
 - `memory_check.skill_version` se materializa desde `VERSION` al empaquetar.
 - `VAULT_FORMAT` permanece independiente de la versión del skill.
@@ -32,8 +33,9 @@ Antes de aceptar un cambio de integración, comprueba que:
 - Las pruebas cubren el ZIP y no incluyen `vault/`, `.git/`, `AGENTS.md` ni el
   runtime local salvo que el contrato lo autorice expresamente.
 
-La línea actual de trabajo es `0.7.0`. No debe declararse `0.8.0` hasta que
-`0.7.0` haya sido promovida conforme al protocolo de release.
+La línea candidata actual es `0.7.0`. La versión final se decide en el gate de
+merge comparando el diff completo con el último release. No debe inferirse
+`0.8.0` por la existencia de una feature concreta.
 
 ## Homologación de capacidades
 
@@ -74,7 +76,15 @@ El `AGENTS.md` de este repositorio exige consultar esta guía y
 manual en `references/agents-integration.md`; el bootstrap no edita sus
 `AGENTS.md`.
 
+El checklist operativo de preparación de release está en
+[`release-readiness.md`](release-readiness.md). Su uso no crea tags ni
+actualiza manifests.
+
 ## Release
+
+Antes de mergear, el gate clasifica el diff final como `major`, `minor` o
+`patch`, actualiza `VERSION` en el commit candidato, regenera artefactos y
+ejecuta las validaciones. Solo después se crea `v<VERSION>` sobre ese commit.
 
 El release requiere checkout limpio en `master`, el tag inmutable
 `v<VERSION>` sobre el commit de release y la verificación posterior del

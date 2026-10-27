@@ -53,6 +53,8 @@ cambios, está en [SKILL.md](SKILL.md).
 La relación entre el skill principal, sus adaptadores, los contratos y el
 proceso de release está en
 [references/integration-alignment.md](references/integration-alignment.md).
+El checklist operativo de preparación está en
+[references/release-readiness.md](references/release-readiness.md).
 
 ## Instalación y diagnóstico
 

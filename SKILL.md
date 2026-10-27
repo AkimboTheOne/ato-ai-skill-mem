@@ -138,6 +138,13 @@ son dimensiones independientes. La política editorial es:
 - `patch`: corrección, documentación, pruebas, CI, refactor interno o ajuste
   operativo sin cambio de compatibilidad.
 
+La clasificación SemVer se decide en el gate de integración sobre el diff
+final que va a entrar en `master`, comparado con el último release. Una feature
+o rama no fija por sí sola `major`, `minor` o `patch`; varias features pueden
+desarrollarse en paralelo y cada merge se clasifica con su alcance efectivo.
+El gate actualiza `VERSION`, regenera los artefactos y vuelve a validar antes
+de crear el tag correspondiente.
+
 Un release requiere `master`, checkout limpio y el tag `v<VERSION>` en el
 commit de release. El bootstrap no crea tags ni commits. La actualización del
 manifiesto fuente es una operación posterior y explícita.
@@ -152,6 +159,8 @@ Para modificar una integración o su empaquetado, consulta también
 [references/capability-contract.md](references/capability-contract.md). Para
 proponer o aplicar cambios controlados, consulta
 [references/change-control-contract.md](references/change-control-contract.md).
+Para preparar un candidato de release, consulta
+[references/release-readiness.md](references/release-readiness.md).
 La
 integración de Microsoft 365 Copilot es una proyección subordinada y no una
 segunda implementación del skill.

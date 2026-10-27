@@ -69,7 +69,7 @@ Salida mínima:
   "source": "identificador de la fuente",
   "scope": "alcance autorizado",
   "content": {
-    "skill_version": "0.8.0",
+    "skill_version": "__SKILL_VERSION__",
     "vault_format": 3,
     "role": "source|consumer"
   }

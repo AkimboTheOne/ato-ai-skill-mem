@@ -79,6 +79,10 @@ read-only y propiedad de la vault. Verifica también el contrato específico y
 el ZIP antes de aceptar el cambio. Esta regla no autoriza editar los
 `AGENTS.md` de proyectos consumidores ni crear tags o releases.
 
+Para preparar un candidato de publicación, sigue
+[`references/release-readiness.md`](references/release-readiness.md). El
+checklist no sustituye el protocolo canónico ni autoriza por sí mismo un tag.
+
 ## Idioma
 
 Usa español para el razonamiento comunicado, las conversaciones, la
@@ -90,9 +94,10 @@ consumidor cuando lo documente expresamente en sus instrucciones locales.
 
 ## Convención de ramas del proyecto
 
-Las ramas de trabajo de este repositorio usan el prefijo `codex/` y su nombre
-descriptivo incluye la versión declarada en `VERSION` junto con el alcance del
-cambio. El formato recomendado es `codex/<VERSION>-<scope-descriptivo>`; por
-ejemplo, `codex/0.6.0-ato-mem-simplify-stabilize`. Esta convención pertenece
-al flujo de trabajo de este proyecto y no forma parte del contrato de
-`SKILL.md` ni de la interfaz del skill.
+Las ramas de trabajo de este repositorio usan el prefijo `codex/` y un nombre
+descriptivo del alcance, por ejemplo `codex/<scope-descriptivo>`. Se puede
+añadir la versión base como contexto (`codex/<base-version>-<scope>`), pero no
+debe interpretarse como la versión final del release. La SemVer se determina
+en el gate de merge sobre el diff final, no al crear una feature o rama. Esta
+convención pertenece al flujo de trabajo del proyecto y no forma parte del
+contrato de `SKILL.md` ni de la interfaz del skill.

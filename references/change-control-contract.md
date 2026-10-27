@@ -44,7 +44,7 @@ Entrada mínima:
       "kind": "create|update|retire|relate",
       "locator": "recurso estable o locator nuevo",
       "expected_revision": "revisión esperada o null",
-      "content": "contenido propuesto",
+      "details": {},
       "reason": "motivo verificable"
     }
   ],
@@ -70,6 +70,19 @@ Salida mínima:
 `create`, `update`, `retire` y `relate` deben conservar la semántica y el
 ciclo de vida del skill principal. `locator`, `source` y `scope` no pueden ser
 seleccionados para escapar de la Vault autorizada.
+
+Cada `kind` requiere un payload `details` específico:
+
+| `kind` | `details` obligatorio |
+| --- | --- |
+| `create` | `content` completo y `record_type`; `locator` nuevo resuelto por el host |
+| `update` | `content` completo o `patch` explícito y `mode: replace|patch` |
+| `retire` | `replacement_locator` si existe; `reason` común obligatorio |
+| `relate` | `relation: related|supersedes|superseded_by` y `target_locator` |
+
+`reason` es obligatorio para todas las operaciones. El host debe rechazar
+campos ambiguos, operaciones sin los datos de su tipo y locators que no pueda
+resolver dentro de `source` y `scope`.
 
 ## `validate_change`
 
@@ -112,13 +125,23 @@ Entrada mínima:
   "validated_revision": "revisión devuelta por validate_change",
   "approval": {
     "source": "host|human",
-    "token": "afirmación opaca del host"
+    "token": "afirmación opaca del host",
+    "proposal_digest": "digest canónico de change_id y operations",
+    "validated_revision": "revisión validada",
+    "source_id": "identificador de la fuente",
+    "scope": "alcance autorizado",
+    "expires_at": "timestamp de expiración",
+    "nonce": "valor de un solo uso"
   }
 }
 ```
 
 La aprobación es una afirmación externa al modelo. El token no debe ser
-fabricado por el agente ni sustituye la validación.
+fabricado por el agente ni sustituye la validación. El host debe verificar que
+`proposal_digest`, `validated_revision`, `source_id`, `scope`, `expires_at` y
+`nonce` están ligados a la propuesta exacta, que no ha expirado y que el nonce
+no ha sido usado antes. Un cambio en cualquier operación debe producir un
+nuevo digest y una nueva aprobación.
 
 Salida mínima:
 
