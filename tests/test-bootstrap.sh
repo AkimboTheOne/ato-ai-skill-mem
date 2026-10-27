@@ -160,6 +160,24 @@ git -C "$RELEASE_SOURCE" config user.name 'Contract Tests'
 git -C "$RELEASE_SOURCE" add .
 git -C "$RELEASE_SOURCE" commit -qm 'test release fixture'
 git -C "$RELEASE_SOURCE" tag "v$SKILL_VERSION"
+git -C "$RELEASE_SOURCE" update-ref refs/remotes/origin/master HEAD
+release_check_output=$("$RELEASE_SOURCE/scripts/release-check.sh" --format json)
+printf '%s\n' "$release_check_output" | grep -F '"ready":true' >/dev/null
+
+printf '%s\n' 'dirty' > "$RELEASE_SOURCE/.release-dirty"
+if "$RELEASE_SOURCE/scripts/bootstrap.sh" --update-source-vault >/dev/null 2>&1; then exit 1; fi
+rm "$RELEASE_SOURCE/.release-dirty"
+
+git -C "$RELEASE_SOURCE" switch -q -c release-feature
+if "$RELEASE_SOURCE/scripts/bootstrap.sh" --update-source-vault >/dev/null 2>&1; then exit 1; fi
+git -C "$RELEASE_SOURCE" switch -q master
+
+TAG_MISMATCH=$TEMP_ROOT/tag-mismatch
+git clone -q "$RELEASE_SOURCE" "$TAG_MISMATCH"
+printf '%s\n' 'post-tag change' > "$TAG_MISMATCH/post-tag-change"
+git -C "$TAG_MISMATCH" add post-tag-change
+git -C "$TAG_MISMATCH" commit -qm 'test post-tag change'
+if "$TAG_MISMATCH/scripts/bootstrap.sh" --update-source-vault >/dev/null 2>&1; then exit 1; fi
 
 UPDATE_PROJECT=$TEMP_ROOT/update-consumer
 mkdir -p "$UPDATE_PROJECT"
@@ -173,6 +191,8 @@ mv "$UPDATE_MARKER.tmp" "$UPDATE_MARKER"
 "$RELEASE_SOURCE/scripts/bootstrap.sh" --update-source-vault
 [ "$(sed -n 's/^skill_version: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = "$SKILL_VERSION" ]
 [ "$(sed -n 's/^source_tag: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = "v$SKILL_VERSION" ]
+post_release_check_output=$("$RELEASE_SOURCE/scripts/release-check.sh" --post-release --format json)
+printf '%s\n' "$post_release_check_output" | grep -F '"ready":true' >/dev/null
 
 SOURCE_MIGRATION=$TEMP_ROOT/source-migration
 mkdir -p "$SOURCE_MIGRATION/workspace/records"

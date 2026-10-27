@@ -83,6 +83,16 @@ Para preparar un candidato de publicación, sigue
 [`references/release-readiness.md`](references/release-readiness.md). El
 checklist no sustituye el protocolo canónico ni autoriza por sí mismo un tag.
 
+## Gobernanza de planificación y validación
+
+Cuando `ato-ai-skill-governance` esté disponible para este proyecto o su
+agente, deben usarla en toda planificación y diseño, y en los circuitos de
+validación y simplificación. La aplicación debe seguir, como mínimo,
+`Question → Eliminate → Simplify → Bound Scope → Check Stability`, conservar
+la auditabilidad humana y detener la automatización si el proceso aún no es
+estable. La skill se consulta como restricción de gobernanza; no se instala,
+duplica ni convierte en una dependencia runtime del repositorio.
+
 ## Idioma
 
 Usa español para el razonamiento comunicado, las conversaciones, la

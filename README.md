@@ -114,6 +114,20 @@ que `source.state` vuelva a `not-release-aligned`: `master` queda después del
 tag, mientras el release sigue identificado por el tag inmutable y la vault
 queda `aligned`. No fuerces el tag para eliminar esa diferencia.
 
+El flujo completo es: validar el candidato, clasificar SemVer sobre el diff
+final, mergear a `master`, sincronizar `master` con `origin/master`, crear
+`v<VERSION>` sobre el merge y ejecutar después
+`--update-source-vault`. La persona debe revisar y confirmar el commit
+documental posterior y comprobar que el tag conserva el commit de release y
+que el manifiesto contiene `skill_version`, `source_revision` y `source_tag`
+coherentes.
+
+El preflight read-only está disponible en
+`scripts/release-check.sh --format json` (o
+`scripts/release-check.ps1 -Format json`). Después de actualizar el manifiesto
+puede verificarse también con `--post-release`/`-PostRelease`. El script no
+crea tags, commits, pushes ni modifica la vault.
+
 ## Modos de uso
 
 La matriz canónica de modos, propiedad, autoridad, precondiciones y efectos

@@ -4,9 +4,47 @@ Este checklist prepara un candidato de release sin crear tags ni actualizar
 manifests. La SemVer se decide sobre el diff final en el gate de merge, no por
 la feature o la rama que la contiene.
 
+## Protocolo canónico de ejecución
+
+El release se divide en un gate de publicación y una operación documental
+posterior:
+
+1. Preparar el candidato en una rama `codex/<scope>` y ejecutar todas las
+   validaciones sin crear tags ni actualizar el manifiesto fuente.
+2. Comparar el diff completo con el último tag promovido, clasificar SemVer y
+   actualizar `VERSION` si corresponde.
+3. Mergear el candidato a `master` con checkout limpio y sincronizar el
+   `master` local con `origin/master`.
+4. Crear el tag inmutable `v<VERSION>` sobre el commit mergeado.
+5. Con `master`, checkout limpio y `HEAD == v<VERSION>`, ejecutar
+   `scripts/bootstrap.sh --update-source-vault` (o `-UpdateSourceVault`).
+   Esta operación escribe únicamente el manifiesto fuente; no crea commits ni
+   tags.
+6. Revisar y confirmar por separado el commit documental posterior. Ese
+   commit deja normalmente `source.state: not-release-aligned`, porque
+   `master` avanza después del tag; no se debe mover ni forzar el tag público.
+7. Ejecutar `--source-status` y comprobar `vault.state: aligned`,
+   `skill_version`, `source_revision` y `source_tag`, además de que el tag
+   siga apuntando al commit de release y `master` local coincida con
+   `origin/master`.
+
+El preflight read-only equivalente es:
+
+```sh
+./scripts/release-check.sh --format json
+```
+
+Después de `--update-source-vault`, añade `--post-release` para verificar el
+manifiesto. En PowerShell usa `scripts/release-check.ps1 -Format json` y
+`-PostRelease`. Estos scripts no crean tags, commits, pushes ni cambios de
+vault; la decisión de SemVer, el merge y la publicación siguen siendo
+humanos.
+
 ## Estado del candidato
 
 - [ ] `scripts/bootstrap.sh --source-status` ejecutado y comunicado.
+- [ ] `scripts/release-check.sh --format json` devuelve `ready: true` antes
+      del tag.
 - [ ] `VERSION` y `VAULT_FORMAT` comprobados.
 - [ ] El candidato está en una rama `codex/<scope>` sin interpretar el nombre
       como versión final.
@@ -53,6 +91,11 @@ la feature o la rama que la contiene.
 - [ ] Ejecutar la operación canónica de actualización del manifiesto fuente.
 - [ ] Verificar `vault.state: aligned`, `skill_version`, `source_revision` y
       `source_tag`.
+- [ ] Confirmar que `v<VERSION>` permanece sobre el commit de release y que
+      `master` local coincide con `origin/master` después del commit
+      documental.
+- [ ] `scripts/release-check.sh --post-release --format json` devuelve
+      `ready: true` después de actualizar el manifiesto.
 
 ## Fuera de este release
 

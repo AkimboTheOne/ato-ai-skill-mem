@@ -156,6 +156,28 @@ try {
     & git -C $releaseSource add .
     & git -C $releaseSource -c user.email=test@example.com -c user.name='Contract Tests' commit -qm 'test release fixture'
     & git -C $releaseSource tag "v$skillVersion"
+    & git -C $releaseSource update-ref refs/remotes/origin/master HEAD
+    $releaseCheckOutput = (& (Join-Path $releaseSource 'scripts/release-check.ps1') -Format json) -join "`n"
+    if ($releaseCheckOutput -notmatch '"ready":true') { throw 'release-check debía aceptar el fixture alineado' }
+
+    'dirty' | Set-Content (Join-Path $releaseSource '.release-dirty')
+    try { & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -UpdateSourceVault; throw 'UpdateSourceVault debía rechazar un checkout sucio' }
+    catch { if ($_.Exception.Message -eq 'UpdateSourceVault debía rechazar un checkout sucio') { throw } }
+    Remove-Item -LiteralPath (Join-Path $releaseSource '.release-dirty') -Force
+
+    & git -C $releaseSource switch -q -c release-feature
+    try { & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -UpdateSourceVault; throw 'UpdateSourceVault debía rechazar una rama distinta de master' }
+    catch { if ($_.Exception.Message -eq 'UpdateSourceVault debía rechazar una rama distinta de master') { throw } }
+    & git -C $releaseSource switch -q master
+
+    $tagMismatch = Join-Path $temp 'tag-mismatch'
+    & git clone -q $releaseSource $tagMismatch
+    'post-tag change' | Set-Content (Join-Path $tagMismatch 'post-tag-change')
+    & git -C $tagMismatch add post-tag-change
+    & git -C $tagMismatch -c user.email=test@example.com -c user.name='Contract Tests' commit -qm 'test post-tag change'
+    try { & (Join-Path $tagMismatch 'scripts/bootstrap.ps1') -UpdateSourceVault; throw 'UpdateSourceVault debía rechazar HEAD distinto del tag' }
+    catch { if ($_.Exception.Message -eq 'UpdateSourceVault debía rechazar HEAD distinto del tag') { throw } }
+
     $updateProject = Join-Path $temp 'update-consumer'
     New-Item -ItemType Directory -Path $updateProject | Out-Null
     & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -Target $updateProject -Init
@@ -168,6 +190,8 @@ try {
     & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -UpdateSourceVault
     $releaseMarker = Join-Path $releaseSource 'vault/.ato-ai-skill-mem-version.yml'
     if ((Get-Content $releaseMarker -Raw) -notmatch "(?m)^skill_version: $([regex]::Escape($skillVersion))\r?$" -or (Get-Content $releaseMarker -Raw) -notmatch "(?m)^source_tag: v$([regex]::Escape($skillVersion))\r?$") { throw 'UpdateSourceVault no actualizó el manifiesto de release' }
+    $postReleaseCheckOutput = (& (Join-Path $releaseSource 'scripts/release-check.ps1') -PostRelease -Format json) -join "`n"
+    if ($postReleaseCheckOutput -notmatch '"ready":true') { throw 'release-check debía aceptar el manifiesto posterior al release' }
 
     $sourceMigration = Join-Path $temp 'source-migration'
     New-Item -ItemType Directory -Path (Join-Path $sourceMigration 'workspace/records') -Force | Out-Null
