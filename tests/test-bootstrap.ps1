@@ -3,6 +3,34 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('ato-ai-skill-mem-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $temp | Out-Null
 try {
+    $contextNewProject = Join-Path $temp 'context-new'
+    New-Item -ItemType Directory -Path $contextNewProject | Out-Null
+    $contextNewOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $contextNewProject -Contextualize) -join "`n"
+    if ($contextNewOutput -notmatch 'vault.initialization.state: new' -or $contextNewOutput -notmatch 'vault.context.state: needs-definition' -or $contextNewOutput -notmatch 'vault.context.wizard.phase.4: validate-and-authorize') { throw 'contextualize no reportó el estado nuevo y el wizard' }
+    if (Test-Path (Join-Path $contextNewProject 'mem')) { throw 'contextualize creó una instancia nueva' }
+
+    $stateProject = Join-Path $temp 'state-consumer'
+    New-Item -ItemType Directory -Path $stateProject | Out-Null
+    $stateOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -Init) -join "`n"
+    if ($stateOutput -notmatch 'vault.initialization.state: new') { throw 'init no reportó una vault nueva' }
+    $stateVault = Join-Path $stateProject 'mem/vault'
+    $stateMarker = Join-Path $stateVault '.ato-ai-skill-mem-version.yml'
+    $stateMarkerHash = (Get-FileHash -LiteralPath $stateMarker).Hash
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -Init
+        throw 'init debía rechazar una vault existente'
+    }
+    catch {
+        if ($_.Exception.Message -eq 'init debía rechazar una vault existente') { throw }
+    }
+    if ((Get-FileHash -LiteralPath $stateMarker).Hash -ne $stateMarkerHash) { throw 'init modificó el manifiesto de una vault existente' }
+    & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $stateVault -Id context -Title Context
+    $stateContextOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -Contextualize) -join "`n"
+    if ($stateContextOutput -notmatch 'vault.initialization.state: existing' -or $stateContextOutput -notmatch 'vault.context.state: structurally-ready' -or $stateContextOutput -notmatch 'vault.context.domains.total: 1' -or $stateContextOutput -notmatch 'vault.context.next_step: validate-and-authorize') { throw 'contextualize no reportó el estado existente estructuralmente listo' }
+    $statusMarkerHash = (Get-FileHash -LiteralPath $stateMarker).Hash
+    $statusOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -Status) -join "`n"
+    if ($statusOutput -notmatch 'vault.initialization.state: existing' -or (Get-FileHash -LiteralPath $stateMarker).Hash -ne $statusMarkerHash) { throw 'status modificó el manifiesto o no reportó el estado existente' }
+
     $project = Join-Path $temp 'consumer'
     New-Item -ItemType Directory -Path $project | Out-Null
     & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -IntegrateCodex
@@ -159,6 +187,8 @@ try {
     '# Índice legado' | Set-Content (Join-Path $migrationVault 'INDEX.md')
     Copy-Item -LiteralPath (Join-Path $migrationVault 'INDEX.md') -Destination (Join-Path $temp 'legacy-index.expected')
     '# Registro legado' | Set-Content (Join-Path $migrationVault 'records/2026-01-01--legacy&record.md')
+    $migrationContextOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -Contextualize) -join "`n"
+    if ($migrationContextOutput -notmatch 'vault.context.state: blocked') { throw 'contextualize no bloqueó una vault que requiere migración' }
     & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat
     if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2\r?$') { throw 'el manifiesto cambió antes de finalizar' }
     if (-not (Test-Path (Join-Path $migrationVault '00_inbox/decisions-pending/2026-01-01--legacy&record.md'))) { throw 'propuesta con carácter especial ausente' }

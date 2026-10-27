@@ -5,6 +5,35 @@ TEMP_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEMP_ROOT"' EXIT
 PROJECT=$TEMP_ROOT/consumer
 mkdir -p "$PROJECT"
+
+CONTEXT_NEW_PROJECT=$TEMP_ROOT/context-new
+mkdir -p "$CONTEXT_NEW_PROJECT"
+context_new_output=$($ROOT/scripts/bootstrap.sh --target "$CONTEXT_NEW_PROJECT" --contextualize)
+printf '%s\n' "$context_new_output" | grep -F 'vault.initialization.state: new' >/dev/null
+printf '%s\n' "$context_new_output" | grep -F 'vault.context.state: needs-definition' >/dev/null
+printf '%s\n' "$context_new_output" | grep -F 'vault.context.wizard.phase.4: validate-and-authorize' >/dev/null
+[ ! -e "$CONTEXT_NEW_PROJECT/mem" ]
+
+STATE_PROJECT=$TEMP_ROOT/state-consumer
+mkdir -p "$STATE_PROJECT"
+state_output=$($ROOT/scripts/bootstrap.sh --target "$STATE_PROJECT" --init)
+printf '%s\n' "$state_output" | grep -F 'vault.initialization.state: new' >/dev/null
+STATE_VAULT=$STATE_PROJECT/mem/vault
+STATE_MARKER=$STATE_VAULT/.ato-ai-skill-mem-version.yml
+STATE_MARKER_HASH=$(cksum "$STATE_MARKER")
+if $ROOT/scripts/bootstrap.sh --target "$STATE_PROJECT" --init >/dev/null 2>&1; then exit 1; fi
+[ "$(cksum "$STATE_MARKER")" = "$STATE_MARKER_HASH" ]
+sh "$ROOT/scripts/vault.sh" create-domain --vault "$STATE_VAULT" --id context --title Context
+state_context_output=$($ROOT/scripts/bootstrap.sh --target "$STATE_PROJECT" --contextualize)
+printf '%s\n' "$state_context_output" | grep -F 'vault.initialization.state: existing' >/dev/null
+printf '%s\n' "$state_context_output" | grep -F 'vault.context.state: structurally-ready' >/dev/null
+printf '%s\n' "$state_context_output" | grep -F 'vault.context.domains.total: 1' >/dev/null
+printf '%s\n' "$state_context_output" | grep -F 'vault.context.next_step: validate-and-authorize' >/dev/null
+status_marker_hash=$(cksum "$STATE_MARKER")
+status_output=$($ROOT/scripts/bootstrap.sh --target "$STATE_PROJECT" --status)
+printf '%s\n' "$status_output" | grep -F 'vault.initialization.state: existing' >/dev/null
+[ "$(cksum "$STATE_MARKER")" = "$status_marker_hash" ]
+
 "$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --integrate-codex
 VAULT=$PROJECT/mem/vault
 [ -L "$PROJECT/mem/VAULT_FORMAT" ]
@@ -104,6 +133,8 @@ printf '%s\n' 'format: 1' 'vault_kind: consumer' 'vault_format: 2' 'skill_versio
 printf '%s\n' '# Índice legado' > "$MIGRATION_VAULT/INDEX.md"
 cp "$MIGRATION_VAULT/INDEX.md" "$TEMP_ROOT/legacy-index.expected"
 printf '%s\n' '# Registro legado' > "$MIGRATION_VAULT/records/2026-01-01--legacy&record.md"
+migration_context_output=$($ROOT/scripts/bootstrap.sh --target "$MIGRATION_PROJECT" --contextualize)
+printf '%s\n' "$migration_context_output" | grep -F 'vault.context.state: blocked' >/dev/null
 "$ROOT/scripts/bootstrap.sh" --target "$MIGRATION_PROJECT" --migrate-vault-format
 [ "$(sed -n 's/^vault_format: *//p' "$MIGRATION_VAULT/.ato-ai-skill-mem-version.yml")" = 2 ]
 [ -f "$MIGRATION_VAULT/00_inbox/decisions-pending/2026-01-01--legacy&record.md" ]

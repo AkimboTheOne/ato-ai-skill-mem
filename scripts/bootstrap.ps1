@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Target,
+    [switch]$Init,
+    [switch]$Contextualize,
     [switch]$Status,
     [switch]$UpdateVault,
     [switch]$MigrateWorkspaceToVault,
@@ -34,11 +36,11 @@ function Test-LocalDirectory([string]$Path) {
     return $null -ne $item -and $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink'
 }
 
-$operationCount = [int]$Status.IsPresent + [int]$UpdateVault.IsPresent + [int]$MigrateWorkspaceToVault.IsPresent + [int]$MigrateVaultFormat.IsPresent + [int]$SourceStatus.IsPresent + [int]$UpdateSourceVault.IsPresent + [int]$MigrateSourceWorkspaceToVault.IsPresent
+$operationCount = [int]$Init.IsPresent + [int]$Contextualize.IsPresent + [int]$Status.IsPresent + [int]$UpdateVault.IsPresent + [int]$MigrateWorkspaceToVault.IsPresent + [int]$MigrateVaultFormat.IsPresent + [int]$SourceStatus.IsPresent + [int]$UpdateSourceVault.IsPresent + [int]$MigrateSourceWorkspaceToVault.IsPresent
 if ($operationCount -gt 1) {
     Fail 'solo se puede seleccionar una operación'
 }
-if ($IntegrateCodex -and $operationCount -gt 0) {
+if ($IntegrateCodex -and $operationCount -gt 0 -and -not $Init) {
     Fail '-IntegrateCodex solo se admite durante la instalación'
 }
 if ($Finalize -and -not $MigrateVaultFormat) {
@@ -72,6 +74,7 @@ else {
 }
 $versionFile = Join-Path $workspace '.ato-ai-skill-mem-version.yml'
 if (-not (Test-Path -LiteralPath $workspace) -and (Test-Path -LiteralPath (Join-Path $legacyWorkspace '.ato-ai-skill-mem-version.yml'))) { $versionFile = Join-Path $legacyWorkspace '.ato-ai-skill-mem-version.yml' }
+$initializationState = 'unknown'
 $integrationTemplate = Join-Path $sourceRoot 'templates/integrations/host-config.yml'
 $codexAdapterTemplate = Join-Path $sourceRoot 'templates/integrations/codex/SKILL.md'
 
@@ -275,6 +278,112 @@ function Write-Status {
         Write-Output "vault.created_at: $(Get-MarkerValue 'created_at')"
         Write-Output "vault.updated_at: $(Get-MarkerValue 'updated_at')"
     }
+    Write-ContextStatus
+}
+
+function Get-LocalFileCount([string]$Path) {
+    if (-not (Test-LocalDirectory $Path)) { return 0 }
+    return @((Get-ChildItem -LiteralPath $Path -Recurse -File -Force | Where-Object { $_.LinkType -ne 'SymbolicLink' })).Count
+}
+function Get-RecordFileCount {
+    $items = @()
+    $rootRecords = Join-Path $workspace 'records'
+    if (Test-LocalDirectory $rootRecords) {
+        $items += @(Get-ChildItem -LiteralPath $rootRecords -File -Force | Where-Object { $_.LinkType -ne 'SymbolicLink' })
+    }
+    $domainsRoot = Join-Path $workspace '20_domains'
+    if (Test-LocalDirectory $domainsRoot) {
+        $items += @(Get-ChildItem -LiteralPath $domainsRoot -Recurse -File -Force | Where-Object { $_.LinkType -ne 'SymbolicLink' -and $_.Extension -eq '.md' -and $_.FullName -match '[\\/]records[\\/]' })
+    }
+    return $items.Count
+}
+function Get-ResourceFileCount {
+    $items = @()
+    $rootResources = Join-Path $workspace '30_resources'
+    if (Test-LocalDirectory $rootResources) {
+        $items += @(Get-ChildItem -LiteralPath $rootResources -Recurse -File -Force | Where-Object { $_.LinkType -ne 'SymbolicLink' })
+    }
+    $domainsRoot = Join-Path $workspace '20_domains'
+    if (Test-LocalDirectory $domainsRoot) {
+        $items += @(Get-ChildItem -LiteralPath $domainsRoot -Recurse -File -Force | Where-Object { $_.LinkType -ne 'SymbolicLink' -and $_.FullName -match '[\\/]resources[\\/]' })
+    }
+    return $items.Count
+}
+function Get-DomainCount {
+    $domainsRoot = Join-Path $workspace '20_domains'
+    if (-not (Test-LocalDirectory $domainsRoot)) { return 0 }
+    return @((Get-ChildItem -LiteralPath $domainsRoot -Force | Where-Object { $_.PSIsContainer -and $_.LinkType -ne 'SymbolicLink' })).Count
+}
+function Get-DomainFileCount([string]$Name) {
+    $domainsRoot = Join-Path $workspace '20_domains'
+    if (-not (Test-LocalDirectory $domainsRoot)) { return 0 }
+    $count = 0
+    foreach ($domain in @(Get-ChildItem -LiteralPath $domainsRoot -Force | Where-Object { $_.PSIsContainer -and $_.LinkType -ne 'SymbolicLink' })) {
+        if (Test-LocalFile (Join-Path $domain.FullName $Name)) { $count++ }
+    }
+    return $count
+}
+function Get-InitializationState {
+    if ($initializationState -ne 'unknown') { return $initializationState }
+    if (Test-Path -LiteralPath $workspace -PathType Container) { return 'existing' }
+    return 'new'
+}
+function Get-ContextState {
+    switch (Get-WorkspaceState) {
+        'migration-required' { return 'blocked' }
+        'role-mismatch' { return 'blocked' }
+        'vault-newer' { return 'blocked' }
+        'version-mismatch' { return 'blocked' }
+    }
+    $domains = Get-DomainCount
+    if ((Get-InitializationState) -eq 'new' -or $domains -eq 0) { return 'needs-definition' }
+    $checkPass = $false
+    if (Test-Path -LiteralPath $workspace -PathType Container) {
+        try {
+            & (Join-Path $sourceRoot 'scripts/vault.ps1') check -Vault $workspace *> $null
+            $checkPass = $true
+        }
+        catch { $checkPass = $false }
+    }
+    if (-not $checkPass) { return 'needs-review' }
+    return 'structurally-ready'
+}
+function Get-ContextNextStep {
+    switch (Get-ContextState) {
+        'blocked' { return 'migrate' }
+        'needs-definition' { return 'define-expectation' }
+        'needs-review' { return 'review-context' }
+        'structurally-ready' { return 'validate-and-authorize' }
+    }
+}
+function Write-ContextStatus {
+    Write-Output "vault.initialization.state: $(Get-InitializationState)"
+    Write-Output "vault.context.state: $(Get-ContextState)"
+    Write-Output "vault.context.next_step: $(Get-ContextNextStep)"
+    Write-Output "vault.context.root_agents: $(if (Test-LocalFile (Join-Path $workspace 'AGENTS.md')) { 'present' } else { 'missing' })"
+    Write-Output "vault.context.indexes: $(if (Test-LocalFile (Join-Path $workspace '_indexes/INDEX.md')) { 'present' } else { 'missing' })"
+    Write-Output "vault.context.maps_index: $(if (Test-LocalFile (Join-Path $workspace '_maps/INDEX.md')) { 'present' } else { 'missing' })"
+    Write-Output "vault.context.action_log: $(if (Test-LocalFile (Join-Path $workspace '_indexes/action-log.md')) { 'present' } else { 'missing' })"
+    Write-Output "vault.context.domains.total: $(Get-DomainCount)"
+    Write-Output "vault.context.domains.with_agents: $(Get-DomainFileCount 'AGENTS.md')"
+    Write-Output "vault.context.domains.with_indexes: $(Get-DomainFileCount 'INDEX.md')"
+    Write-Output "vault.context.domains.with_metadata: $(Get-DomainFileCount 'domain.yml')"
+    Write-Output "vault.data.records: $(Get-RecordFileCount)"
+    Write-Output "vault.data.pending: $(Get-LocalFileCount (Join-Path $workspace '00_inbox/decisions-pending'))"
+    Write-Output "vault.data.resources: $(Get-ResourceFileCount)"
+}
+function Write-ContextualizationPlan {
+    Write-Output 'vault.context.wizard.mode: guided-agent'
+    Write-Output 'vault.context.wizard.persistence: explicit-human-request'
+    Write-Output 'vault.context.wizard.phase.1: define-expectation'
+    Write-Output 'vault.context.wizard.phase.2: read-context'
+    Write-Output 'vault.context.wizard.phase.3: define-data-management'
+    Write-Output 'vault.context.wizard.phase.4: validate-and-authorize'
+}
+if ($Contextualize) {
+    Write-Status
+    Write-ContextualizationPlan
+    exit 0
 }
 if ($Status -or $SourceStatus) {
     Write-Status
@@ -405,6 +514,9 @@ if ($null -ne $memItem -and -not $memItem.PSIsContainer) {
 if ($null -ne $memItem -and $memItem.LinkType -eq 'SymbolicLink') {
     Fail "el directorio de instancia debe ser local, no un enlace simbólico: $memDir"
 }
+if ($Init -and (Test-Path -LiteralPath $workspace -PathType Container)) {
+    Fail 'la inicialización requiere una vault ausente; usa -Contextualize o -UpdateVault para una vault existente'
+}
 if ($UpdateVault -and -not (Test-Path -LiteralPath $workspace)) {
     Fail 'la actualización del vault requiere una instancia existente'
 }
@@ -435,6 +547,7 @@ foreach ($linkedItem in @('SKILL.md', 'VERSION', 'VAULT_FORMAT', 'references', '
 }
 
 $workspaceExisted = Test-Path -LiteralPath $workspace
+$initializationState = if ($workspaceExisted) { 'existing' } else { 'new' }
 [System.IO.Directory]::CreateDirectory($workspace) | Out-Null
 & (Join-Path $sourceRoot 'scripts/vault.ps1') init-layout -Vault $workspace
 
@@ -451,3 +564,4 @@ if ($IntegrateCodex) {
 }
 
 Write-Output "instancia de memoria lista: $memDir (vault: $(Get-WorkspaceState))"
+Write-ContextStatus
