@@ -38,13 +38,15 @@ Después de `--update-source-vault`, añade `--post-release` para verificar el
 manifiesto. En PowerShell usa `scripts/release-check.ps1 -Format json` y
 `-PostRelease`. Estos scripts no crean tags, commits, pushes ni cambios de
 vault; la decisión de SemVer, el merge y la publicación siguen siendo
-humanos.
+humanos. Antes de crear el tag, el preflight sirve como diagnóstico y puede
+señalar `tag` y `head_tag`; `ready: true` solo es exigible después de crear
+`v<VERSION>` sobre `HEAD`.
 
 ## Estado del candidato
 
 - [ ] `scripts/bootstrap.sh --source-status` ejecutado y comunicado.
-- [ ] `scripts/release-check.sh --format json` devuelve `ready: true` antes
-      del tag.
+- [ ] `scripts/release-check.sh --format json` se ejecuta antes del tag y no
+      presenta bloqueos distintos de `tag`/`head_tag` por la ausencia del tag.
 - [ ] `VERSION` y `VAULT_FORMAT` comprobados.
 - [ ] El candidato está en una rama `codex/<scope>` sin interpretar el nombre
       como versión final.
@@ -88,6 +90,8 @@ humanos.
 - [ ] Regenerar el ZIP y repetir las validaciones.
 - [ ] Mergear a `master` con checkout limpio.
 - [ ] Crear `v<VERSION>` sobre el commit mergeado.
+- [ ] Ejecutar `scripts/release-check.sh --format json` y confirmar
+      `ready: true` después de crear el tag.
 - [ ] Ejecutar la operación canónica de actualización del manifiesto fuente.
 - [ ] Verificar `vault.state: aligned`, `skill_version`, `source_revision` y
       `source_tag`.
