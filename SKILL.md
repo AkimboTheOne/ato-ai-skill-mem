@@ -17,9 +17,11 @@ personas. Conserva en inglés los identificadores, rutas, comandos y valores
 de contrato consumidos por herramientas. Un proyecto consumidor puede
 documentar otro idioma de trabajo en sus instrucciones locales.
 
-No incorpores RAG, bases vectoriales, búsqueda semántica, clasificación por
-confianza, aprendizaje adaptativo, ejecución en segundo plano, sincronización
-automática ni fusión de vaults.
+No actives RAG operativo, bases vectoriales, búsqueda semántica, clasificación
+por confianza, aprendizaje adaptativo, ejecución en segundo plano,
+sincronización automática ni fusión de vaults. `99_runtime/rag/` es una
+ubicación técnica opcional y explícita para artefactos derivados futuros; su
+existencia no autoriza a construir índices ni a modificar la vault.
 
 ## Activación y autoridad
 
@@ -170,6 +172,12 @@ transitorio con provenance. No incluyen embeddings, generación RAG ni
 inferencias persistentes. La interfaz y sus códigos de salida están
 documentados en [references/python-cli.md](references/python-cli.md); el
 roadmap gobernado está en [references/retrieval-roadmap.md](references/retrieval-roadmap.md).
+
+La ubicación técnica reservada para una futura persistencia es
+`99_runtime/rag/`. Su `manifest.yml` deberá conservar provenance y sus datos
+derivados vivirán en `indexes/*/data/`, ignorados por Git. La ausencia de esa
+extensión mantiene válida una vault formato `3`; `check` solo la valida cuando
+está presente.
 
 La migración de formato `2` a `3` es explícita y en dos fases mediante el
 bootstrap: preparar propuestas y layout, después finalizar solo cuando no haya

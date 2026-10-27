@@ -190,6 +190,23 @@ sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id alpha --title Al
 [ -f "$VAULT/20_domains/alpha/AGENTS.md" ]
 [ -f "$VAULT/20_domains/alpha/domain.yml" ]
 sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+[ -d "$VAULT/99_runtime/rag/indexes" ]
+[ -f "$VAULT/.gitignore" ]
+grep -F '99_runtime/rag/indexes/*/data/' "$VAULT/.gitignore" >/dev/null
+rm -rf "$VAULT/99_runtime"
+sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+mkdir -p "$VAULT/99_runtime"
+ln -s "$TEMP_ROOT" "$VAULT/99_runtime/rag"
+if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+rm "$VAULT/99_runtime/rag"
+mkdir -p "$VAULT/99_runtime/rag/indexes/sample/data"
+printf '%s\n' 'schema: 1' 'kind: rag-index' 'status: pending' 'source_vault: /tmp/vault' 'source_revision: test' 'source_scope: all' 'content_fingerprint: sha256:test' 'chunking: heading' 'retrieval_kind: lexical' 'embedding:' '  status: pending' > "$VAULT/99_runtime/rag/manifest.yml"
+sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+sed 's/^kind: rag-index$/kind: invalid/' "$VAULT/99_runtime/rag/manifest.yml" > "$VAULT/99_runtime/rag/manifest.yml.invalid"
+mv "$VAULT/99_runtime/rag/manifest.yml.invalid" "$VAULT/99_runtime/rag/manifest.yml"
+if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+rm -rf "$VAULT/99_runtime"
+sh "$ROOT/scripts/vault.sh" init-layout --vault "$VAULT"
 cp "$VAULT/20_domains/alpha/domain.yml" "$VAULT/20_domains/alpha/domain.yml.saved"
 grep -v '^scope:' "$VAULT/20_domains/alpha/domain.yml.saved" > "$VAULT/20_domains/alpha/domain.yml"
 if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi

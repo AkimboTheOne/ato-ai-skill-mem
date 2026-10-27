@@ -23,10 +23,51 @@ function Test-LocalFile([string]$Path) { $item = Get-Item -LiteralPath $Path -Fo
 function Test-LocalDirectory([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink' }
 function Copy-IfMissing([string]$Source, [string]$Destination) { if (-not (Test-Path -LiteralPath $Destination)) { Copy-Item -LiteralPath $Source -Destination $Destination } }
 function ConvertTo-YamlQuoted([string]$Value) { return '"' + $Value.Replace('\', '\\').Replace('"', '\"') + '"' }
+function Get-ManifestValue([string]$Path, [string]$Key) {
+    $line = Get-Content -LiteralPath $Path | Where-Object { $_ -match "^$([regex]::Escape($Key)):\s*(.*)$" } | Select-Object -First 1
+    if ($null -eq $line) { return '' }
+    return ([regex]::Match($line, "^$([regex]::Escape($Key)):\s*(.*)$")).Groups[1].Value.Trim()
+}
+function Test-RagManifest([string]$Path) {
+    if ((Get-ManifestValue $Path 'schema') -ne '1') { Fail "manifiesto RAG inválido: schema: $Path" }
+    if ((Get-ManifestValue $Path 'kind') -ne 'rag-index') { Fail "manifiesto RAG inválido: kind: $Path" }
+    $status = Get-ManifestValue $Path 'status'
+    if ($status -notin @('pending','ready','stale','invalid')) { Fail "manifiesto RAG inválido: status: $Path" }
+    foreach ($key in @('source_vault','source_revision','source_scope','content_fingerprint','chunking','retrieval_kind')) {
+        if ([string]::IsNullOrWhiteSpace((Get-ManifestValue $Path $key))) { Fail "manifiesto RAG incompleto: ${key}: $Path" }
+    }
+    $raw = Get-Content -LiteralPath $Path -Raw
+    if ($raw -notmatch '(?m)^embedding:\s*$') { Fail "manifiesto RAG incompleto: embedding: $Path" }
+    if ($raw -notmatch '(?m)^  status:\s+(pending|ready|disabled)\s*$') { Fail "manifiesto RAG inválido: embedding.status: $Path" }
+}
+function Test-RagRuntime {
+    $runtime = Join-Path $Vault '99_runtime'
+    $runtimeItem = Get-Item -LiteralPath $runtime -Force -ErrorAction SilentlyContinue
+    if ($null -eq $runtimeItem) { return }
+    if (-not (Test-LocalDirectory $runtime)) { Fail '99_runtime no es un directorio local' }
+    $rag = Join-Path $runtime 'rag'
+    if (-not (Test-LocalDirectory $rag)) { Fail 'falta directorio local: 99_runtime/rag' }
+    $indexes = Join-Path $rag 'indexes'
+    $indexesItem = Get-Item -LiteralPath $indexes -Force -ErrorAction SilentlyContinue
+    if ($null -ne $indexesItem) {
+        if (-not (Test-LocalDirectory $indexes)) { Fail '99_runtime/rag/indexes no es un directorio local' }
+        Get-ChildItem -LiteralPath $indexes -Force | ForEach-Object {
+            if (-not (Test-LocalDirectory $_.FullName)) { Fail "índice RAG no es un directorio local: $($_.FullName)" }
+            if (-not (Test-LocalDirectory (Join-Path $_.FullName 'data'))) { Fail "falta directorio local de datos RAG: $($_.FullName)/data" }
+        }
+    }
+    $manifest = Join-Path $rag 'manifest.yml'
+    $manifestItem = Get-Item -LiteralPath $manifest -Force -ErrorAction SilentlyContinue
+    if ($null -ne $manifestItem) {
+        if (-not (Test-LocalFile $manifest)) { Fail '99_runtime/rag/manifest.yml no es un archivo local' }
+        Test-RagManifest $manifest
+    }
+}
 function Initialize-Layout {
-    foreach ($directory in @('00_inbox/decisions-pending','10_areas','20_domains','30_resources','40_archive','50_daily','60_exports','_indexes','_maps','_templates')) { [System.IO.Directory]::CreateDirectory((Join-Path $Vault $directory)) | Out-Null }
+    foreach ($directory in @('00_inbox/decisions-pending','10_areas','20_domains','30_resources','40_archive','50_daily','60_exports','_indexes','_maps','_templates','99_runtime/rag/indexes')) { [System.IO.Directory]::CreateDirectory((Join-Path $Vault $directory)) | Out-Null }
     Copy-IfMissing (Join-Path $layout 'AGENTS.md') (Join-Path $Vault 'AGENTS.md')
     foreach ($name in @('domain.yml','domain-AGENTS.md','domain-INDEX.md','area.md','daily.md','pending-decision.md','export.md')) { Copy-IfMissing (Join-Path $layout $name) (Join-Path $Vault "_templates/$name") }
+    Copy-IfMissing (Join-Path $layout '.gitignore') (Join-Path $Vault '.gitignore')
     if (-not (Test-Path -LiteralPath (Join-Path $Vault '_indexes/INDEX.md'))) { [System.IO.File]::WriteAllText((Join-Path $Vault '_indexes/INDEX.md'), '# Índices de la vault') }
     if (-not (Test-Path -LiteralPath (Join-Path $Vault '_indexes/action-log.md'))) { [System.IO.File]::WriteAllText((Join-Path $Vault '_indexes/action-log.md'), '# Registro de acciones' + [Environment]::NewLine) }
     if (-not (Test-Path -LiteralPath (Join-Path $Vault '_maps/INDEX.md'))) { [System.IO.File]::WriteAllText((Join-Path $Vault '_maps/INDEX.md'), '# Mapas de la vault') }
@@ -62,6 +103,7 @@ function Test-Vault {
     foreach ($directory in @('00_inbox','10_areas','20_domains','30_resources','40_archive','50_daily','60_exports','_indexes','_maps','_templates')) { if (-not (Test-LocalDirectory (Join-Path $Vault $directory))) { Fail "falta directorio local: $directory" } }
     foreach ($file in @('_indexes/INDEX.md','_indexes/action-log.md','_maps/INDEX.md')) { if (-not (Test-LocalFile (Join-Path $Vault $file))) { Fail "falta archivo canónico local: $file" } }
     foreach ($file in @('domain.yml','domain-AGENTS.md','domain-INDEX.md','area.md','daily.md','pending-decision.md','export.md')) { if (-not (Test-LocalFile (Join-Path $Vault "_templates/$file"))) { Fail "falta plantilla canónica local: $file" } }
+    Test-RagRuntime
     $ids = @{}
     Get-ChildItem -LiteralPath (Join-Path $Vault '20_domains') -Force | ForEach-Object {
         $domain = $_.FullName

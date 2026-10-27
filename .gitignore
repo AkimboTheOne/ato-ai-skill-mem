@@ -4,3 +4,4 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+vault/99_runtime/rag/indexes/*/data/

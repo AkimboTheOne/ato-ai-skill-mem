@@ -19,6 +19,7 @@ consumer-project/
 │       ├── 10_areas/
 │       ├── 20_domains/
 │       ├── 30_resources/ … 60_exports/
+│       ├── 99_runtime/rag/       # extensión técnica opcional
 │       ├── _indexes/ y _maps/
 │       └── _templates/
 └── AGENTS.md                             # nunca modificado por bootstrap
@@ -162,9 +163,21 @@ La salida usa texto legible por defecto o JSON con `--format json`. El código
 El roadmap gobernado hacia retrieval semántico y RAG está en
 [references/retrieval-roadmap.md](references/retrieval-roadmap.md).
 
+El layout reserva `99_runtime/rag/` para una futura persistencia gobernada de
+índices. `manifest.yml` será legible, versionable y conservará provenance;
+`indexes/*/data/` será reconstruible y quedará ignorado en Git. La extensión
+es opcional y no convierte esos artefactos en memoria canónica. `ato-mem`
+todavía no escribe allí: `build` y `retrieve` continúan trabajando solo en
+memoria.
+
 ## Límites
 
-No incluye RAG, bases vectoriales, búsqueda semántica, clasificación por confianza, aprendizaje adaptativo, ejecución en segundo plano ni sincronización entre vaults. Un futuro cerebro puede consumir una o más vaults, pero no recibe autoridad implícita para modificarlas.
+No incluye todavía RAG operativo, bases vectoriales, búsqueda semántica,
+clasificación por confianza, aprendizaje adaptativo, ejecución en segundo
+plano ni sincronización entre vaults. `99_runtime/rag/` es únicamente una
+reserva técnica opcional para una fase posterior. Un futuro cerebro puede
+consumir una o más vaults, pero no recibe autoridad implícita para
+modificarlas.
 
 Consulta [SKILL.md](SKILL.md) para el comportamiento canónico, [references/instance-contract.md](references/instance-contract.md) para el contrato de instancia y [references/agents-integration.md](references/agents-integration.md) para la integración manual de agentes.
 

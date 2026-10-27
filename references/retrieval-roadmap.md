@@ -4,6 +4,23 @@ Este roadmap describe cómo evolucionar `ato-mem` hacia retrieval semántico y
 RAG sin convertir la vault en estado oculto ni conceder autoridad de escritura
 al runtime.
 
+## Ubicación técnica reservada
+
+Los artefactos persistentes futuros vivirán bajo `vault/99_runtime/rag/`,
+fuera de `20_domains/`. La extensión es opcional para conservar la
+compatibilidad del formato `3`:
+
+```text
+99_runtime/rag/
+├── manifest.yml
+└── indexes/<index-id>/data/
+```
+
+El manifiesto será legible y versionable, con `source_revision` y
+`content_fingerprint` para detectar estado `stale` o `invalid`. Los datos de
+índice serán derivados, reconstruibles e ignorados por Git. Ninguna fase puede
+modificar la memoria documental automáticamente.
+
 ## Estado actual
 
 La fase inmediata usa `build` y `retrieve`:

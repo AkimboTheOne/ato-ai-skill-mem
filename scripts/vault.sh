@@ -40,10 +40,46 @@ local_dir() { [ -d "$1" ] && [ ! -L "$1" ]; }
 copy_if_missing() { [ -e "$2" ] || cp "$1" "$2"; }
 yaml_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 single_line() { [ "$(printf '%s\n' "$1" | wc -l | tr -d '[:space:]')" = 1 ]; }
+manifest_value() { sed -n "s/^$2: *//p" "$1" | sed -n '1p'; }
+check_rag_manifest() {
+  manifest=$1
+  [ "$(manifest_value "$manifest" schema)" = 1 ] || fail "manifiesto RAG inválido: schema: $manifest"
+  [ "$(manifest_value "$manifest" kind)" = rag-index ] || fail "manifiesto RAG inválido: kind: $manifest"
+  status=$(manifest_value "$manifest" status)
+  case "$status" in pending|ready|stale|invalid) ;; *) fail "manifiesto RAG inválido: status: $manifest" ;; esac
+  for key in source_vault source_revision source_scope content_fingerprint chunking retrieval_kind; do
+    value=$(manifest_value "$manifest" "$key")
+    [ -n "$value" ] || fail "manifiesto RAG incompleto: $key: $manifest"
+  done
+  grep -E '^embedding:[[:space:]]*$' "$manifest" >/dev/null || fail "manifiesto RAG incompleto: embedding: $manifest"
+  grep -E '^  status:[[:space:]]+(pending|ready|disabled)[[:space:]]*$' "$manifest" >/dev/null || fail "manifiesto RAG inválido: embedding.status: $manifest"
+}
+check_rag_runtime() {
+  runtime=$VAULT/99_runtime
+  [ ! -e "$runtime" ] && [ ! -L "$runtime" ] && return 0
+  local_dir "$runtime" || fail '99_runtime no es un directorio local'
+  rag=$runtime/rag
+  local_dir "$rag" || fail 'falta directorio local: 99_runtime/rag'
+  indexes=$rag/indexes
+  if [ -e "$indexes" ] || [ -L "$indexes" ]; then
+    local_dir "$indexes" || fail '99_runtime/rag/indexes no es un directorio local'
+    for index in "$indexes"/* "$indexes"/.[!.]* "$indexes"/..?*; do
+      [ -e "$index" ] || [ -L "$index" ] || continue
+      local_dir "$index" || fail "índice RAG no es un directorio local: $index"
+      local_dir "$index/data" || fail "falta directorio local de datos RAG: $index/data"
+    done
+  fi
+  manifest=$rag/manifest.yml
+  if [ -e "$manifest" ] || [ -L "$manifest" ]; then
+    local_file "$manifest" || fail '99_runtime/rag/manifest.yml no es un archivo local'
+    check_rag_manifest "$manifest"
+  fi
+}
 init_layout() {
-  for dir in 00_inbox/decisions-pending 10_areas 20_domains 30_resources 40_archive 50_daily 60_exports _indexes _maps _templates; do mkdir -p "$VAULT/$dir"; done
+  for dir in 00_inbox/decisions-pending 10_areas 20_domains 30_resources 40_archive 50_daily 60_exports _indexes _maps _templates 99_runtime/rag/indexes; do mkdir -p "$VAULT/$dir"; done
   copy_if_missing "$LAYOUT/AGENTS.md" "$VAULT/AGENTS.md"
   for name in domain.yml domain-AGENTS.md domain-INDEX.md area.md daily.md pending-decision.md export.md; do copy_if_missing "$LAYOUT/$name" "$VAULT/_templates/$name"; done
+  copy_if_missing "$LAYOUT/.gitignore" "$VAULT/.gitignore"
   [ -e "$VAULT/_indexes/INDEX.md" ] || printf '# Índices de la vault\n' > "$VAULT/_indexes/INDEX.md"
   [ -e "$VAULT/_indexes/action-log.md" ] || printf '# Registro de acciones\n\n' > "$VAULT/_indexes/action-log.md"
   [ -e "$VAULT/_maps/INDEX.md" ] || printf '# Mapas de la vault\n' > "$VAULT/_maps/INDEX.md"
@@ -73,6 +109,7 @@ check_vault() {
   for dir in 00_inbox 10_areas 20_domains 30_resources 40_archive 50_daily 60_exports _indexes _maps _templates; do local_dir "$VAULT/$dir" || fail "falta directorio local: $dir"; done
   for file in _indexes/INDEX.md _indexes/action-log.md _maps/INDEX.md; do local_file "$VAULT/$file" || fail "falta archivo canónico local: $file"; done
   for file in domain.yml domain-AGENTS.md domain-INDEX.md area.md daily.md pending-decision.md export.md; do local_file "$VAULT/_templates/$file" || fail "falta plantilla canónica local: $file"; done
+  check_rag_runtime
   ids=''
   for domain in "$VAULT"/20_domains/* "$VAULT"/20_domains/.[!.]* "$VAULT"/20_domains/..?*; do
     [ -e "$domain" ] || continue

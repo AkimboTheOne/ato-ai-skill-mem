@@ -12,6 +12,10 @@ sincronizan vaults.
 describe únicamente comandos, efectos y fallos; `check` es de solo lectura y
 los demás métodos mutan solo cuando se solicitan conforme al contrato.
 
+El layout técnico opcional `99_runtime/rag/` está reservado para manifests e
+índices RAG derivados. No es un dominio ni una fuente de memoria; sus datos
+son reconstruibles y los directorios `indexes/*/data/` no se versionan.
+
 La supervisión no añade un comando: combina `check` con una revisión
 documental de todos los `AGENTS.md` e `INDEX.md` de los dominios cuando la
 persona la solicita, cuando termina una operación estructural o cuando el
@@ -115,13 +119,18 @@ interactiva del shell.
 ```
 
 Crea solo los directorios y archivos faltantes del scaffold: `00_inbox/`,
-`10_areas/`, `20_domains/`, los directorios compartidos, `_indexes/`,
-`_maps/`, `_templates/`, el `AGENTS.md` maestro y los índices vacíos. Copia
+`10_areas/`, `20_domains/`, los directorios compartidos, `99_runtime/rag/`,
+`_indexes/`, `_maps/`, `_templates/`, el `AGENTS.md` maestro y los índices
+vacíos. Copia
 las plantillas locales únicamente si todavía no existen. Es idempotente y no
 sobrescribe personalizaciones ni registros.
 
 Úsalo al inicializar una vault vacía o para completar un layout incompleto por
 petición humana. No sustituye una migración de formato ni reclasifica datos.
+
+La creación de `99_runtime/rag/` no construye un índice, no crea un manifiesto
+y no activa persistencia RAG. Solo reserva una ubicación local estable para
+una futura operación explícita.
 
 ## `create-domain`
 
@@ -169,6 +178,12 @@ directorios que no sean paquetes válidos. En cada dominio valida `format: 1`, `
 `title`, `status`, `scope`, `areas` y el baseline de routing. Una vault de
 formato `3` con un `INDEX.md` en raíz no es canónica: el índice legado debe
 permanecer archivado en `40_archive/`.
+
+Cuando existe `99_runtime/`, `check` valida `99_runtime/rag/`, sus índices y
+los directorios `data/` como rutas locales. También valida un
+`manifest.yml` presente: `schema: 1`, `kind: rag-index`, estado permitido,
+provenance, chunking, tipo de retrieval y estado de embedding. Una vault sin
+esa extensión sigue siendo válida.
 
 ## `migration-plan`
 

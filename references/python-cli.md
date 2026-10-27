@@ -6,6 +6,10 @@ no crea cachés ni índices, no consulta la red y no hace inferencia semántica.
 `build` y `retrieve` preparan y consultan un corpus transitorio; no son una
 implementación RAG.
 
+La ubicación técnica reservada para futuras implementaciones persistentes es
+`99_runtime/rag/`. Esta versión no la crea ni la consume: el CLI no escribe
+manifests, bases, índices ni archivos bajo esa ruta.
+
 ## Instalación
 
 Requiere Python `3.11+` y `pip` en el anfitrión:

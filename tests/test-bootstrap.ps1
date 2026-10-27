@@ -179,6 +179,24 @@ try {
         if (@(Get-ChildItem -LiteralPath (Join-Path $vault '20_domains') -Force | Where-Object { $_.Name -ceq $invalidId }).Count -gt 0) { throw "quedó un dominio inválido: $invalidId" }
     }
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    if (-not (Test-Path (Join-Path $vault '99_runtime/rag/indexes'))) { throw 'falta 99_runtime/rag/indexes tras init-layout' }
+    if (-not (Test-Path (Join-Path $vault '.gitignore'))) { throw 'falta .gitignore de la vault' }
+    if ((Get-Content (Join-Path $vault '.gitignore') -Raw) -notmatch '99_runtime/rag/indexes/\*/data/') { throw 'falta regla de ignorado para datos RAG' }
+    Remove-Item -LiteralPath (Join-Path $vault '99_runtime') -Recurse -Force
+    & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    New-Item -ItemType Directory -Path (Join-Path $vault '99_runtime') | Out-Null
+    New-Item -ItemType SymbolicLink -Path (Join-Path $vault '99_runtime/rag') -Target $temp | Out-Null
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar rag simbólico' }
+    catch { if ($_.Exception.Message -eq 'check debía rechazar rag simbólico') { throw } }
+    Remove-Item -LiteralPath (Join-Path $vault '99_runtime/rag') -Force
+    New-Item -ItemType Directory -Path (Join-Path $vault '99_runtime/rag/indexes/sample/data') -Force | Out-Null
+    @('schema: 1','kind: rag-index','status: pending','source_vault: /tmp/vault','source_revision: test','source_scope: all','content_fingerprint: sha256:test','chunking: heading','retrieval_kind: lexical','embedding:','  status: pending') | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
+    & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    (Get-Content (Join-Path $vault '99_runtime/rag/manifest.yml') -Raw) -replace '(?m)^kind: rag-index$', 'kind: invalid' | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar manifiesto RAG inválido' }
+    catch { if ($_.Exception.Message -eq 'check debía rechazar manifiesto RAG inválido') { throw } }
+    Remove-Item -LiteralPath (Join-Path $vault '99_runtime') -Recurse -Force
+    & (Join-Path $root 'scripts/vault.ps1') init-layout -Vault $vault
     Copy-Item -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml') -Destination (Join-Path $vault '20_domains/alpha/domain.yml.saved')
     (Get-Content -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml.saved') | Where-Object { $_ -notmatch '^scope:' }) | Set-Content (Join-Path $vault '20_domains/alpha/domain.yml')
     try {

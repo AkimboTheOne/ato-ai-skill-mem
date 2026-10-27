@@ -207,6 +207,30 @@ class CliTests(unittest.TestCase):
         paths = {item["path"] for item in json.loads(result.stdout)["items"]}
         self.assertNotIn("linked.md", paths)
 
+    def test_cli_commands_do_not_create_or_modify_runtime_state(self) -> None:
+        before = {
+            path.relative_to(self.vault).as_posix(): path.read_bytes()
+            for path in self.vault.rglob("*")
+            if path.is_file() and not path.is_symlink()
+        }
+        commands = (
+            ("check", "--format", "json"),
+            ("find", "--pattern", "Activo", "--format", "json"),
+            ("relate", "--format", "json"),
+            ("build", "--format", "json"),
+            ("retrieve", "--query", "Activo", "--format", "json"),
+        )
+        for command in commands:
+            result = self.run_cli(command[0], "--vault", str(self.vault), *command[1:])
+            self.assertIn(result.returncode, (0, 1), result.stderr)
+        after = {
+            path.relative_to(self.vault).as_posix(): path.read_bytes()
+            for path in self.vault.rglob("*")
+            if path.is_file() and not path.is_symlink()
+        }
+        self.assertEqual(before, after)
+        self.assertFalse((self.vault / "99_runtime").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
