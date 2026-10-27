@@ -88,7 +88,7 @@ contrato de datos y layout está en
 
 ## Versiones y release
 
-`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.6.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.7.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
 
 La política editorial clasifica `X` como cambio no retrocompatible, `Y` como
 nueva capacidad pública retrocompatible y `Z` como corrección o ajuste sin
@@ -121,7 +121,7 @@ En resumen:
   operación explícita correspondiente y no sobrescriben contenido existente.
 - Las operaciones source usan `vault/`; las operaciones consumer usan
   `mem/vault/` y no comparten registros.
-- `VAULT_FORMAT=3` permanece sin cambios en `0.6.0`; no se añade routing,
+- `VAULT_FORMAT=3` permanece sin cambios en `0.7.0`; no se añade routing,
   sincronización automática ni estado persistente oculto.
 
 ## CLI Python complementario
@@ -159,6 +159,21 @@ contrato técnico de confinamiento está en
 resultados con provenance para consumidores posteriores. El futuro cerebro que
 ensamble contexto o genere respuestas será un componente externo y no forma
 parte de este paquete.
+
+## Paquete Microsoft 365 Copilot
+
+La integración subordinada para Microsoft 365 Copilot, orientada a Agent
+Builder y declarative agents, se empaqueta desde la fuente, sin incluir la
+vault ni los scripts del runtime local:
+
+```sh
+python3 scripts/package-microsoft-copilot.py --output /tmp/ato-ai-skill-mem-copilot.zip
+```
+
+El ZIP contiene instrucciones adaptadas y el contrato read-only de conexión.
+No implementa un connector o MCP ni sincroniza la memoria automáticamente.
+No es una integración de GitHub Copilot. El standard harness de Copilot Studio
+requiere una integración distinta y queda fuera de este MVP.
 
 El layout reserva `99_runtime/rag/` para una futura persistencia gobernada de
 índices. La extensión es opcional y no convierte esos artefactos en memoria
