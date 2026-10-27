@@ -5,6 +5,22 @@ on:
   pull_request:
 
 jobs:
+  python:
+    name: Python CLI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run Python tests
+        run: python -m unittest discover -s tests -p 'test_*.py'
+      - name: Evaluate lexical retrieval
+        run: python tests/retrieval/evaluate.py
+      - name: Smoke install and CLI
+        shell: bash
+        run: sh ./tests/test-install.sh
+
   bash:
     name: Bash (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -19,7 +35,10 @@ jobs:
         run: ./tests/test-bootstrap.sh
       - name: Check source vault
         shell: bash
-        run: ./scripts/vault.sh check --vault vault
+        run: ./scripts/vault.sh check --source
+      - name: Reject obsolete vault interfaces
+        shell: bash
+        run: test -z "$(git grep -n -E -- '--vault[[:space:]]|[[:space:]]-Vault([[:space:]]|$)' -- scripts || true)"
       - name: Verify worktree is clean
         shell: bash
         run: git diff --exit-code
@@ -38,7 +57,7 @@ jobs:
         run: ./tests/test-bootstrap.ps1
       - name: Check source vault
         shell: pwsh
-        run: ./scripts/vault.ps1 check -Vault vault
+        run: ./scripts/vault.ps1 check -Source
       - name: Verify worktree is clean
         shell: pwsh
         run: git diff --exit-code

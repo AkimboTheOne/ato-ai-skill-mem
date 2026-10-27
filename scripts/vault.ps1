@@ -3,8 +3,8 @@ param(
     [Parameter(Position = 0, Mandatory = $true)]
     [ValidateSet('init-layout', 'create-domain', 'check', 'migration-plan', 'migration-apply')]
     [string]$Command,
-    [Parameter(Mandatory = $true)]
-    [string]$Vault,
+    [string]$Target,
+    [switch]$Source,
     [string]$Id,
     [string]$Domain,
     [string]$Title,
@@ -14,8 +14,6 @@ param(
 $ErrorActionPreference = 'Stop'
 $titleWasProvided = $PSBoundParameters.ContainsKey('Title')
 function Fail([string]$Message) { throw "error: $Message" }
-if (-not (Test-Path -LiteralPath $Vault -PathType Container)) { Fail "la vault no existe: $Vault" }
-$Vault = (Resolve-Path -LiteralPath $Vault).Path
 $sourceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $layout = Join-Path $sourceRoot 'templates/vault-layout'
 function Test-ValidId([string]$Value) { return $Value -cmatch '^[a-z0-9][a-z0-9-]{0,62}$' }
@@ -23,10 +21,58 @@ function Test-LocalFile([string]$Path) { $item = Get-Item -LiteralPath $Path -Fo
 function Test-LocalDirectory([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink' }
 function Copy-IfMissing([string]$Source, [string]$Destination) { if (-not (Test-Path -LiteralPath $Destination)) { Copy-Item -LiteralPath $Source -Destination $Destination } }
 function ConvertTo-YamlQuoted([string]$Value) { return '"' + $Value.Replace('\', '\\').Replace('"', '\"') + '"' }
+if ($Source -and $Target) { Fail 'Source y Target son mutuamente excluyentes' }
+if (-not $Source -and [string]::IsNullOrWhiteSpace($Target)) { Fail 'debe especificarse -Source o -Target' }
+if ($Source) {
+    $role = 'source'
+    $Vault = Join-Path $sourceRoot 'vault'
+} else {
+    if (-not (Test-Path -LiteralPath $Target -PathType Container)) { Fail "el proyecto consumidor no existe: $Target" }
+    $targetItem = Get-Item -LiteralPath $Target -Force
+    if ($targetItem.LinkType -eq 'SymbolicLink') { Fail 'el proyecto consumidor no puede ser un symlink' }
+    $targetRoot = (Resolve-Path -LiteralPath $Target).Path
+    if ($targetRoot -eq $sourceRoot -or $targetRoot.StartsWith($sourceRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+        Fail 'el proyecto consumidor no puede estar dentro de la fuente'
+    }
+    $mem = Join-Path $targetRoot 'mem'
+    if (-not (Test-LocalDirectory $mem)) { Fail 'el directorio mem del consumidor no existe o no es local' }
+    $role = 'consumer'
+    $Vault = Join-Path $mem 'vault'
+}
+if (-not (Test-LocalDirectory $Vault)) { Fail "la vault autorizada no existe o no es local: $Vault" }
+$marker = Join-Path $Vault '.ato-ai-skill-mem-version.yml'
+$markerItem = Get-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
+if ($null -ne $markerItem -and $markerItem.LinkType -eq 'SymbolicLink') { Fail "el manifiesto de vault no es local: $marker" }
+$kind = if ($null -ne $markerItem) { if (-not (Test-LocalFile $marker)) { Fail "el manifiesto de vault no es local: $marker" }; (Get-Content -LiteralPath $marker | Where-Object { $_ -match '^vault_kind:\s*(\S+)' } | Select-Object -First 1) -replace '^vault_kind:\s*', '' } else { '' }
+if ($role -eq 'source' -and $kind -ne 'source') { Fail 'la vault fuente no declara vault_kind: source' }
+if ($role -eq 'consumer' -and $kind -eq 'source') { Fail 'una vault fuente no puede usarse como consumidora' }
+function Test-RagRuntime {
+    $runtime = Join-Path $Vault '99_runtime'
+    $runtimeItem = Get-Item -LiteralPath $runtime -Force -ErrorAction SilentlyContinue
+    if ($null -eq $runtimeItem) { return }
+    if (-not (Test-LocalDirectory $runtime)) { Fail '99_runtime no es un directorio local' }
+    $rag = Join-Path $runtime 'rag'
+    if (-not (Test-LocalDirectory $rag)) { Fail 'falta directorio local: 99_runtime/rag' }
+    $indexes = Join-Path $rag 'indexes'
+    $indexesItem = Get-Item -LiteralPath $indexes -Force -ErrorAction SilentlyContinue
+    if ($null -ne $indexesItem) {
+        if (-not (Test-LocalDirectory $indexes)) { Fail '99_runtime/rag/indexes no es un directorio local' }
+        Get-ChildItem -LiteralPath $indexes -Force | ForEach-Object {
+            if (-not (Test-LocalDirectory $_.FullName)) { Fail "índice RAG no es un directorio local: $($_.FullName)" }
+            if (-not (Test-LocalDirectory (Join-Path $_.FullName 'data'))) { Fail "falta directorio local de datos RAG: $($_.FullName)/data" }
+        }
+    }
+    $manifest = Join-Path $rag 'manifest.yml'
+    $manifestItem = Get-Item -LiteralPath $manifest -Force -ErrorAction SilentlyContinue
+    if ($null -ne $manifestItem) {
+        if (-not (Test-LocalFile $manifest)) { Fail '99_runtime/rag/manifest.yml no es un archivo local' }
+    }
+}
 function Initialize-Layout {
-    foreach ($directory in @('00_inbox/decisions-pending','10_areas','20_domains','30_resources','40_archive','50_daily','60_exports','_indexes','_maps','_templates')) { [System.IO.Directory]::CreateDirectory((Join-Path $Vault $directory)) | Out-Null }
+    foreach ($directory in @('00_inbox/decisions-pending','10_areas','20_domains','30_resources','40_archive','50_daily','60_exports','_indexes','_maps','_templates','99_runtime/rag/indexes')) { [System.IO.Directory]::CreateDirectory((Join-Path $Vault $directory)) | Out-Null }
     Copy-IfMissing (Join-Path $layout 'AGENTS.md') (Join-Path $Vault 'AGENTS.md')
     foreach ($name in @('domain.yml','domain-AGENTS.md','domain-INDEX.md','area.md','daily.md','pending-decision.md','export.md')) { Copy-IfMissing (Join-Path $layout $name) (Join-Path $Vault "_templates/$name") }
+    Copy-IfMissing (Join-Path $layout '.gitignore') (Join-Path $Vault '.gitignore')
     if (-not (Test-Path -LiteralPath (Join-Path $Vault '_indexes/INDEX.md'))) { [System.IO.File]::WriteAllText((Join-Path $Vault '_indexes/INDEX.md'), '# Índices de la vault') }
     if (-not (Test-Path -LiteralPath (Join-Path $Vault '_indexes/action-log.md'))) { [System.IO.File]::WriteAllText((Join-Path $Vault '_indexes/action-log.md'), '# Registro de acciones' + [Environment]::NewLine) }
     if (-not (Test-Path -LiteralPath (Join-Path $Vault '_maps/INDEX.md'))) { [System.IO.File]::WriteAllText((Join-Path $Vault '_maps/INDEX.md'), '# Mapas de la vault') }
@@ -62,6 +108,7 @@ function Test-Vault {
     foreach ($directory in @('00_inbox','10_areas','20_domains','30_resources','40_archive','50_daily','60_exports','_indexes','_maps','_templates')) { if (-not (Test-LocalDirectory (Join-Path $Vault $directory))) { Fail "falta directorio local: $directory" } }
     foreach ($file in @('_indexes/INDEX.md','_indexes/action-log.md','_maps/INDEX.md')) { if (-not (Test-LocalFile (Join-Path $Vault $file))) { Fail "falta archivo canónico local: $file" } }
     foreach ($file in @('domain.yml','domain-AGENTS.md','domain-INDEX.md','area.md','daily.md','pending-decision.md','export.md')) { if (-not (Test-LocalFile (Join-Path $Vault "_templates/$file"))) { Fail "falta plantilla canónica local: $file" } }
+    Test-RagRuntime
     $ids = @{}
     Get-ChildItem -LiteralPath (Join-Path $Vault '20_domains') -Force | ForEach-Object {
         $domain = $_.FullName

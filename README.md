@@ -19,6 +19,7 @@ consumer-project/
 │       ├── 10_areas/
 │       ├── 20_domains/
 │       ├── 30_resources/ … 60_exports/
+│       ├── 99_runtime/rag/       # extensión técnica opcional
 │       ├── _indexes/ y _maps/
 │       └── _templates/
 └── AGENTS.md                             # nunca modificado por bootstrap
@@ -87,7 +88,7 @@ contrato de datos y layout está en
 
 ## Versiones y release
 
-`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.5.1` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.6.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
 
 La política editorial clasifica `X` como cambio no retrocompatible, `Y` como
 nueva capacidad pública retrocompatible y `Z` como corrección o ajuste sin
@@ -120,12 +121,58 @@ En resumen:
   operación explícita correspondiente y no sobrescriben contenido existente.
 - Las operaciones source usan `vault/`; las operaciones consumer usan
   `mem/vault/` y no comparten registros.
-- `VAULT_FORMAT=3` permanece sin cambios en `0.5.1`; no se añade routing,
+- `VAULT_FORMAT=3` permanece sin cambios en `0.6.0`; no se añade routing,
   sincronización automática ni estado persistente oculto.
+
+## CLI Python complementario
+
+El paquete Python `ato-ai-mem` añade el comando `ato-mem` para análisis
+determinista y de solo lectura. No sustituye `scripts/vault.sh` ni
+`scripts/vault.ps1`: esos scripts siguen siendo la autoridad para layout,
+migraciones y operaciones estructurales.
+
+Instalación recomendada desde un checkout:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install .
+```
+
+Para verificar la instalación en un entorno temporal, ejecuta
+`sh tests/test-install.sh`. Los comandos, formatos, límites y códigos de
+salida del CLI están en [references/python-cli.md](references/python-cli.md).
+Para comprobar el gate del retrieval léxico, ejecuta
+`python tests/retrieval/evaluate.py`; el benchmark debe mantener
+`recall@5 >= 0.80`.
+La interfaz solo lee vaults formato `3`, no crea cachés ni índices y no accede
+a la red. El roadmap gobernado hacia retrieval semántico y RAG está en
+[references/retrieval-roadmap.md](references/retrieval-roadmap.md).
+
+El CLI y los scripts resuelven el ámbito por rol: `--source` opera solo sobre
+`SOURCE_ROOT/vault/` y `--target PROJECT_PATH` solo sobre
+`PROJECT_PATH/mem/vault/`. `--vault` y `-Vault` no están permitidos. El
+contrato técnico de confinamiento está en
+[references/runtime-boundary.md](references/runtime-boundary.md).
+
+`ato-mem` es una base técnica de bajo nivel: entrega diagnósticos, chunks y
+resultados con provenance para consumidores posteriores. El futuro cerebro que
+ensamble contexto o genere respuestas será un componente externo y no forma
+parte de este paquete.
+
+El layout reserva `99_runtime/rag/` para una futura persistencia gobernada de
+índices. La extensión es opcional y no convierte esos artefactos en memoria
+canónica; el contrato de la reserva está en
+[references/instance-contract.md](references/instance-contract.md).
 
 ## Límites
 
-No incluye RAG, bases vectoriales, búsqueda semántica, clasificación por confianza, aprendizaje adaptativo, ejecución en segundo plano ni sincronización entre vaults. Un futuro cerebro puede consumir una o más vaults, pero no recibe autoridad implícita para modificarlas.
+No incluye todavía RAG operativo, bases vectoriales, búsqueda semántica,
+clasificación por confianza, aprendizaje adaptativo, ejecución en segundo
+plano ni sincronización entre vaults. `99_runtime/rag/` es únicamente una
+reserva técnica opcional para una fase posterior. Un futuro cerebro externo
+puede consumir una o más vaults, pero no recibe autoridad implícita para
+modificarlas.
 
 Consulta [SKILL.md](SKILL.md) para el comportamiento canónico, [references/instance-contract.md](references/instance-contract.md) para el contrato de instancia y [references/agents-integration.md](references/agents-integration.md) para la integración manual de agentes.
 

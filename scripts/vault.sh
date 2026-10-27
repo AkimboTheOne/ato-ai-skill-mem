@@ -3,7 +3,7 @@
 set -eu
 
 COMMAND=${1:-}
-[ -n "$COMMAND" ] || { printf '%s\n' 'uso: vault.sh <init-layout|create-domain|check|migration-plan|migration-apply> --vault RUTA [...]' >&2; exit 1; }
+[ -n "$COMMAND" ] || { printf '%s\n' 'uso: vault.sh <init-layout|create-domain|check|migration-plan|migration-apply> --source|--target PROJECT_PATH [...]' >&2; exit 1; }
 shift
 
 fail() { printf '%s\n' "error: $*" >&2; exit 1; }
@@ -14,24 +14,49 @@ require_value() {
   esac
 }
 
-VAULT=''
+TARGET=''
+SOURCE_MODE=false
 DOMAIN_ID=''
 DOMAIN_TITLE=''
 RECORD=''
 TITLE_SET=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --vault) require_value "$@"; VAULT=$2; shift 2 ;;
+    --source) SOURCE_MODE=true; shift ;;
+    --target) require_value "$@"; TARGET=$2; shift 2 ;;
     --id|--domain) require_value "$@"; DOMAIN_ID=$2; shift 2 ;;
     --title) require_value "$@"; DOMAIN_TITLE=$2; TITLE_SET=true; shift 2 ;;
     --record) require_value "$@"; RECORD=$2; shift 2 ;;
     *) printf '%s\n' "error: argumento desconocido: $1" >&2; exit 1 ;;
   esac
 done
-[ -n "$VAULT" ] || { printf '%s\n' 'error: --vault es obligatorio' >&2; exit 1; }
-[ -d "$VAULT" ] || { printf '%s\n' "error: la vault no existe: $VAULT" >&2; exit 1; }
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 SOURCE_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
+[ "$SOURCE_MODE" = true ] || [ -n "$TARGET" ] || fail 'debe especificarse --source o --target'
+[ "$SOURCE_MODE" = false ] || [ -z "$TARGET" ] || fail '--source y --target son mutuamente excluyentes'
+if [ "$SOURCE_MODE" = true ]; then
+  ROLE=source
+  VAULT=$SOURCE_ROOT/vault
+else
+  [ -d "$TARGET" ] || fail "el proyecto consumidor no existe: $TARGET"
+  [ ! -L "$TARGET" ] || fail 'el proyecto consumidor no puede ser un symlink'
+  TARGET_ROOT=$(CDPATH= cd -- "$TARGET" && pwd -P)
+  case "$TARGET_ROOT/" in
+    "$SOURCE_ROOT/"*) fail 'el proyecto consumidor no puede estar dentro de la fuente' ;;
+  esac
+  [ ! -L "$TARGET_ROOT/mem" ] || fail 'el directorio mem del consumidor no puede ser un symlink'
+  ROLE=consumer
+  VAULT=$TARGET_ROOT/mem/vault
+fi
+[ -d "$VAULT" ] || fail "la vault no existe: $VAULT"
+[ ! -L "$VAULT" ] || fail 'la vault autorizada no puede ser un symlink'
+MARKER=$VAULT/.ato-ai-skill-mem-version.yml
+[ ! -L "$MARKER" ] || fail 'el manifiesto de vault no puede ser un symlink'
+if [ "$ROLE" = source ]; then
+  [ "$(sed -n 's/^vault_kind: *//p' "$MARKER" 2>/dev/null | sed -n '1p')" = source ] || fail 'la vault fuente no declara vault_kind: source'
+else
+  [ "$(sed -n 's/^vault_kind: *//p' "$MARKER" 2>/dev/null | sed -n '1p')" != source ] || fail 'una vault fuente no puede usarse como consumidora'
+fi
 LAYOUT=$SOURCE_ROOT/templates/vault-layout
 
 valid_id() { printf '%s\n' "$1" | grep -E '^[a-z0-9][a-z0-9-]{0,62}$' >/dev/null; }
@@ -40,10 +65,31 @@ local_dir() { [ -d "$1" ] && [ ! -L "$1" ]; }
 copy_if_missing() { [ -e "$2" ] || cp "$1" "$2"; }
 yaml_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 single_line() { [ "$(printf '%s\n' "$1" | wc -l | tr -d '[:space:]')" = 1 ]; }
+check_rag_runtime() {
+  runtime=$VAULT/99_runtime
+  [ ! -e "$runtime" ] && [ ! -L "$runtime" ] && return 0
+  local_dir "$runtime" || fail '99_runtime no es un directorio local'
+  rag=$runtime/rag
+  local_dir "$rag" || fail 'falta directorio local: 99_runtime/rag'
+  indexes=$rag/indexes
+  if [ -e "$indexes" ] || [ -L "$indexes" ]; then
+    local_dir "$indexes" || fail '99_runtime/rag/indexes no es un directorio local'
+    for index in "$indexes"/* "$indexes"/.[!.]* "$indexes"/..?*; do
+      [ -e "$index" ] || [ -L "$index" ] || continue
+      local_dir "$index" || fail "índice RAG no es un directorio local: $index"
+      local_dir "$index/data" || fail "falta directorio local de datos RAG: $index/data"
+    done
+  fi
+  manifest=$rag/manifest.yml
+  if [ -e "$manifest" ] || [ -L "$manifest" ]; then
+    local_file "$manifest" || fail '99_runtime/rag/manifest.yml no es un archivo local'
+  fi
+}
 init_layout() {
-  for dir in 00_inbox/decisions-pending 10_areas 20_domains 30_resources 40_archive 50_daily 60_exports _indexes _maps _templates; do mkdir -p "$VAULT/$dir"; done
+  for dir in 00_inbox/decisions-pending 10_areas 20_domains 30_resources 40_archive 50_daily 60_exports _indexes _maps _templates 99_runtime/rag/indexes; do mkdir -p "$VAULT/$dir"; done
   copy_if_missing "$LAYOUT/AGENTS.md" "$VAULT/AGENTS.md"
   for name in domain.yml domain-AGENTS.md domain-INDEX.md area.md daily.md pending-decision.md export.md; do copy_if_missing "$LAYOUT/$name" "$VAULT/_templates/$name"; done
+  copy_if_missing "$LAYOUT/.gitignore" "$VAULT/.gitignore"
   [ -e "$VAULT/_indexes/INDEX.md" ] || printf '# Índices de la vault\n' > "$VAULT/_indexes/INDEX.md"
   [ -e "$VAULT/_indexes/action-log.md" ] || printf '# Registro de acciones\n\n' > "$VAULT/_indexes/action-log.md"
   [ -e "$VAULT/_maps/INDEX.md" ] || printf '# Mapas de la vault\n' > "$VAULT/_maps/INDEX.md"
@@ -73,6 +119,7 @@ check_vault() {
   for dir in 00_inbox 10_areas 20_domains 30_resources 40_archive 50_daily 60_exports _indexes _maps _templates; do local_dir "$VAULT/$dir" || fail "falta directorio local: $dir"; done
   for file in _indexes/INDEX.md _indexes/action-log.md _maps/INDEX.md; do local_file "$VAULT/$file" || fail "falta archivo canónico local: $file"; done
   for file in domain.yml domain-AGENTS.md domain-INDEX.md area.md daily.md pending-decision.md export.md; do local_file "$VAULT/_templates/$file" || fail "falta plantilla canónica local: $file"; done
+  check_rag_runtime
   ids=''
   for domain in "$VAULT"/20_domains/* "$VAULT"/20_domains/.[!.]* "$VAULT"/20_domains/..?*; do
     [ -e "$domain" ] || continue

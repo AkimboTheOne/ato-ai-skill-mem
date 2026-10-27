@@ -73,6 +73,9 @@ source_status_output=$(run_contract source-status "$ROOT/scripts/bootstrap.sh" -
 assert_contract_output source-status "$source_status_output"
 source_target_rejected_output=$(run_contract source-target-rejected "$ROOT/scripts/bootstrap.sh" --source-status --target "$ROOT")
 assert_contract_output source-target-rejected "$source_target_rejected_output"
+sh "$ROOT/scripts/vault.sh" check --source >/dev/null
+if sh "$ROOT/scripts/vault.sh" check --target "$ROOT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" check --source --target "$ROOT" >/dev/null 2>&1; then exit 1; fi
 
 STATE_PROJECT=$TEMP_ROOT/state-consumer
 mkdir -p "$STATE_PROJECT"
@@ -83,7 +86,7 @@ STATE_MARKER=$STATE_VAULT/.ato-ai-skill-mem-version.yml
 STATE_MARKER_HASH=$(cksum "$STATE_MARKER")
 if $ROOT/scripts/bootstrap.sh --target "$STATE_PROJECT" --init >/dev/null 2>&1; then exit 1; fi
 [ "$(cksum "$STATE_MARKER")" = "$STATE_MARKER_HASH" ]
-sh "$ROOT/scripts/vault.sh" create-domain --vault "$STATE_VAULT" --id context --title Context
+sh "$ROOT/scripts/vault.sh" create-domain --target "$STATE_PROJECT" --id context --title Context
 state_context_output=$(run_contract context-existing-ready "$ROOT/scripts/bootstrap.sh" --target "$STATE_PROJECT" --contextualize)
 printf '%s\n' "$state_context_output" | grep -F 'vault.initialization.state: existing' >/dev/null
 assert_contract_output context-existing-ready "$state_context_output"
@@ -105,9 +108,10 @@ VAULT=$PROJECT/mem/vault
 grep -F 'mem/vault/' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev/null
 grep -F 'mem/SKILL.md' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev/null
 ! grep -F -- '--target .' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev/null
-sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+sh "$ROOT/scripts/vault.sh" check --target "$PROJECT"
 
 if "$ROOT/scripts/bootstrap.sh" --target "$ROOT" --status >/dev/null 2>&1; then exit 1; fi
+if "$ROOT/scripts/bootstrap.sh" --target "$ROOT/vault" --status >/dev/null 2>&1; then exit 1; fi
 integration_config_hash=$(cksum "$PROJECT/.ato-ai-skill-mem.yml")
 integration_adapter_hash=$(cksum "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md")
 "$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --integrate-codex
@@ -181,64 +185,82 @@ printf '%s\n' '# Source legacy record' > "$SOURCE_MIGRATION/workspace/records/le
 [ -d "$SOURCE_MIGRATION/vault/records" ]
 [ "$(sed -n 's/^vault_kind: *//p' "$SOURCE_MIGRATION/vault/.ato-ai-skill-mem-version.yml")" = source ]
 
-for option in --vault --id --title --record; do
+for option in --target --id --title --record; do
   error_file="$TEMP_ROOT/${option#--}.err"
   if sh "$ROOT/scripts/vault.sh" check "$option" 2>"$error_file"; then exit 1; fi
   grep -F "error: $option requiere un valor" "$error_file" >/dev/null
 done
-sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id alpha --title Alpha
+if sh "$ROOT/scripts/vault.sh" check --vault "$PROJECT" >/dev/null 2>&1; then exit 1; fi
+sh "$ROOT/scripts/vault.sh" create-domain --target "$PROJECT" --id alpha --title Alpha
 [ -f "$VAULT/20_domains/alpha/AGENTS.md" ]
 [ -f "$VAULT/20_domains/alpha/domain.yml" ]
-sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+sh "$ROOT/scripts/vault.sh" check --target "$PROJECT"
+[ -d "$VAULT/99_runtime/rag/indexes" ]
+[ -f "$VAULT/.gitignore" ]
+grep -F '99_runtime/rag/indexes/*/data/' "$VAULT/.gitignore" >/dev/null
+rm -rf "$VAULT/99_runtime"
+sh "$ROOT/scripts/vault.sh" check --target "$PROJECT"
+ln -s "$TEMP_ROOT" "$VAULT/99_runtime"
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
+rm "$VAULT/99_runtime"
+mkdir -p "$VAULT/99_runtime"
+ln -s "$TEMP_ROOT" "$VAULT/99_runtime/rag"
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
+rm "$VAULT/99_runtime/rag"
+mkdir -p "$VAULT/99_runtime/rag/indexes/sample/data"
+printf '%s\n' '# Manifiesto futuro reservado' > "$VAULT/99_runtime/rag/manifest.yml"
+sh "$ROOT/scripts/vault.sh" check --target "$PROJECT"
+rm -rf "$VAULT/99_runtime"
+sh "$ROOT/scripts/vault.sh" init-layout --target "$PROJECT"
 cp "$VAULT/20_domains/alpha/domain.yml" "$VAULT/20_domains/alpha/domain.yml.saved"
 grep -v '^scope:' "$VAULT/20_domains/alpha/domain.yml.saved" > "$VAULT/20_domains/alpha/domain.yml"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
 mv "$VAULT/20_domains/alpha/domain.yml.saved" "$VAULT/20_domains/alpha/domain.yml"
 printf '%s\n' '# Índice raíz inválido' > "$VAULT/INDEX.md"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
 rm "$VAULT/INDEX.md"
-sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id api-gateway --title 'Arquitectura: "R&D/Platform"'
+sh "$ROOT/scripts/vault.sh" create-domain --target "$PROJECT" --id api-gateway --title 'Arquitectura: "R&D/Platform"'
 [ "$(sed -n 's/^title: *//p' "$VAULT/20_domains/api-gateway/domain.yml")" = '"Arquitectura: \"R&D/Platform\""' ]
-if sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id Alpha >/dev/null 2>&1; then exit 1; fi
-if sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id multilinea --title 'primera
+if sh "$ROOT/scripts/vault.sh" create-domain --target "$PROJECT" --id Alpha >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" create-domain --target "$PROJECT" --id multilinea --title 'primera
 segunda' >/dev/null 2>&1; then exit 1; fi
 [ ! -e "$VAULT/20_domains/multilinea" ]
-if sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id empty-title --title '' >/dev/null 2>&1; then exit 1; fi
-if sh "$ROOT/scripts/vault.sh" create-domain --vault "$VAULT" --id blank-title --title '   ' >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" create-domain --target "$PROJECT" --id empty-title --title '' >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" create-domain --target "$PROJECT" --id blank-title --title '   ' >/dev/null 2>&1; then exit 1; fi
 [ ! -e "$VAULT/20_domains/empty-title" ] && [ ! -e "$VAULT/20_domains/blank-title" ]
 touch "$VAULT/20_domains/.unexpected"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
 rm "$VAULT/20_domains/.unexpected"
 printf '%s\n' 'unexpected file' > "$VAULT/20_domains/unexpected.md"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
 rm "$VAULT/20_domains/unexpected.md"
 mkdir "$VAULT/20_domains/.temporary"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
 rmdir "$VAULT/20_domains/.temporary"
 ln -s "$VAULT/20_domains/alpha" "$VAULT/20_domains/linked-domain"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
 rm "$VAULT/20_domains/linked-domain"
 mkdir -p "$VAULT/records"
 printf '%s\n' '# Legacy record' > "$VAULT/records/2026-10-25--legacy.md"
-sh "$ROOT/scripts/vault.sh" migration-plan --vault "$VAULT"
+sh "$ROOT/scripts/vault.sh" migration-plan --target "$PROJECT"
 [ -f "$VAULT/00_inbox/decisions-pending/2026-10-25--legacy.md" ]
-sh "$ROOT/scripts/vault.sh" migration-apply --vault "$VAULT" --domain alpha --record 2026-10-25--legacy.md
+sh "$ROOT/scripts/vault.sh" migration-apply --target "$PROJECT" --domain alpha --record 2026-10-25--legacy.md
 [ -f "$VAULT/20_domains/alpha/records/2026-10-25--legacy.md" ]
 grep -F 'migration-apply' "$VAULT/_indexes/action-log.md" >/dev/null
 grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z \| migration-apply' "$VAULT/_indexes/action-log.md" >/dev/null
 printf '%s\n' '# Protected root file' > "$VAULT/guard.md"
-if sh "$ROOT/scripts/vault.sh" migration-apply --vault "$VAULT" --domain alpha --record ../guard.md >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" migration-apply --target "$PROJECT" --domain alpha --record ../guard.md >/dev/null 2>&1; then exit 1; fi
 [ -f "$VAULT/guard.md" ]
 [ ! -e "$VAULT/20_domains/alpha/guard.md" ]
 printf '%s\n' '# Symlink source' > "$TEMP_ROOT/outside-record.md"
 ln -s "$TEMP_ROOT/outside-record.md" "$VAULT/records/linked.md"
-if sh "$ROOT/scripts/vault.sh" migration-apply --vault "$VAULT" --domain alpha --record linked.md >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" migration-apply --target "$PROJECT" --domain alpha --record linked.md >/dev/null 2>&1; then exit 1; fi
 [ -L "$VAULT/records/linked.md" ] && [ ! -e "$VAULT/20_domains/alpha/records/linked.md" ]
 rm "$VAULT/records/linked.md"
 printf '%s\n' '# Rollback record' > "$VAULT/records/2026-10-25--rollback.md"
 mv "$VAULT/_indexes/action-log.md" "$VAULT/_indexes/action-log.md.saved"
 mkdir "$VAULT/_indexes/action-log.md"
-if sh "$ROOT/scripts/vault.sh" migration-apply --vault "$VAULT" --domain alpha --record 2026-10-25--rollback.md >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" migration-apply --target "$PROJECT" --domain alpha --record 2026-10-25--rollback.md >/dev/null 2>&1; then exit 1; fi
 [ -f "$VAULT/records/2026-10-25--rollback.md" ]
 [ ! -e "$VAULT/20_domains/alpha/records/2026-10-25--rollback.md" ]
 rm -rf "$VAULT/_indexes/action-log.md"
@@ -246,18 +268,18 @@ mv "$VAULT/_indexes/action-log.md.saved" "$VAULT/_indexes/action-log.md"
 printf '%s\n' '# Log symlink record' > "$VAULT/records/2026-10-25--log-link.md"
 mv "$VAULT/_indexes/action-log.md" "$VAULT/_indexes/action-log.md.saved"
 ln -s "$VAULT/_indexes/action-log.md.saved" "$VAULT/_indexes/action-log.md"
-if sh "$ROOT/scripts/vault.sh" migration-apply --vault "$VAULT" --domain alpha --record 2026-10-25--log-link.md >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" migration-apply --target "$PROJECT" --domain alpha --record 2026-10-25--log-link.md >/dev/null 2>&1; then exit 1; fi
 [ -f "$VAULT/records/2026-10-25--log-link.md" ] && [ ! -e "$VAULT/20_domains/alpha/records/2026-10-25--log-link.md" ]
 rm "$VAULT/_indexes/action-log.md"
 mv "$VAULT/_indexes/action-log.md.saved" "$VAULT/_indexes/action-log.md"
 mv "$VAULT/_maps/INDEX.md" "$VAULT/_maps/INDEX.md.saved"
 ln -s "$VAULT/_maps/INDEX.md.saved" "$VAULT/_maps/INDEX.md"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
 rm "$VAULT/_maps/INDEX.md"
 mv "$VAULT/_maps/INDEX.md.saved" "$VAULT/_maps/INDEX.md"
 mv "$VAULT/_indexes/action-log.md" "$VAULT/_indexes/action-log.md.saved"
 mkdir "$VAULT/_indexes/action-log.md"
-if sh "$ROOT/scripts/vault.sh" check --vault "$VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" check --target "$PROJECT" >/dev/null 2>&1; then exit 1; fi
 rm -rf "$VAULT/_indexes/action-log.md"
 mv "$VAULT/_indexes/action-log.md.saved" "$VAULT/_indexes/action-log.md"
 
@@ -275,8 +297,8 @@ assert_contract_output context-blocked "$migration_context_output"
 [ -f "$MIGRATION_VAULT/00_inbox/decisions-pending/2026-01-01--legacy&record.md" ]
 if "$ROOT/scripts/bootstrap.sh" --target "$MIGRATION_PROJECT" --migrate-vault-format --finalize >/dev/null 2>&1; then exit 1; fi
 [ -f "$MIGRATION_VAULT/INDEX.md" ]
-sh "$ROOT/scripts/vault.sh" create-domain --vault "$MIGRATION_VAULT" --id migrated --title Migrated
-sh "$ROOT/scripts/vault.sh" migration-apply --vault "$MIGRATION_VAULT" --domain migrated --record '2026-01-01--legacy&record.md'
+sh "$ROOT/scripts/vault.sh" create-domain --target "$MIGRATION_PROJECT" --id migrated --title Migrated
+sh "$ROOT/scripts/vault.sh" migration-apply --target "$MIGRATION_PROJECT" --domain migrated --record '2026-01-01--legacy&record.md'
 printf '%s\n' 'contenido no Markdown' > "$MIGRATION_VAULT/records/legacy.txt"
 if "$ROOT/scripts/bootstrap.sh" --target "$MIGRATION_PROJECT" --migrate-vault-format --finalize >/dev/null 2>&1; then exit 1; fi
 [ "$(sed -n 's/^vault_format: *//p' "$MIGRATION_VAULT/.ato-ai-skill-mem-version.yml")" = 2 ]
@@ -286,7 +308,7 @@ rm "$MIGRATION_VAULT/records/legacy.txt"
 [ "$(sed -n 's/^vault_format: *//p' "$MIGRATION_VAULT/.ato-ai-skill-mem-version.yml")" = 3 ]
 [ ! -e "$MIGRATION_VAULT/INDEX.md" ]
 cmp "$TEMP_ROOT/legacy-index.expected" "$MIGRATION_VAULT/40_archive/legacy-root-INDEX.md"
-sh "$ROOT/scripts/vault.sh" check --vault "$MIGRATION_VAULT"
+sh "$ROOT/scripts/vault.sh" check --target "$MIGRATION_PROJECT"
 
 CONFLICT_PROJECT=$TEMP_ROOT/conflict-consumer
 mkdir -p "$CONFLICT_PROJECT/mem/vault/40_archive"
@@ -313,16 +335,20 @@ printf '%s\n' 'format: 1' 'vault_kind: consumer' 'vault_format: 2' 'skill_versio
 if "$ROOT/scripts/bootstrap.sh" --target "$INCOMPLETE_PROJECT" --migrate-vault-format --finalize >/dev/null 2>&1; then exit 1; fi
 [ ! -e "$INCOMPLETE_VAULT/AGENTS.md" ]
 
-PLAN_VAULT=$TEMP_ROOT/plan-vault
+PLAN_PROJECT=$TEMP_ROOT/plan-consumer
+PLAN_VAULT=$PLAN_PROJECT/mem/vault
 mkdir -p "$PLAN_VAULT/records" "$PLAN_VAULT/00_inbox/decisions-pending/z-conflict.md"
+printf '%s\n' 'vault_kind: consumer' 'vault_format: 3' > "$PLAN_VAULT/.ato-ai-skill-mem-version.yml"
 printf '%s\n' '# Nuevo' > "$PLAN_VAULT/records/a-new.md"
 printf '%s\n' '# Conflicto' > "$PLAN_VAULT/records/z-conflict.md"
-if sh "$ROOT/scripts/vault.sh" migration-plan --vault "$PLAN_VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" migration-plan --target "$PLAN_PROJECT" >/dev/null 2>&1; then exit 1; fi
 [ ! -e "$PLAN_VAULT/00_inbox/decisions-pending/a-new.md" ]
-PLAN_LINK_VAULT=$TEMP_ROOT/plan-link-vault
+PLAN_LINK_PROJECT=$TEMP_ROOT/plan-link-consumer
+PLAN_LINK_VAULT=$PLAN_LINK_PROJECT/mem/vault
 mkdir -p "$PLAN_LINK_VAULT/records"
+printf '%s\n' 'vault_kind: consumer' 'vault_format: 3' > "$PLAN_LINK_VAULT/.ato-ai-skill-mem-version.yml"
 printf '%s\n' '# Regular' > "$PLAN_LINK_VAULT/records/a-regular.md"
 ln -s "$TEMP_ROOT/outside-record.md" "$PLAN_LINK_VAULT/records/z-linked.md"
-if sh "$ROOT/scripts/vault.sh" migration-plan --vault "$PLAN_LINK_VAULT" >/dev/null 2>&1; then exit 1; fi
+if sh "$ROOT/scripts/vault.sh" migration-plan --target "$PLAN_LINK_PROJECT" >/dev/null 2>&1; then exit 1; fi
 [ ! -e "$PLAN_LINK_VAULT/00_inbox/decisions-pending/a-regular.md" ]
 printf 'pruebas de bootstrap y vault superadas\n'

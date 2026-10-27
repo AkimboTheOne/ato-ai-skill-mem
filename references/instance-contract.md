@@ -24,10 +24,34 @@ vault/
 ├── 40_archive/
 ├── 50_daily/
 ├── 60_exports/
+├── 99_runtime/
+│   └── rag/                  # extensión técnica opcional
 ├── _indexes/
 ├── _maps/
 └── _templates/
 ```
+
+`99_runtime/rag/` es una extensión técnica opcional del formato `3`. No es
+un dominio portable ni contiene registros humanos, `AGENTS.md` o `INDEX.md`.
+Cuando existe, su estructura local es:
+
+```text
+99_runtime/rag/
+├── manifest.yml
+└── indexes/<index-id>/data/
+```
+
+`manifest.yml` será legible, versionable y conservará provenance cuando exista
+un productor de índices. `indexes/*/data/` contendrá artefactos derivados y
+reconstruibles, por lo que debe ignorarse en Git. La ausencia de
+`99_runtime` mantiene la compatibilidad con vaults existentes de formato `3`;
+si aparece, `check` exige que `99_runtime`, `rag`, los índices, sus
+directorios `data/` y un `manifest.yml` presente sean rutas locales y no
+enlaces simbólicos.
+
+El esquema semántico del manifiesto queda pendiente hasta que exista una
+operación explícita que genere índices persistentes. Esta reserva no concede
+autoridad para modificar la memoria documental.
 
 ## Alineación de versión
 
