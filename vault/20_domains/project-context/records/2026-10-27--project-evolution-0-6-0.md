@@ -14,6 +14,8 @@ sources:
   - references/runtime-boundary.md
   - references/python-cli.md
   - references/vault-operations.md
+  - references/retrieval-roadmap.md
+  - .github/workflows/test.yml
   - scripts/bootstrap.sh
   - scripts/bootstrap.ps1
   - scripts/vault.sh
@@ -23,6 +25,8 @@ sources:
   - tests/test-bootstrap.sh
   - tests/test-bootstrap.ps1
   - tests/test-install.sh
+  - tests/retrieval/eval_cases.json
+  - tests/retrieval/evaluate.py
   - conversation-context
 related:
   - "[Registro anterior](2026-10-26--project-evolution-0-5-1.md)"
@@ -80,9 +84,11 @@ introducir sandboxing, procesos de fondo ni nuevas dependencias de runtime.
 
 La implementación fue validada con 21 pruebas `unittest`, pruebas Bash y
 PowerShell, smoke de instalación con `python -m pip install .`, ejecución de
-ambos entrypoints y comprobación de no mutación. También pasó `git diff
---check`. El runtime no requiere dependencias externas; el acceso a PyPI fue
-necesario únicamente para el backend de build del smoke test.
+ambos entrypoints y comprobación de no mutación. El benchmark humano obtuvo
+`12/12` casos y `recall@5 = 1.0`, y el workflow CI ejecuta ese gate además de
+rechazar interfaces obsoletas de vault. También pasó `git diff --check`. El
+runtime no requiere dependencias externas; el acceso a PyPI fue necesario
+únicamente para el backend de build del smoke test.
 
 ## Pendientes gobernados
 

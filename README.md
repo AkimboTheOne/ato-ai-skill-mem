@@ -142,6 +142,9 @@ python -m pip install .
 Para verificar la instalación en un entorno temporal, ejecuta
 `sh tests/test-install.sh`. Los comandos, formatos, límites y códigos de
 salida del CLI están en [references/python-cli.md](references/python-cli.md).
+Para comprobar el gate del retrieval léxico, ejecuta
+`python tests/retrieval/evaluate.py`; el benchmark debe mantener
+`recall@5 >= 0.80`.
 La interfaz solo lee vaults formato `3`, no crea cachés ni índices y no accede
 a la red. El roadmap gobernado hacia retrieval semántico y RAG está en
 [references/retrieval-roadmap.md](references/retrieval-roadmap.md).
