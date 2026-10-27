@@ -50,6 +50,17 @@ Los manifiestos anteriores sin ese campo se interpretan como `consumer`. Un
 bootstrap de consumidor rechaza un manifiesto de fuente y la raíz canónica no
 puede utilizarse como `--target`.
 
+El bootstrap expone además un estado transitorio de inicialización y
+contextualización. `vault.initialization.state` distingue `new` de `existing`;
+`vault.context.state` puede ser `needs-definition`, `needs-review`,
+`structurally-ready` o `blocked`. El estado no se escribe en el manifiesto y
+no sustituye la revisión humana del contexto.
+
+`--init` solo permite la transición de una vault ausente a un scaffold. La
+ejecución sin flag conserva compatibilidad y completa el scaffold idempotente.
+`--contextualize` y `--status` son de solo lectura. Ambos runtimes deben
+producir las mismas claves y decisiones.
+
 El vault de fuente se consulta con `--source-status` y se actualiza con
 `--update-source-vault` (o sus equivalentes PowerShell). La migración explícita
 usa `--migrate-workspace-to-vault` o `--migrate-source-workspace-to-vault`.

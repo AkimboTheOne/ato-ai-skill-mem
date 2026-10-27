@@ -18,3 +18,15 @@ o áreas relevantes y después únicamente el dominio necesario.
 
 Los `AGENTS.md` de dominio pueden añadir contexto local o restricciones, pero
 no relajan estas reglas ni las de `SKILL.md`.
+
+## Contextualización inicial
+
+Después del diagnóstico del bootstrap, el agente conduce iteraciones con la
+persona: define propósito, audiencia y límites; lee este archivo, `_indexes`,
+mapas y metadata de dominios; acuerda tipos de datos, evidencia, ciclo de vida
+e índices; y ejecuta `check` antes de solicitar una escritura explícita.
+
+La salida `vault.context.state` es una observación transitoria. No se debe
+crear un marcador de vault contextualizada ni clasificar registros por
+similitud. Las propuestas no autorizan crear, mover, actualizar o archivar
+datos.

@@ -36,6 +36,32 @@ La ruta indicada debe existir. El bootstrap crea una vault nueva en
 `mem/vault/`; después, la CLI administra su layout. Para la fuente se pasa
 explícitamente la ruta `vault/`; jamás `--target .` al bootstrap.
 
+El bootstrap sin una operación explícita conserva la instalación compatible y
+reporta el estado contextual. `--init` (`-Init`) es una transición estricta
+para una vault ausente. `--contextualize` (`-Contextualize`) y `--status`
+(`-Status`) son diagnósticos de solo lectura; no crean enlaces, scaffold,
+manifiestos ni registros.
+
+## Diagnóstico contextual
+
+El diagnóstico imprime claves estables para `vault.initialization.state`,
+`vault.context.state` y `vault.context.next_step`, además del inventario de
+`AGENTS.md`, índices, dominios, metadata y datos. El estado `blocked` remite a
+migración, actualización o resolución de propiedad/versiones; el bootstrap no
+interpreta datos para superar el bloqueo.
+
+Las claves de inventario son `vault.context.root_agents`,
+`vault.context.indexes`, `vault.context.maps_index`,
+`vault.context.action_log`, `vault.context.domains.total`,
+`vault.context.domains.with_agents`, `vault.context.domains.with_indexes`,
+`vault.context.domains.with_metadata`, `vault.data.records`,
+`vault.data.pending` y `vault.data.resources`.
+
+El wizard que sigue al diagnóstico tiene cuatro fases: definir expectativas,
+leer contexto declarado, acordar gestión de datos y validar/autorizar. Es un
+flujo del agente y la persona, no un archivo persistido ni una sesión
+interactiva del shell.
+
 ## `init-layout`
 
 ```sh

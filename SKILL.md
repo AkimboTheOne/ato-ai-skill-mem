@@ -92,6 +92,37 @@ Para una lectura compatible, sigue este orden: `AGENTS.md` maestro,
 `INDEX.md` y registros del dominio pertinente. No cargues todos los registros
 por defecto. Explica qué información de memoria fue material para la decisión.
 
+## Inicialización y contextualización guiada
+
+El bootstrap conserva su comportamiento histórico sin flags, pero informa el
+estado de inicialización y un inventario estructural de la vault. Las
+transiciones explícitas disponibles para consumidores son:
+
+- `--init` (`-Init`): crea únicamente una vault ausente; falla si ya existe.
+- `--status` (`-Status`): inspecciona release, compatibilidad y composición sin
+  modificar archivos.
+- `--contextualize` (`-Contextualize`): muestra el inventario y el plan guiado
+  sin crear scaffold, manifiesto ni registros.
+
+El inventario expone `vault.initialization.state` (`new` o `existing`),
+`vault.context.state` (`needs-definition`, `needs-review`,
+`structurally-ready` o `blocked`) y `vault.context.next_step`. También cuenta
+`AGENTS.md`, índices, dominios, metadata, registros, propuestas pendientes y
+recursos. Estos valores son observaciones transitorias; no constituyen un
+estado persistente de contextualización.
+
+Cuando la vault sea nueva, conduce cuatro iteraciones antes de proponer
+memoria persistente: definir propósito y audiencia; leer las reglas maestras,
+índices, mapas y metadata; acordar la gestión de datos; y validar con `check`
+antes de solicitar autorización concreta. Cuando sea existente, conserva la
+misma secuencia, pero lee primero el contexto declarado y solo los dominios
+pertinentes. No resumas ni clasifiques semánticamente desde el bootstrap.
+
+La gestión de datos requiere tipos de registros explícitos, evidencia,
+índices mantenidos, ciclo de vida y trazabilidad de movimientos. Las propuestas
+no autorizan escrituras; crear, actualizar, mover, archivar o cambiar la
+estructura continúa requiriendo una petición humana explícita.
+
 ## Supervisión de la vault
 
 La supervisión es una revisión de solo lectura que se activa cuando la persona

@@ -55,6 +55,8 @@ macOS/Linux:
 
 ```sh
 ./scripts/bootstrap.sh --target /absolute/path/to/consumer-project
+./scripts/bootstrap.sh --target /absolute/path/to/consumer-project --init
+./scripts/bootstrap.sh --target /absolute/path/to/consumer-project --contextualize
 ./scripts/bootstrap.sh --target /absolute/path/to/consumer-project --integrate-codex
 ./scripts/bootstrap.sh --target /absolute/path/to/consumer-project --status
 ```
@@ -63,11 +65,20 @@ Windows PowerShell:
 
 ```powershell
 .\scripts\bootstrap.ps1 -Target C:\path\to\consumer-project
+.\scripts\bootstrap.ps1 -Target C:\path\to\consumer-project -Init
+.\scripts\bootstrap.ps1 -Target C:\path\to\consumer-project -Contextualize
 .\scripts\bootstrap.ps1 -Target C:\path\to\consumer-project -IntegrateCodex
 .\scripts\bootstrap.ps1 -Target C:\path\to\consumer-project -Status
 ```
 
 El bootstrap crea el scaffold de formato `3` solo en vaults nuevas y nunca reemplaza contenido existente. Vaults de formatos anteriores requieren migración explícita.
+
+La inicialización informa `vault.initialization.state` (`new` o `existing`) y
+un inventario estructural de agentes, índices, dominios y datos. `--init`
+exige que la vault esté ausente; `--contextualize` solo muestra el wizard
+guiado. Ninguna de esas operaciones persiste un estado de contextualización.
+El agente debe acordar propósito, lectura contextual, gestión de datos y
+autorización antes de crear memoria.
 
 La CLI, los efectos de cada método y los pasos detallados de migración están
 en [references/vault-operations.md](references/vault-operations.md). El
@@ -76,7 +87,7 @@ contrato de datos y layout está en
 
 ## Versiones y release
 
-`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión actual es `0.3.1` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.4.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
 
 Consulta la vault de fuente con:
 

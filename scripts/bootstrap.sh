@@ -20,6 +20,8 @@ Crea o valida una instancia híbrida de ato-ai-skill-mem en RUTA_DEL_PROYECTO/me
 Este comando nunca modifica RUTA_DEL_PROYECTO/AGENTS.md.
 
 Opciones:
+  --init                Inicializa solo una vault ausente.
+  --contextualize       Diagnostica la vault y muestra el wizard guiado sin mutar.
   --status              Informa la alineación entre el release fuente y el vault.
   --update-vault        Actualiza el manifiesto de un vault compatible existente.
   --migrate-workspace-to-vault
@@ -47,6 +49,14 @@ while [ "$#" -gt 0 ]; do
       [ "$#" -ge 2 ] || fail '--target requiere una ruta'
       TARGET=$2
       shift 2
+      ;;
+    --init)
+      select_mode 'init'
+      shift
+      ;;
+    --contextualize)
+      select_mode 'contextualize'
+      shift
       ;;
     --status)
       select_mode 'status'
@@ -95,7 +105,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -n "$MODE" ] || MODE='bootstrap'
-[ "$INTEGRATE_CODEX" = false ] || [ "$MODE" = 'bootstrap' ] || fail '--integrate-codex solo se admite durante la instalación'
+[ "$INTEGRATE_CODEX" = false ] || [ "$MODE" = 'bootstrap' ] || [ "$MODE" = 'init' ] || fail '--integrate-codex solo se admite durante la instalación'
 [ "$FINALIZE" = false ] || [ "$MODE" = 'migrate-vault-format' ] || fail '--finalize solo se admite con --migrate-vault-format'
 
 case "$MODE" in
@@ -156,6 +166,7 @@ VERSION_FILE=$WORKSPACE/.ato-ai-skill-mem-version.yml
 if [ ! -d "$WORKSPACE" ] && [ -f "$LEGACY_WORKSPACE/.ato-ai-skill-mem-version.yml" ]; then
   VERSION_FILE=$LEGACY_WORKSPACE/.ato-ai-skill-mem-version.yml
 fi
+INITIALIZATION_STATE='unknown'
 INTEGRATION_TEMPLATE=$SOURCE_ROOT/templates/integrations/host-config.yml
 CODEX_ADAPTER_TEMPLATE=$SOURCE_ROOT/templates/integrations/codex/SKILL.md
 
@@ -321,6 +332,132 @@ print_status() {
     printf 'vault.created_at: %s\n' "$(read_marker created_at)"
     printf 'vault.updated_at: %s\n' "$(read_marker updated_at)"
   fi
+  print_context_status
+}
+
+local_file() { [ -f "$1" ] && [ ! -L "$1" ]; }
+local_dir() { [ -d "$1" ] && [ ! -L "$1" ]; }
+
+count_files() {
+  if ! local_dir "$1"; then
+    printf '%s\n' 0
+    return
+  fi
+  find "$1" -type f ! -type l 2>/dev/null | wc -l | tr -d '[:space:]'
+}
+
+count_record_files() {
+  total=0
+  if local_dir "$WORKSPACE/records"; then
+    total=$(count_files "$WORKSPACE/records")
+  fi
+  if local_dir "$WORKSPACE/20_domains"; then
+    domain_records=$(find "$WORKSPACE/20_domains" -type f -name '*.md' -path '*/records/*' ! -type l 2>/dev/null | wc -l | tr -d '[:space:]')
+    total=$((total + domain_records))
+  fi
+  printf '%s\n' "$total"
+}
+
+count_resource_files() {
+  total=0
+  if local_dir "$WORKSPACE/30_resources"; then
+    total=$(count_files "$WORKSPACE/30_resources")
+  fi
+  if local_dir "$WORKSPACE/20_domains"; then
+    domain_resources=$(find "$WORKSPACE/20_domains" -type f -path '*/resources/*' ! -type l 2>/dev/null | wc -l | tr -d '[:space:]')
+    total=$((total + domain_resources))
+  fi
+  printf '%s\n' "$total"
+}
+
+count_domain_files() {
+  field=$1
+  total=0
+  if local_dir "$WORKSPACE/20_domains"; then
+    for domain in "$WORKSPACE"/20_domains/* "$WORKSPACE"/20_domains/.[!.]* "$WORKSPACE"/20_domains/..?*; do
+      [ -e "$domain" ] || continue
+      local_dir "$domain" || continue
+      case "$field" in
+        agents) local_file "$domain/AGENTS.md" && total=$((total + 1)) ;;
+        indexes) local_file "$domain/INDEX.md" && total=$((total + 1)) ;;
+        metadata) local_file "$domain/domain.yml" && total=$((total + 1)) ;;
+      esac
+    done
+  fi
+  printf '%s\n' "$total"
+}
+
+count_domains() {
+  total=0
+  if local_dir "$WORKSPACE/20_domains"; then
+    for domain in "$WORKSPACE"/20_domains/* "$WORKSPACE"/20_domains/.[!.]* "$WORKSPACE"/20_domains/..?*; do
+      [ -e "$domain" ] || continue
+      local_dir "$domain" && total=$((total + 1))
+    done
+  fi
+  printf '%s\n' "$total"
+}
+
+initialization_state() {
+  if [ "$INITIALIZATION_STATE" != 'unknown' ]; then
+    printf '%s\n' "$INITIALIZATION_STATE"
+  elif [ -d "$WORKSPACE" ]; then
+    printf '%s\n' existing
+  else
+    printf '%s\n' new
+  fi
+}
+
+context_state() {
+  case "$(vault_state)" in
+    migration-required|role-mismatch|vault-newer|version-mismatch) printf '%s\n' blocked; return ;;
+  esac
+  domains=$(count_domains)
+  if [ "$(initialization_state)" = new ] || [ "$domains" = 0 ]; then
+    printf '%s\n' needs-definition
+    return
+  fi
+  if ! sh "$SOURCE_ROOT/scripts/vault.sh" check --vault "$WORKSPACE" >/dev/null 2>&1; then
+    printf '%s\n' needs-review
+    return
+  fi
+  printf '%s\n' structurally-ready
+}
+
+context_next_step() {
+  case "$(context_state)" in
+    blocked) printf '%s\n' migrate ;;
+    needs-definition) printf '%s\n' define-expectation ;;
+    needs-review) printf '%s\n' review-context ;;
+    structurally-ready) printf '%s\n' validate-and-authorize ;;
+  esac
+}
+
+print_context_status() {
+  domains=$(count_domains)
+  printf 'vault.initialization.state: %s\n' "$(initialization_state)"
+  printf 'vault.context.state: %s\n' "$(context_state)"
+  printf 'vault.context.next_step: %s\n' "$(context_next_step)"
+  if local_file "$WORKSPACE/AGENTS.md"; then printf 'vault.context.root_agents: present\n'; else printf 'vault.context.root_agents: missing\n'; fi
+  if local_file "$WORKSPACE/_indexes/INDEX.md"; then printf 'vault.context.indexes: present\n'; else printf 'vault.context.indexes: missing\n'; fi
+  if local_file "$WORKSPACE/_maps/INDEX.md"; then printf 'vault.context.maps_index: present\n'; else printf 'vault.context.maps_index: missing\n'; fi
+  if local_file "$WORKSPACE/_indexes/action-log.md"; then printf 'vault.context.action_log: present\n'; else printf 'vault.context.action_log: missing\n'; fi
+  printf 'vault.context.domains.total: %s\n' "$domains"
+  printf 'vault.context.domains.with_agents: %s\n' "$(count_domain_files agents)"
+  printf 'vault.context.domains.with_indexes: %s\n' "$(count_domain_files indexes)"
+  printf 'vault.context.domains.with_metadata: %s\n' "$(count_domain_files metadata)"
+  printf 'vault.data.records: %s\n' "$(count_record_files)"
+  printf 'vault.data.pending: %s\n' "$(count_files "$WORKSPACE/00_inbox/decisions-pending")"
+  printf 'vault.data.resources: %s\n' "$(count_resource_files)"
+}
+
+print_contextualization_plan() {
+  printf 'vault.context.wizard.mode: guided-agent\n'
+  printf 'vault.context.wizard.persistence: explicit-human-request\n'
+  printf 'vault.context.wizard.phase.1: define-expectation\n'
+  printf 'vault.context.wizard.phase.2: read-context\n'
+  printf 'vault.context.wizard.phase.3: define-data-management\n'
+  printf 'vault.context.wizard.phase.4: validate-and-authorize\n'
 }
 
 migrate_workspace_to_vault() {
@@ -410,6 +547,12 @@ migrate_vault_format() {
   printf 'migración de formato completada: vault_format 2 -> 3\n'
 }
 
+if [ "$MODE" = 'contextualize' ]; then
+  print_status
+  print_contextualization_plan
+  exit 0
+fi
+
 if [ "$MODE" = 'status' ] || [ "$MODE" = 'source-status' ]; then
   print_status
   exit 0
@@ -448,6 +591,10 @@ fi
 
 if [ -e "$MEM_DIR" ] && [ ! -d "$MEM_DIR" ]; then
   fail "la ruta de instancia existe pero no es un directorio: $MEM_DIR"
+fi
+
+if [ "$MODE" = 'init' ] && [ -d "$WORKSPACE" ]; then
+  fail 'la inicialización requiere una vault ausente; usa --contextualize o --update-vault para una vault existente'
 fi
 if [ -L "$MEM_DIR" ]; then
   fail "el directorio de instancia debe ser local, no un enlace simbólico: $MEM_DIR"
@@ -515,7 +662,7 @@ for linked_item in SKILL.md VERSION VAULT_FORMAT references templates scripts; d
 done
 
 WORKSPACE_EXISTED=false
-[ -d "$WORKSPACE" ] && WORKSPACE_EXISTED=true
+[ -d "$WORKSPACE" ] && { WORKSPACE_EXISTED=true; INITIALIZATION_STATE=existing; } || INITIALIZATION_STATE=new
 mkdir -p "$WORKSPACE"
 sh "$SOURCE_ROOT/scripts/vault.sh" init-layout --vault "$WORKSPACE"
 
@@ -533,3 +680,4 @@ if [ "$INTEGRATE_CODEX" = true ]; then
 fi
 
 printf 'instancia de memoria lista: %s (vault: %s)\n' "$MEM_DIR" "$(vault_state)"
+print_context_status
