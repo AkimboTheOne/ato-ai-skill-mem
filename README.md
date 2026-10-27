@@ -101,27 +101,21 @@ que `source.state` vuelva a `not-release-aligned`: `master` queda después del
 tag, mientras el release sigue identificado por el tag inmutable y la vault
 queda `aligned`. No fuerces el tag para eliminar esa diferencia.
 
-## Matriz de modos
+## Modos de uso
 
-| Modo | Propiedad | Efecto | Autoridad y precondición |
-| --- | --- | --- | --- |
-| `--contextualize` / `--status` | consumidor | diagnóstico de solo lectura | activación contextual; no modifica archivos |
-| `--init` | consumidor | crea el scaffold de una vault ausente | petición explícita; el destino debe estar ausente |
-| `--update-vault` | consumidor | actualiza solo el manifiesto compatible | petición explícita, checkout fuente `release-aligned` |
-| `--source-status` | fuente | diagnostica la vault `vault/` | activación contextual; no admite `--target` |
-| `--update-source-vault` | fuente | actualiza solo el manifiesto de la fuente | checkout limpio en `master` con `v<VERSION>` en `HEAD` |
-| `--migrate-vault-format` | consumidor | prepara o finaliza la migración 2 → 3 | petición explícita y resolución humana de registros |
-| `--migrate-workspace-to-vault` | consumidor | mueve `mem/workspace` a `mem/vault` | petición explícita; no puede existir el destino |
-| `--migrate-source-workspace-to-vault` | fuente | mueve `workspace/` a `vault/` | petición explícita; no puede existir el destino |
-| `--integrate-codex` | consumidor | crea o valida el adaptador local | instalación; nunca sobrescribe configuración existente |
+La matriz canónica de modos, propiedad, autoridad, precondiciones y efectos
+está en [references/vault-operations.md](references/vault-operations.md).
 
-Los modos de actualización y migración no clasifican contenido, no sincronizan
-vaults y no modifican `AGENTS.md`. `VAULT_FORMAT=3` permanece sin cambios en
-la versión `0.5.0`.
+En resumen:
 
-El diagnóstico expone claves estables para `source.state`, `vault.state`,
-`vault.context.state` y `vault.context.next_step`. Bash y PowerShell deben
-producir las mismas decisiones para los mismos escenarios.
+- Los diagnósticos (`--status`, `--contextualize` y `--source-status`) son de
+  solo lectura.
+- La inicialización, actualización, migración e integración requieren la
+  operación explícita correspondiente y no sobrescriben contenido existente.
+- Las operaciones source usan `vault/`; las operaciones consumer usan
+  `mem/vault/` y no comparten registros.
+- `VAULT_FORMAT=3` permanece sin cambios en `0.5.0`; no se añade routing,
+  sincronización automática ni estado persistente oculto.
 
 ## Límites
 
