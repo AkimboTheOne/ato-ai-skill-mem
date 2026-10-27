@@ -160,6 +160,17 @@ comandos, sus efectos y fallos. `init-layout`, `create-domain`,
 `check` no modifica contenido. Tras una operación estructural solicitada,
 ejecuta `check` y comunica el resultado.
 
+El paquete Python `ato-ai-mem` y el comando `ato-mem` son una interfaz
+complementaria de lectura para vaults formato `3`. Sus comandos `check`,
+`find`, `relate`, `build` y `retrieve` no reemplazan los scripts canónicos,
+no escriben la vault, no crean cachés ni índices y no acceden a la red.
+`ato-mem check` añade una auditoría documental de front matter, relaciones e
+índices; `build` y `retrieve` construyen y consultan un corpus léxico
+transitorio con provenance. No incluyen embeddings, generación RAG ni
+inferencias persistentes. La interfaz y sus códigos de salida están
+documentados en [references/python-cli.md](references/python-cli.md); el
+roadmap gobernado está en [references/retrieval-roadmap.md](references/retrieval-roadmap.md).
+
 La migración de formato `2` a `3` es explícita y en dos fases mediante el
 bootstrap: preparar propuestas y layout, después finalizar solo cuando no haya
 contenido pendiente en `records/`. La finalización archiva el índice heredado,

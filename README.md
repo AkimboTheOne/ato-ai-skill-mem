@@ -87,7 +87,7 @@ contrato de datos y layout está en
 
 ## Versiones y release
 
-`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.5.1` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.6.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
 
 La política editorial clasifica `X` como cambio no retrocompatible, `Y` como
 nueva capacidad pública retrocompatible y `Z` como corrección o ajuste sin
@@ -120,8 +120,47 @@ En resumen:
   operación explícita correspondiente y no sobrescriben contenido existente.
 - Las operaciones source usan `vault/`; las operaciones consumer usan
   `mem/vault/` y no comparten registros.
-- `VAULT_FORMAT=3` permanece sin cambios en `0.5.1`; no se añade routing,
+- `VAULT_FORMAT=3` permanece sin cambios en `0.6.0`; no se añade routing,
   sincronización automática ni estado persistente oculto.
+
+## CLI Python complementario
+
+El paquete Python `ato-ai-mem` añade el comando `ato-mem` para análisis
+determinista y de solo lectura. No sustituye `scripts/vault.sh` ni
+`scripts/vault.ps1`: esos scripts siguen siendo la autoridad para layout,
+migraciones y operaciones estructurales.
+
+Instalación recomendada desde un checkout:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install .
+```
+
+Comandos disponibles:
+
+```sh
+ato-mem check --vault /ruta/a/vault
+ato-mem find --vault /ruta/a/vault --pattern 'project-context'
+ato-mem relate --vault /ruta/a/vault --format json
+ato-mem build --vault /ruta/a/vault --format json
+ato-mem retrieve --vault /ruta/a/vault --query 'vault fuente versión' --limit 5 --format json
+```
+
+El CLI solo lee vaults formato `3`, no crea cachés ni índices y no accede a
+la red. `check` audita front matter, relaciones e índices; `find` busca regex
+en todos los archivos `.md`; `relate` extrae únicamente enlaces y relaciones
+declaradas; `build` genera chunks estructurales transitorios y `retrieve`
+aplica ranking léxico explicable. La inferencia lingüística, embeddings y
+generación RAG quedan fuera de esta fase.
+
+La salida usa texto legible por defecto o JSON con `--format json`. El código
+`0` indica éxito sin hallazgos, `1` hallazgos o ausencia de coincidencias y
+`2` errores de uso, entrada o lectura. El contrato completo está en
+[references/python-cli.md](references/python-cli.md).
+El roadmap gobernado hacia retrieval semántico y RAG está en
+[references/retrieval-roadmap.md](references/retrieval-roadmap.md).
 
 ## Límites
 

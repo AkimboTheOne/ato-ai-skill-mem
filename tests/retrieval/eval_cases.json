@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "engineering-optimization",
+      "query": "ciclo optimización ingeniería",
+      "expected_paths": [
+        "20_domains/engineering-prompts/records/2026-10-25--engineering-optimization-loop.md"
+      ]
+    },
+    {
+      "id": "source-versioning",
+      "query": "vault fuente versión",
+      "expected_paths": [
+        "20_domains/project-context/records/2026-10-26--project-evolution-0-5-1.md"
+      ]
+    },
+    {
+      "id": "contextualization",
+      "query": "inicialización contextualización",
+      "expected_paths": [
+        "20_domains/project-context/records/2026-10-26--project-evolution-0-4-0.md"
+      ]
+    },
+    {
+      "id": "memory-ownership",
+      "query": "memoria fuente consumidores",
+      "expected_paths": [
+        "20_domains/project-context/AGENTS.md"
+      ]
+    }
+  ]
+}

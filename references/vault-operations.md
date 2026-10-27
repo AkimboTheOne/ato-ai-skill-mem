@@ -61,6 +61,33 @@ claves y decisiones contractuales. La matriz portable de escenarios está en
 `tests/fixtures/bootstrap-contract.tsv`; no constituye memoria persistente ni
 habilita routing.
 
+## CLI Python complementario
+
+El comando `ato-mem` se instala con `python -m pip install .` y requiere
+Python `3.11+`. Opera solo sobre una ruta explícita indicada con `--vault` y
+no modifica contenido. Sus comandos son:
+
+```sh
+ato-mem check --vault /ruta/a/vault [--format text|json]
+ato-mem find --vault /ruta/a/vault --pattern REGEX [--ignore-case] [--format text|json]
+ato-mem relate --vault /ruta/a/vault [--format text|json]
+ato-mem build --vault /ruta/a/vault [--include GLOB] [--exclude GLOB] [--format json]
+ato-mem retrieve --vault /ruta/a/vault --query TEXT [--limit 5] [--include GLOB] [--exclude GLOB] [--format json]
+```
+
+Esta interfaz complementa, pero no invoca ni reemplaza, `vault.sh` y
+`vault.ps1`. Los scripts nativos conservan la autoridad sobre layout,
+migraciones, enlaces simbólicos, creación de dominios y cambios persistentes.
+El CLI Python solo analiza registros, índices, enlaces y archivos Markdown
+locales. `build` y `retrieve` mantienen el corpus en memoria durante la
+invocación. No usa NLP, embeddings, plugins, RAG, estado oculto, cachés ni
+red.
+
+El código de salida `0` significa que no hubo hallazgos, `1` que se detectaron
+hallazgos o no hubo coincidencias, y `2` que hubo un error de uso, entrada o
+lectura. El sobre JSON estable y las reglas detalladas están en
+[references/python-cli.md](python-cli.md).
+
 ## Diagnóstico contextual
 
 El diagnóstico imprime claves estables para `vault.initialization.state`,
