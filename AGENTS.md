@@ -69,3 +69,12 @@ en inglés los identificadores de programación, nombres de archivos, comandos,
 claves de contratos, valores consumidos por herramientas y términos técnicos
 establecidos. Un implementador puede cambiar el idioma de un proyecto
 consumidor cuando lo documente expresamente en sus instrucciones locales.
+
+## Convención de ramas del proyecto
+
+Las ramas de trabajo de este repositorio usan el prefijo `codex/` y su nombre
+descriptivo incluye la versión declarada en `VERSION` junto con el alcance del
+cambio. El formato recomendado es `codex/<VERSION>-<scope-descriptivo>`; por
+ejemplo, `codex/0.6.0-ato-mem-simplify-stabilize`. Esta convención pertenece
+al flujo de trabajo de este proyecto y no forma parte del contrato de
+`SKILL.md` ni de la interfaz del skill.
