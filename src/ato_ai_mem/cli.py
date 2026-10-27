@@ -8,19 +8,26 @@ from pathlib import Path
 import sys
 
 from .retrieval import build_corpus, chunk_dict, retrieve, retrieved_dict
-from .vault import Finding, Match, Relation, VaultError, check_vault, find_matches, relate_vault, validate_root
+from .scope import AuthorizedVault, resolve_authorized_vault
+from .vault import Finding, Match, Relation, VaultError, check_vault, find_matches, relate_vault
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ato-mem", description="Análisis determinista de vaults formato 3")
     commands = parser.add_subparsers(dest="command", required=True)
+
+    def add_scope(command: argparse.ArgumentParser) -> None:
+        scope = command.add_mutually_exclusive_group(required=True)
+        scope.add_argument("--source", type=Path, metavar="SOURCE_ROOT", help="raíz del repositorio fuente")
+        scope.add_argument("--target", type=Path, metavar="PROJECT_PATH", help="raíz del proyecto consumidor")
+
     for name, help_text in (
         ("check", "audita documentos e índices sin modificar la vault"),
         ("find", "busca una expresión regular en archivos Markdown"),
         ("relate", "extrae relaciones Markdown declaradas"),
     ):
         command = commands.add_parser(name, help=help_text)
-        command.add_argument("--vault", required=True, type=Path, help="ruta de la vault formato 3")
+        add_scope(command)
         command.add_argument("--format", choices=("text", "json"), default="text")
         if name == "find":
             command.add_argument("--pattern", required=True, help="expresión regular Python")
@@ -30,7 +37,7 @@ def _parser() -> argparse.ArgumentParser:
         ("retrieve", "recupera chunks mediante ranking léxico"),
     ):
         command = commands.add_parser(name, help=help_text)
-        command.add_argument("--vault", required=True, type=Path, help="ruta de la vault formato 3")
+        add_scope(command)
         command.add_argument("--format", choices=("text", "json"), default="text")
         command.add_argument("--include", action="append", default=[], metavar="GLOB", help="incluye una ruta relativa que coincida con GLOB")
         command.add_argument("--exclude", action="append", default=[], metavar="GLOB", help="excluye una ruta relativa que coincida con GLOB")
@@ -55,6 +62,7 @@ def _emit_json(
     status: str,
     summary: dict[str, object],
     items: list[object],
+    scope: AuthorizedVault | None = None,
     extra: dict[str, object] | None = None,
 ) -> None:
     payload = {
@@ -64,6 +72,8 @@ def _emit_json(
         "summary": summary,
         "items": [_json_item(item) for item in items],
     }
+    if scope is not None:
+        payload["scope"] = scope.as_dict()
     if extra:
         payload.update(extra)
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
@@ -113,10 +123,17 @@ def _emit_text(command: str, items: list[object], summary: dict[str, object]) ->
         print(f"{relation.source} --{relation.relation}--> {relation.target} [{state}]")
 
 
-def _emit(command: str, output_format: str, items: list[object], summary: dict[str, object], exit_code: int) -> int:
+def _emit(
+    command: str,
+    output_format: str,
+    items: list[object],
+    summary: dict[str, object],
+    exit_code: int,
+    scope: AuthorizedVault,
+) -> int:
     status = "ok" if exit_code == 0 else "findings"
     if output_format == "json":
-        _emit_json(command, status, summary, items)
+        _emit_json(command, status, summary, items, scope)
     else:
         _emit_text(command, items, summary)
     return exit_code
@@ -138,18 +155,19 @@ def main(argv: list[str] | None = None) -> int:
         return int(exc.code)
 
     try:
-        root = validate_root(args.vault)
+        authorized = resolve_authorized_vault(args.source, args.target)
+        root = authorized.root
         if args.command == "check":
             items = check_vault(root)
-            return _emit("check", args.format, items, {"findings": len(items)}, 1 if items else 0)
+            return _emit("check", args.format, items, {"findings": len(items)}, 1 if items else 0, authorized)
         if args.command == "find":
             items = find_matches(root, args.pattern, args.ignore_case)
-            return _emit("find", args.format, items, {"matches": len(items)}, 1 if not items else 0)
+            return _emit("find", args.format, items, {"matches": len(items)}, 1 if not items else 0, authorized)
         if args.command == "relate":
             items = relate_vault(root)
             unresolved = sum(1 for item in items if not item.resolved)
             summary = {"relations": len(items), "unresolved": unresolved}
-            return _emit("relate", args.format, items, summary, 1 if unresolved else 0)
+            return _emit("relate", args.format, items, summary, 1 if unresolved else 0, authorized)
         if args.command == "build":
             corpus = build_corpus(root, tuple(args.include), tuple(args.exclude))
             items = [chunk_dict(chunk) for chunk in corpus.chunks]
@@ -161,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
             }
             status = "findings" if corpus.diagnostics else "ok"
             if args.format == "json":
-                _emit_json("build", status, summary, items, {"diagnostics": diagnostics})
+                _emit_json("build", status, summary, items, authorized, {"diagnostics": diagnostics})
             else:
                 _emit_text("build", items, summary)
                 for diagnostic in corpus.diagnostics:
@@ -186,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
             exit_code = 1 if corpus.diagnostics or not results else 0
             status = "findings" if exit_code else "ok"
             if args.format == "json":
-                _emit_json("retrieve", status, summary, items, {"diagnostics": diagnostics})
+                _emit_json("retrieve", status, summary, items, authorized, {"diagnostics": diagnostics})
             else:
                 _emit_text("retrieve", items, summary)
                 for diagnostic in corpus.diagnostics:

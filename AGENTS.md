@@ -45,10 +45,9 @@ ciclo produce análisis y un plan; no autoriza cambios persistentes.
 
 Para recontextualizar la evolución del proyecto, usa el dominio
 `vault/20_domains/project-context/`: lee su `AGENTS.md`, `INDEX.md` y el
-registro activo `2026-10-26--project-evolution-0-4-0.md`. Ese registro resume
-la corrección histórica de `0.3.1`, la máquina de estados de inicialización,
-la gobernanza, los adaptadores y el protocolo de release; no sustituye las
-fuentes normativas ni autoriza cambios.
+registro activo `2026-10-27--project-evolution-0-6-0.md`. Ese registro resume
+la frontera de runtime, la evolución del CLI técnico, la gobernanza y el
+protocolo de release; no sustituye las fuentes normativas ni autoriza cambios.
 
 La capacidad puede ser invocada desde un proyecto, un agente o una skill
 compuesta. Sigue el contrato de contexto y propiedad del vault de
@@ -60,6 +59,13 @@ anfitrión. No afirmes sincronización automática o fusión entre vaults de
 proyectos distintos: Git puede versionar la memoria de cada consumidor,
 mientras que compartir conocimiento entre proyectos requiere promoción
 deliberada.
+
+Las interfaces de soporte están confinadas por rol: una operación de fuente
+resuelve únicamente `<source-root>/vault/` y una operación consumidora
+únicamente `<project-root>/mem/vault/`. `ato-mem`, `scripts/vault.*` y el
+bootstrap no aceptan rutas de vault arbitrarias; usa el contrato técnico de
+[`references/runtime-boundary.md`](references/runtime-boundary.md) como fuente
+normativa de ese límite.
 
 ## Idioma
 

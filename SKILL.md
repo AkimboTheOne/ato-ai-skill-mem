@@ -87,6 +87,12 @@ migraciones, enlaces simbólicos y compatibilidad estructural. Consulta
 [references/vault-operations.md](references/vault-operations.md) para sus
 comandos, efectos y fallos.
 
+Todas las herramientas de soporte están confinadas por rol: `source` resuelve
+solo `SOURCE_ROOT/vault/` y `consumer` solo `PROJECT_PATH/mem/vault/`. No se
+aceptan rutas de vault arbitrarias, `--vault`, `-Vault` ni symlinks en las
+raíces autorizadas. La regla técnica completa está en
+[references/runtime-boundary.md](references/runtime-boundary.md).
+
 El CLI Python complementa esos scripts, pero no los reemplaza ni los invoca.
 Consulta [references/python-cli.md](references/python-cli.md) para sus cinco
 comandos, formatos, límites y códigos. Consulta

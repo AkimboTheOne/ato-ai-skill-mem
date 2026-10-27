@@ -26,19 +26,22 @@ recomendaciones de cualquier cambio persistente.
 
 En macOS y Linux:
 
+La forma autorizada usa el rol de la operación:
+
 ```sh
-./scripts/vault.sh <comando> --vault /ruta/a/vault [argumentos]
+./scripts/vault.sh <comando> --source [argumentos]
+./scripts/vault.sh <comando> --target /ruta/al/proyecto [argumentos]
 ```
 
-En Windows PowerShell:
-
-```powershell
-.\scripts\vault.ps1 <comando> -Vault C:\ruta\a\vault [argumentos]
-```
+En PowerShell se usan `-Source` y `-Target`. `--vault` y `-Vault` quedan
+rechazados; las herramientas resuelven únicamente `vault/` de la fuente o
+`mem/vault/` del proyecto consumidor. Consulta
+[runtime-boundary.md](runtime-boundary.md) para el contrato de confinamiento.
 
 La ruta indicada debe existir. El bootstrap crea una vault nueva en
-`mem/vault/`; después, la CLI administra su layout. Para la fuente se pasa
-explícitamente la ruta `vault/`; jamás `--target .` al bootstrap.
+`mem/vault/`; después, la CLI administra su layout. Las operaciones de vault
+reciben `--source` para el repositorio fuente o `--target PROJECT_PATH` para
+un consumidor; jamás se pasa una ruta de vault arbitraria.
 
 El bootstrap sin una operación explícita conserva la instalación compatible y
 reporta el estado contextual. `--init` (`-Init`) es una transición estricta
@@ -68,15 +71,15 @@ habilita routing.
 ## CLI Python complementario
 
 El comando `ato-mem` se instala con `python -m pip install .` y requiere
-Python `3.11+`. Opera solo sobre una ruta explícita indicada con `--vault` y
-no modifica contenido. Sus comandos son:
+Python `3.11+`. Opera solo sobre la vault resuelta mediante `--source` o
+`--target` y no modifica contenido. Sus comandos son:
 
 ```sh
-ato-mem check --vault /ruta/a/vault [--format text|json]
-ato-mem find --vault /ruta/a/vault --pattern REGEX [--ignore-case] [--format text|json]
-ato-mem relate --vault /ruta/a/vault [--format text|json]
-ato-mem build --vault /ruta/a/vault [--include GLOB] [--exclude GLOB] [--format json]
-ato-mem retrieve --vault /ruta/a/vault --query TEXT [--limit 5] [--include GLOB] [--exclude GLOB] [--format json]
+ato-mem check --source SOURCE_ROOT [--format text|json]
+ato-mem find --target PROJECT_PATH --pattern REGEX [--ignore-case] [--format text|json]
+ato-mem relate --target PROJECT_PATH [--format text|json]
+ato-mem build --source SOURCE_ROOT [--include GLOB] [--exclude GLOB] [--format json]
+ato-mem retrieve --target PROJECT_PATH --query TEXT [--limit 5] [--include GLOB] [--exclude GLOB] [--format json]
 ```
 
 Esta interfaz complementa, pero no invoca ni reemplaza, `vault.sh` y
@@ -115,7 +118,7 @@ interactiva del shell.
 ## `init-layout`
 
 ```sh
-./scripts/vault.sh init-layout --vault /ruta/a/vault
+./scripts/vault.sh init-layout --target /ruta/al/proyecto
 ```
 
 Crea solo los directorios y archivos faltantes del scaffold: `00_inbox/`,
@@ -135,7 +138,7 @@ una futura operación explícita.
 ## `create-domain`
 
 ```sh
-./scripts/vault.sh create-domain --vault /ruta/a/vault \
+./scripts/vault.sh create-domain --target /ruta/al/proyecto \
   --id arquitectura --title Arquitectura
 ```
 
@@ -158,7 +161,7 @@ no relajar las reglas maestras de la vault ni autorizar operaciones persistentes
 ## `check`
 
 ```sh
-./scripts/vault.sh check --vault /ruta/a/vault
+./scripts/vault.sh check --target /ruta/al/proyecto
 ```
 
 No modifica contenido. Verifica el `AGENTS.md` maestro, los directorios
@@ -188,7 +191,7 @@ Una vault sin esa extensión sigue siendo válida.
 ## `migration-plan`
 
 ```sh
-./scripts/vault.sh migration-plan --vault /ruta/a/vault
+./scripts/vault.sh migration-plan --target /ruta/al/proyecto
 ```
 
 Inicializa el layout que falte e inventaría archivos `records/*.md` de una
@@ -201,7 +204,7 @@ parciales. Las propuestas representan una decisión humana pendiente.
 ## `migration-apply`
 
 ```sh
-./scripts/vault.sh migration-apply --vault /ruta/a/vault \
+./scripts/vault.sh migration-apply --target /ruta/al/proyecto \
   --domain arquitectura --record 2026-10-25--decision.md
 ```
 

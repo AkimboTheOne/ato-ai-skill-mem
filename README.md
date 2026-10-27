@@ -146,6 +146,12 @@ La interfaz solo lee vaults formato `3`, no crea cachés ni índices y no accede
 a la red. El roadmap gobernado hacia retrieval semántico y RAG está en
 [references/retrieval-roadmap.md](references/retrieval-roadmap.md).
 
+El CLI y los scripts resuelven el ámbito por rol: `--source` opera solo sobre
+`SOURCE_ROOT/vault/` y `--target PROJECT_PATH` solo sobre
+`PROJECT_PATH/mem/vault/`. `--vault` y `-Vault` no están permitidos. El
+contrato técnico de confinamiento está en
+[references/runtime-boundary.md](references/runtime-boundary.md).
+
 `ato-mem` es una base técnica de bajo nivel: entrega diagnósticos, chunks y
 resultados con provenance para consumidores posteriores. El futuro cerebro que
 ensamble contexto o genere respuestas será un componente externo y no forma

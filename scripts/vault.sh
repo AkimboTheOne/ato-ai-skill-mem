@@ -3,7 +3,7 @@
 set -eu
 
 COMMAND=${1:-}
-[ -n "$COMMAND" ] || { printf '%s\n' 'uso: vault.sh <init-layout|create-domain|check|migration-plan|migration-apply> --vault RUTA [...]' >&2; exit 1; }
+[ -n "$COMMAND" ] || { printf '%s\n' 'uso: vault.sh <init-layout|create-domain|check|migration-plan|migration-apply> --source|--target PROJECT_PATH [...]' >&2; exit 1; }
 shift
 
 fail() { printf '%s\n' "error: $*" >&2; exit 1; }
@@ -14,24 +14,49 @@ require_value() {
   esac
 }
 
-VAULT=''
+TARGET=''
+SOURCE_MODE=false
 DOMAIN_ID=''
 DOMAIN_TITLE=''
 RECORD=''
 TITLE_SET=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --vault) require_value "$@"; VAULT=$2; shift 2 ;;
+    --source) SOURCE_MODE=true; shift ;;
+    --target) require_value "$@"; TARGET=$2; shift 2 ;;
     --id|--domain) require_value "$@"; DOMAIN_ID=$2; shift 2 ;;
     --title) require_value "$@"; DOMAIN_TITLE=$2; TITLE_SET=true; shift 2 ;;
     --record) require_value "$@"; RECORD=$2; shift 2 ;;
     *) printf '%s\n' "error: argumento desconocido: $1" >&2; exit 1 ;;
   esac
 done
-[ -n "$VAULT" ] || { printf '%s\n' 'error: --vault es obligatorio' >&2; exit 1; }
-[ -d "$VAULT" ] || { printf '%s\n' "error: la vault no existe: $VAULT" >&2; exit 1; }
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 SOURCE_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
+[ "$SOURCE_MODE" = true ] || [ -n "$TARGET" ] || fail 'debe especificarse --source o --target'
+[ "$SOURCE_MODE" = false ] || [ -z "$TARGET" ] || fail '--source y --target son mutuamente excluyentes'
+if [ "$SOURCE_MODE" = true ]; then
+  ROLE=source
+  VAULT=$SOURCE_ROOT/vault
+else
+  [ -d "$TARGET" ] || fail "el proyecto consumidor no existe: $TARGET"
+  [ ! -L "$TARGET" ] || fail 'el proyecto consumidor no puede ser un symlink'
+  TARGET_ROOT=$(CDPATH= cd -- "$TARGET" && pwd -P)
+  case "$TARGET_ROOT/" in
+    "$SOURCE_ROOT/"*) fail 'el proyecto consumidor no puede estar dentro de la fuente' ;;
+  esac
+  [ ! -L "$TARGET_ROOT/mem" ] || fail 'el directorio mem del consumidor no puede ser un symlink'
+  ROLE=consumer
+  VAULT=$TARGET_ROOT/mem/vault
+fi
+[ -d "$VAULT" ] || fail "la vault no existe: $VAULT"
+[ ! -L "$VAULT" ] || fail 'la vault autorizada no puede ser un symlink'
+MARKER=$VAULT/.ato-ai-skill-mem-version.yml
+[ ! -L "$MARKER" ] || fail 'el manifiesto de vault no puede ser un symlink'
+if [ "$ROLE" = source ]; then
+  [ "$(sed -n 's/^vault_kind: *//p' "$MARKER" 2>/dev/null | sed -n '1p')" = source ] || fail 'la vault fuente no declara vault_kind: source'
+else
+  [ "$(sed -n 's/^vault_kind: *//p' "$MARKER" 2>/dev/null | sed -n '1p')" != source ] || fail 'una vault fuente no puede usarse como consumidora'
+fi
 LAYOUT=$SOURCE_ROOT/templates/vault-layout
 
 valid_id() { printf '%s\n' "$1" | grep -E '^[a-z0-9][a-z0-9-]{0,62}$' >/dev/null; }

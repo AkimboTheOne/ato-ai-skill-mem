@@ -47,6 +47,17 @@ try {
     Assert-ContractOutput 'source-status' $sourceStatusOutput
     $sourceTargetRejectedOutput = Invoke-Contract 'source-target-rejected' { & (Join-Path $root 'scripts/bootstrap.ps1') -SourceStatus -Target $root }
     Assert-ContractOutput 'source-target-rejected' $sourceTargetRejectedOutput
+    & (Join-Path $root 'scripts/vault.ps1') check -Source | Out-Null
+    try {
+        & (Join-Path $root 'scripts/vault.ps1') check -Target $root
+        throw 'vault.ps1 debía rechazar la raíz de la fuente como consumidor'
+    }
+    catch { if ($_.Exception.Message -eq 'vault.ps1 debía rechazar la raíz de la fuente como consumidor') { throw } }
+    try {
+        & (Join-Path $root 'scripts/vault.ps1') check -Source -Target $root
+        throw 'vault.ps1 debía rechazar Source y Target juntos'
+    }
+    catch { if ($_.Exception.Message -eq 'vault.ps1 debía rechazar Source y Target juntos') { throw } }
 
     $stateProject = Join-Path $temp 'state-consumer'
     New-Item -ItemType Directory -Path $stateProject | Out-Null
@@ -63,7 +74,7 @@ try {
         if ($_.Exception.Message -eq 'init debía rechazar una vault existente') { throw }
     }
     if ((Get-FileHash -LiteralPath $stateMarker).Hash -ne $stateMarkerHash) { throw 'init modificó el manifiesto de una vault existente' }
-    & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $stateVault -Id context -Title Context
+    & (Join-Path $root 'scripts/vault.ps1') create-domain -Target $stateProject -Id context -Title Context
     $stateContextOutput = Invoke-Contract 'context-existing-ready' { & (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -Contextualize }
     if ($stateContextOutput -notmatch 'vault.initialization.state: existing' -or $stateContextOutput -notmatch 'vault.context.domains.total: 1') { throw 'contextualize no reportó el estado existente estructuralmente listo' }
     Assert-ContractOutput 'context-existing-ready' $stateContextOutput
@@ -80,12 +91,17 @@ try {
     if ($consumerAdapter -notmatch 'mem/vault/' -or $consumerAdapter -notmatch 'mem/SKILL\.md' -or $consumerAdapter -match '--target \.') { throw 'el adaptador consumidor no conserva rutas y autoridad canónicas' }
     foreach ($path in @('AGENTS.md','00_inbox/decisions-pending','20_domains','_templates')) { if (-not (Test-Path (Join-Path $vault $path))) { throw "falta $path" } }
     if ((Get-Content (Join-Path $vault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3\r?$') { throw 'formato incorrecto' }
-    & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    & (Join-Path $root 'scripts/vault.ps1') check -Target $project
     try {
         & (Join-Path $root 'scripts/bootstrap.ps1') -Target $root -Status
         throw 'la raíz de la fuente debía rechazarse como consumidor'
     }
     catch { if ($_.Exception.Message -eq 'la raíz de la fuente debía rechazarse como consumidor') { throw } }
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target (Join-Path $root 'vault') -Status
+        throw 'bootstrap debía rechazar una ruta dentro de la fuente'
+    }
+    catch { if ($_.Exception.Message -eq 'bootstrap debía rechazar una ruta dentro de la fuente') { throw } }
     $integrationConfigHash = (Get-FileHash -LiteralPath (Join-Path $project '.ato-ai-skill-mem.yml')).Hash
     $integrationAdapterHash = (Get-FileHash -LiteralPath (Join-Path $project '.agents/skills/ato-ai-project-mem/SKILL.md')).Hash
     & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -IntegrateCodex
@@ -163,14 +179,14 @@ try {
     if ((Test-Path (Join-Path $sourceMigration 'workspace')) -or -not (Test-Path (Join-Path $sourceMigration 'vault/records'))) { throw 'la migración source workspace no terminó correctamente' }
     if ((Get-Content (Join-Path $sourceMigration 'vault/.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_kind: source\r?$') { throw 'la migración source no conservó la propiedad source' }
 
-    & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id alpha -Title Alpha
+    & (Join-Path $root 'scripts/vault.ps1') create-domain -Target $project -Id alpha -Title Alpha
     if (-not (Test-Path (Join-Path $vault '20_domains/alpha/domain.yml'))) { throw 'dominio ausente' }
     $alphaDomainFile = Join-Path $vault '20_domains/alpha/domain.yml'
     $alphaDomainText = (Get-Content -LiteralPath $alphaDomainFile -Raw) -replace "(?<!`r)`n", "`r`n"
     [System.IO.File]::WriteAllText($alphaDomainFile, $alphaDomainText)
     foreach ($invalidId in @('Alpha', 'API-Gateway')) {
         try {
-            & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id $invalidId -Title Invalid
+            & (Join-Path $root 'scripts/vault.ps1') create-domain -Target $project -Id $invalidId -Title Invalid
             throw "create-domain debía rechazar ID con mayúsculas: $invalidId"
         }
         catch {
@@ -178,30 +194,30 @@ try {
         }
         if (@(Get-ChildItem -LiteralPath (Join-Path $vault '20_domains') -Force | Where-Object { $_.Name -ceq $invalidId }).Count -gt 0) { throw "quedó un dominio inválido: $invalidId" }
     }
-    & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    & (Join-Path $root 'scripts/vault.ps1') check -Target $project
     if (-not (Test-Path (Join-Path $vault '99_runtime/rag/indexes'))) { throw 'falta 99_runtime/rag/indexes tras init-layout' }
     if (-not (Test-Path (Join-Path $vault '.gitignore'))) { throw 'falta .gitignore de la vault' }
     if ((Get-Content (Join-Path $vault '.gitignore') -Raw) -notmatch '99_runtime/rag/indexes/\*/data/') { throw 'falta regla de ignorado para datos RAG' }
     Remove-Item -LiteralPath (Join-Path $vault '99_runtime') -Recurse -Force
-    & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    & (Join-Path $root 'scripts/vault.ps1') check -Target $project
     New-Item -ItemType SymbolicLink -Path (Join-Path $vault '99_runtime') -Target $temp | Out-Null
-    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar runtime simbólico' }
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Target $project; throw 'check debía rechazar runtime simbólico' }
     catch { if ($_.Exception.Message -eq 'check debía rechazar runtime simbólico') { throw } }
     Remove-Item -LiteralPath (Join-Path $vault '99_runtime') -Force
     New-Item -ItemType Directory -Path (Join-Path $vault '99_runtime') | Out-Null
     New-Item -ItemType SymbolicLink -Path (Join-Path $vault '99_runtime/rag') -Target $temp | Out-Null
-    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar rag simbólico' }
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Target $project; throw 'check debía rechazar rag simbólico' }
     catch { if ($_.Exception.Message -eq 'check debía rechazar rag simbólico') { throw } }
     Remove-Item -LiteralPath (Join-Path $vault '99_runtime/rag') -Force
     New-Item -ItemType Directory -Path (Join-Path $vault '99_runtime/rag/indexes/sample/data') -Force | Out-Null
     '# Manifiesto futuro reservado' | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
-    & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    & (Join-Path $root 'scripts/vault.ps1') check -Target $project
     Remove-Item -LiteralPath (Join-Path $vault '99_runtime') -Recurse -Force
-    & (Join-Path $root 'scripts/vault.ps1') init-layout -Vault $vault
+    & (Join-Path $root 'scripts/vault.ps1') init-layout -Target $project
     Copy-Item -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml') -Destination (Join-Path $vault '20_domains/alpha/domain.yml.saved')
     (Get-Content -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml.saved') | Where-Object { $_ -notmatch '^scope:' }) | Set-Content (Join-Path $vault '20_domains/alpha/domain.yml')
     try {
-        & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+        & (Join-Path $root 'scripts/vault.ps1') check -Target $project
         throw 'check debía rechazar metadata incompleta'
     }
     catch {
@@ -210,17 +226,17 @@ try {
     Move-Item -LiteralPath (Join-Path $vault '20_domains/alpha/domain.yml.saved') -Destination (Join-Path $vault '20_domains/alpha/domain.yml') -Force
     '# Índice raíz inválido' | Set-Content (Join-Path $vault 'INDEX.md')
     try {
-        & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+        & (Join-Path $root 'scripts/vault.ps1') check -Target $project
         throw 'check debía rechazar INDEX.md en raíz'
     }
     catch {
         if ($_.Exception.Message -eq 'check debía rechazar INDEX.md en raíz') { throw }
     }
     Remove-Item -LiteralPath (Join-Path $vault 'INDEX.md') -Force
-    & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id api-gateway -Title 'Arquitectura: "R&D/Platform"'
+    & (Join-Path $root 'scripts/vault.ps1') create-domain -Target $project -Id api-gateway -Title 'Arquitectura: "R&D/Platform"'
     if ((Get-Content (Join-Path $vault '20_domains/api-gateway/domain.yml') -Raw) -notlike '*title: "Arquitectura: \"R&D/Platform\""*') { throw 'título de dominio incorrecto' }
     try {
-        & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id multilinea -Title "primera`nsegunda"
+        & (Join-Path $root 'scripts/vault.ps1') create-domain -Target $project -Id multilinea -Title "primera`nsegunda"
         throw 'el título multilínea debía fallar'
     }
     catch {
@@ -229,7 +245,7 @@ try {
     if (Test-Path (Join-Path $vault '20_domains/multilinea')) { throw 'quedó un dominio parcial' }
     foreach ($titleCase in @(@('empty-title',''), @('blank-title','   '))) {
         try {
-            & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id $titleCase[0] -Title $titleCase[1]
+            & (Join-Path $root 'scripts/vault.ps1') create-domain -Target $project -Id $titleCase[0] -Title $titleCase[1]
             throw "create-domain debía rechazar title $($titleCase[0])"
         }
         catch {
@@ -238,31 +254,31 @@ try {
         if (Test-Path (Join-Path $vault "20_domains/$($titleCase[0])")) { throw 'se creó un paquete con título vacío' }
     }
     Set-Content -LiteralPath (Join-Path $vault '20_domains/.unexpected') -Value 'unexpected'
-    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar entrada oculta' }
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Target $project; throw 'check debía rechazar entrada oculta' }
     catch { if ($_.Exception.Message -eq 'check debía rechazar entrada oculta') { throw } }
     Remove-Item -LiteralPath (Join-Path $vault '20_domains/.unexpected') -Force
     Set-Content -LiteralPath (Join-Path $vault '20_domains/unexpected.md') -Value 'unexpected'
-    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar archivo en domains' }
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Target $project; throw 'check debía rechazar archivo en domains' }
     catch { if ($_.Exception.Message -eq 'check debía rechazar archivo en domains') { throw } }
     Remove-Item -LiteralPath (Join-Path $vault '20_domains/unexpected.md') -Force
     New-Item -ItemType Directory -Path (Join-Path $vault '20_domains/.temporary') | Out-Null
-    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar paquete temporal' }
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Target $project; throw 'check debía rechazar paquete temporal' }
     catch { if ($_.Exception.Message -eq 'check debía rechazar paquete temporal') { throw } }
     Remove-Item -LiteralPath (Join-Path $vault '20_domains/.temporary') -Force
     New-Item -ItemType SymbolicLink -Path (Join-Path $vault '20_domains/linked-domain') -Target (Join-Path $vault '20_domains/alpha') | Out-Null
-    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar dominio simbólico' }
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Target $project; throw 'check debía rechazar dominio simbólico' }
     catch { if ($_.Exception.Message -eq 'check debía rechazar dominio simbólico') { throw } }
     Remove-Item -LiteralPath (Join-Path $vault '20_domains/linked-domain') -Force
     New-Item -ItemType Directory -Path (Join-Path $vault 'records') | Out-Null
     '# Legacy record' | Set-Content (Join-Path $vault 'records/2026-10-25--legacy.md')
-    & (Join-Path $root 'scripts/vault.ps1') migration-plan -Vault $vault
+    & (Join-Path $root 'scripts/vault.ps1') migration-plan -Target $project
     if (-not (Test-Path (Join-Path $vault '00_inbox/decisions-pending/2026-10-25--legacy.md'))) { throw 'propuesta pendiente ausente' }
-    & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $vault -Domain alpha -Record '2026-10-25--legacy.md'
+    & (Join-Path $root 'scripts/vault.ps1') migration-apply -Target $project -Domain alpha -Record '2026-10-25--legacy.md'
     if (-not (Test-Path (Join-Path $vault '20_domains/alpha/records/2026-10-25--legacy.md'))) { throw 'registro no migrado' }
     if ((Get-Content (Join-Path $vault '_indexes/action-log.md') -Raw) -notmatch '(?m)^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z \| migration-apply') { throw 'el action log no usa UTC ISO-8601' }
     '# Protected root file' | Set-Content (Join-Path $vault 'guard.md')
     try {
-        & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $vault -Domain alpha -Record '../guard.md'
+        & (Join-Path $root 'scripts/vault.ps1') migration-apply -Target $project -Domain alpha -Record '../guard.md'
         throw 'la migración debía rechazar rutas en --record'
     }
     catch {
@@ -272,7 +288,7 @@ try {
     if (Test-Path (Join-Path $vault '20_domains/alpha/guard.md')) { throw 'se escribió fuera de records del dominio' }
     '# Symlink source' | Set-Content (Join-Path $temp 'outside-record.md')
     New-Item -ItemType SymbolicLink -Path (Join-Path $vault 'records/linked.md') -Target (Join-Path $temp 'outside-record.md') | Out-Null
-    try { & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $vault -Domain alpha -Record linked.md; throw 'migration-apply debía rechazar registro simbólico' }
+        try { & (Join-Path $root 'scripts/vault.ps1') migration-apply -Target $project -Domain alpha -Record linked.md; throw 'migration-apply debía rechazar registro simbólico' }
     catch { if ($_.Exception.Message -eq 'migration-apply debía rechazar registro simbólico') { throw } }
     if (-not (Test-Path (Join-Path $vault 'records/linked.md')) -or (Test-Path (Join-Path $vault '20_domains/alpha/records/linked.md'))) { throw 'el symlink raíz se movió' }
     Remove-Item -LiteralPath (Join-Path $vault 'records/linked.md') -Force
@@ -280,7 +296,7 @@ try {
     Move-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md') -Destination (Join-Path $vault '_indexes/action-log.md.saved')
     New-Item -ItemType Directory -Path (Join-Path $vault '_indexes/action-log.md') | Out-Null
     try {
-        & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $vault -Domain alpha -Record '2026-10-25--rollback.md'
+        & (Join-Path $root 'scripts/vault.ps1') migration-apply -Target $project -Domain alpha -Record '2026-10-25--rollback.md'
         throw 'la migración debía fallar si el log no está disponible'
     }
     catch {
@@ -293,7 +309,7 @@ try {
     '# Log symlink record' | Set-Content (Join-Path $vault 'records/2026-10-25--log-link.md')
     Move-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md') -Destination (Join-Path $vault '_indexes/action-log.md.saved')
     New-Item -ItemType SymbolicLink -Path (Join-Path $vault '_indexes/action-log.md') -Target (Join-Path $vault '_indexes/action-log.md.saved') | Out-Null
-    try { & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $vault -Domain alpha -Record '2026-10-25--log-link.md'; throw 'migration-apply debía rechazar action log simbólico' }
+        try { & (Join-Path $root 'scripts/vault.ps1') migration-apply -Target $project -Domain alpha -Record '2026-10-25--log-link.md'; throw 'migration-apply debía rechazar action log simbólico' }
     catch { if ($_.Exception.Message -eq 'migration-apply debía rechazar action log simbólico') { throw } }
     if (-not (Test-Path (Join-Path $vault 'records/2026-10-25--log-link.md')) -or (Test-Path (Join-Path $vault '20_domains/alpha/records/2026-10-25--log-link.md'))) { throw 'el registro no se conservó ante action log simbólico' }
     Remove-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md') -Force
@@ -301,7 +317,7 @@ try {
     Move-Item -LiteralPath (Join-Path $vault '_maps/INDEX.md') -Destination (Join-Path $vault '_maps/INDEX.md.saved')
     New-Item -ItemType SymbolicLink -Path (Join-Path $vault '_maps/INDEX.md') -Target (Join-Path $vault '_maps/INDEX.md.saved') | Out-Null
     try {
-        & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+        & (Join-Path $root 'scripts/vault.ps1') check -Target $project
         throw 'check debía rechazar un enlace simbólico canónico'
     }
     catch {
@@ -312,7 +328,7 @@ try {
     Move-Item -LiteralPath (Join-Path $vault '_indexes/action-log.md') -Destination (Join-Path $vault '_indexes/action-log.md.saved')
     New-Item -ItemType Directory -Path (Join-Path $vault '_indexes/action-log.md') | Out-Null
     try {
-        & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+        & (Join-Path $root 'scripts/vault.ps1') check -Target $project
         throw 'check debía rechazar un archivo canónico convertido en directorio'
     }
     catch {
@@ -341,8 +357,8 @@ try {
         if ($_.Exception.Message -eq 'la finalización debía rechazar registros raíz pendientes') { throw }
     }
     if (-not (Test-Path (Join-Path $migrationVault 'INDEX.md'))) { throw 'el índice se movió antes de finalizar' }
-    & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $migrationVault -Id migrated -Title Migrated
-    & (Join-Path $root 'scripts/vault.ps1') migration-apply -Vault $migrationVault -Domain migrated -Record '2026-01-01--legacy&record.md'
+    & (Join-Path $root 'scripts/vault.ps1') create-domain -Target $migrationProject -Id migrated -Title Migrated
+    & (Join-Path $root 'scripts/vault.ps1') migration-apply -Target $migrationProject -Domain migrated -Record '2026-01-01--legacy&record.md'
     'contenido no Markdown' | Set-Content (Join-Path $migrationVault 'records/legacy.txt')
     try {
         & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat -Finalize
@@ -358,7 +374,7 @@ try {
     if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3\r?$') { throw 'el manifiesto no llegó al formato 3' }
     if (Test-Path (Join-Path $migrationVault 'INDEX.md')) { throw 'el índice legado no fue archivado' }
     if ((Get-FileHash (Join-Path $temp 'legacy-index.expected')).Hash -ne (Get-FileHash (Join-Path $migrationVault '40_archive/legacy-root-INDEX.md')).Hash) { throw 'el índice legado cambió durante el archivado' }
-    & (Join-Path $root 'scripts/vault.ps1') check -Vault $migrationVault
+    & (Join-Path $root 'scripts/vault.ps1') check -Target $migrationProject
 
     $conflictProject = Join-Path $temp 'conflict-consumer'
     $conflictVault = Join-Path $conflictProject 'mem/vault'
@@ -403,24 +419,28 @@ try {
     }
     if (Test-Path (Join-Path $incompleteVault 'AGENTS.md')) { throw 'la finalización creó un layout no preparado' }
 
-    $planVault = Join-Path $temp 'plan-vault'
+    $planProject = Join-Path $temp 'plan-consumer'
+    $planVault = Join-Path $planProject 'mem/vault'
     New-Item -ItemType Directory -Path (Join-Path $planVault 'records') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $planVault '00_inbox/decisions-pending/z-conflict.md') -Force | Out-Null
+    @('vault_kind: consumer','vault_format: 3') | Set-Content (Join-Path $planVault '.ato-ai-skill-mem-version.yml')
     '# Nuevo' | Set-Content (Join-Path $planVault 'records/a-new.md')
     '# Conflicto' | Set-Content (Join-Path $planVault 'records/z-conflict.md')
     try {
-        & (Join-Path $root 'scripts/vault.ps1') migration-plan -Vault $planVault
+        & (Join-Path $root 'scripts/vault.ps1') migration-plan -Target $planProject
         throw 'el plan debía rechazar una propuesta no regular'
     }
     catch {
         if ($_.Exception.Message -eq 'el plan debía rechazar una propuesta no regular') { throw }
     }
     if (Test-Path (Join-Path $planVault '00_inbox/decisions-pending/a-new.md')) { throw 'el plan publicó propuestas parciales' }
-    $planLinkVault = Join-Path $temp 'plan-link-vault'
+    $planLinkProject = Join-Path $temp 'plan-link-consumer'
+    $planLinkVault = Join-Path $planLinkProject 'mem/vault'
     New-Item -ItemType Directory -Path (Join-Path $planLinkVault 'records') -Force | Out-Null
+    @('vault_kind: consumer','vault_format: 3') | Set-Content (Join-Path $planLinkVault '.ato-ai-skill-mem-version.yml')
     '# Regular' | Set-Content (Join-Path $planLinkVault 'records/a-regular.md')
     New-Item -ItemType SymbolicLink -Path (Join-Path $planLinkVault 'records/z-linked.md') -Target (Join-Path $temp 'outside-record.md') | Out-Null
-    try { & (Join-Path $root 'scripts/vault.ps1') migration-plan -Vault $planLinkVault; throw 'migration-plan debía rechazar registro simbólico' }
+    try { & (Join-Path $root 'scripts/vault.ps1') migration-plan -Target $planLinkProject; throw 'migration-plan debía rechazar registro simbólico' }
     catch { if ($_.Exception.Message -eq 'migration-plan debía rechazar registro simbólico') { throw } }
     if (Test-Path (Join-Path $planLinkVault '00_inbox/decisions-pending/a-regular.md')) { throw 'migration-plan publicó propuestas antes del rechazo' }
     Write-Output 'pruebas de bootstrap y vault PowerShell superadas'

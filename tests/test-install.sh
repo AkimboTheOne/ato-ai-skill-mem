@@ -17,7 +17,7 @@ before=$(git -C "$ROOT" status --porcelain -- vault)
 "$VENV_PYTHON" -m pip install .
 "$VENV_ATO_MEM" --help >/dev/null
 "$VENV_PYTHON" -m ato_ai_mem --help >/dev/null
-result=$("$VENV_ATO_MEM" retrieve --vault "$ROOT/vault" --query 'vault fuente' --format json)
+result=$("$VENV_ATO_MEM" retrieve --source "$ROOT" --query 'vault fuente' --format json)
 printf '%s\n' "$result" | "$VENV_PYTHON" -c 'import json, sys; payload = json.load(sys.stdin); assert payload["command"] == "retrieve"; assert payload["items"]'
 after=$(git -C "$ROOT" status --porcelain -- vault)
 [ "$before" = "$after" ] || { printf '%s\n' 'el smoke test modificó vault/' >&2; exit 1; }

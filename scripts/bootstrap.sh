@@ -128,8 +128,11 @@ if [ "$MODE" = 'source-status' ] || [ "$MODE" = 'update-source-vault' ] || [ "$M
   EXPECTED_WORKSPACE_KIND='source'
 else
   TARGET_ROOT=$(CDPATH= cd -- "$TARGET" && pwd -P)
-  [ "$TARGET_ROOT" != "$SOURCE_ROOT" ] || fail 'la raíz de la fuente no es un proyecto consumidor; usa --source-status'
+  case "$TARGET_ROOT/" in
+    "$SOURCE_ROOT/"*) fail 'el proyecto consumidor no puede estar dentro de la fuente' ;;
+  esac
   MEM_DIR=$TARGET_ROOT/mem
+  [ ! -L "$MEM_DIR" ] || fail 'el directorio mem del consumidor no puede ser un symlink'
   WORKSPACE=$MEM_DIR/vault
   LEGACY_WORKSPACE=$MEM_DIR/workspace
   EXPECTED_WORKSPACE_KIND='consumer'
@@ -417,7 +420,7 @@ context_state() {
     printf '%s\n' needs-definition
     return
   fi
-  if ! sh "$SOURCE_ROOT/scripts/vault.sh" check --vault "$WORKSPACE" >/dev/null 2>&1; then
+  if ! sh "$SOURCE_ROOT/scripts/vault.sh" check --target "$TARGET_ROOT" >/dev/null 2>&1; then
     printf '%s\n' needs-review
     return
   fi
@@ -515,7 +518,7 @@ migrate_vault_format() {
   [ "$(read_marker vault_format)" = 2 ] || fail 'la migración de formato solo admite vault_format: 2'
   [ "$(read_marker vault_kind)" = consumer ] || fail 'la migración de formato solo admite vault_kind: consumer'
   if [ "$FINALIZE" = false ]; then
-    sh "$SOURCE_ROOT/scripts/vault.sh" migration-plan --vault "$WORKSPACE"
+    sh "$SOURCE_ROOT/scripts/vault.sh" migration-plan --target "$TARGET_ROOT"
     printf 'migración de formato preparada: resuelve los registros raíz y ejecuta --migrate-vault-format --finalize\n'
     return
   fi
@@ -664,7 +667,7 @@ done
 WORKSPACE_EXISTED=false
 [ -d "$WORKSPACE" ] && { WORKSPACE_EXISTED=true; INITIALIZATION_STATE=existing; } || INITIALIZATION_STATE=new
 mkdir -p "$WORKSPACE"
-sh "$SOURCE_ROOT/scripts/vault.sh" init-layout --vault "$WORKSPACE"
+sh "$SOURCE_ROOT/scripts/vault.sh" init-layout --target "$TARGET_ROOT"
 
 if [ "$MODE" = 'update-vault' ] || [ ! -f "$VERSION_FILE" ]; then
   CREATED_AT=$(date -u +%Y-%m-%d)

@@ -12,7 +12,8 @@ puede consumir sus resultados citables, pero queda fuera de este contrato.
 
 La ubicación técnica reservada para futuras implementaciones persistentes es
 `99_runtime/rag/`. Esta versión no la crea ni la consume: el CLI no escribe
-manifests, bases, índices ni archivos bajo esa ruta.
+manifests, bases, índices ni archivos bajo esa ruta. El límite de ámbito por
+rol está en [runtime-boundary.md](runtime-boundary.md).
 
 ## Instalación
 
@@ -30,16 +31,17 @@ el módulo es `ato_ai_mem` y el ejecutable es `ato-mem`.
 ## Comandos
 
 ```text
-ato-mem check  --vault PATH [--format text|json]
-ato-mem find   --vault PATH --pattern REGEX [--ignore-case] [--format text|json]
-ato-mem relate --vault PATH [--format text|json]
-ato-mem build  --vault PATH [--include GLOB] [--exclude GLOB] [--format json]
-ato-mem retrieve --vault PATH --query TEXT [--limit 5] [--include GLOB] [--exclude GLOB] [--format json]
+ato-mem check  (--source SOURCE_ROOT | --target PROJECT_PATH) [--format text|json]
+ato-mem find   (--source SOURCE_ROOT | --target PROJECT_PATH) --pattern REGEX [--ignore-case] [--format text|json]
+ato-mem relate (--source SOURCE_ROOT | --target PROJECT_PATH) [--format text|json]
+ato-mem build  (--source SOURCE_ROOT | --target PROJECT_PATH) [--include GLOB] [--exclude GLOB] [--format json]
+ato-mem retrieve (--source SOURCE_ROOT | --target PROJECT_PATH) --query TEXT [--limit 5] [--include GLOB] [--exclude GLOB] [--format json]
 ```
 
-`--vault` debe apuntar explícitamente a una vault formato `3`, sea la vault
-fuente `vault/` o una vault consumidora `mem/vault/`. El CLI no descubre una
-vault por proximidad ni usa `--target`.
+`--source` recibe la raíz del repositorio fuente y resuelve únicamente
+`SOURCE_ROOT/vault/`. `--target` recibe la raíz de un proyecto consumidor y
+resuelve únicamente `PROJECT_PATH/mem/vault/`. Son mutuamente excluyentes y
+uno es obligatorio. `--vault` no está permitido.
 
 ### `check`
 
@@ -112,6 +114,9 @@ este sobre estable:
   "items": []
 }
 ```
+
+Las respuestas exitosas incluyen además `scope` con `role` y la ruta canónica
+de la vault resuelta.
 
 Los elementos de `check` contienen `path`, `line`, `code` y `message`; los de
 `find` contienen `path`, `line` y `snippet`; los de `relate` contienen

@@ -3,8 +3,8 @@ param(
     [Parameter(Position = 0, Mandatory = $true)]
     [ValidateSet('init-layout', 'create-domain', 'check', 'migration-plan', 'migration-apply')]
     [string]$Command,
-    [Parameter(Mandatory = $true)]
-    [string]$Vault,
+    [string]$Target,
+    [switch]$Source,
     [string]$Id,
     [string]$Domain,
     [string]$Title,
@@ -14,8 +14,6 @@ param(
 $ErrorActionPreference = 'Stop'
 $titleWasProvided = $PSBoundParameters.ContainsKey('Title')
 function Fail([string]$Message) { throw "error: $Message" }
-if (-not (Test-Path -LiteralPath $Vault -PathType Container)) { Fail "la vault no existe: $Vault" }
-$Vault = (Resolve-Path -LiteralPath $Vault).Path
 $sourceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $layout = Join-Path $sourceRoot 'templates/vault-layout'
 function Test-ValidId([string]$Value) { return $Value -cmatch '^[a-z0-9][a-z0-9-]{0,62}$' }
@@ -23,6 +21,31 @@ function Test-LocalFile([string]$Path) { $item = Get-Item -LiteralPath $Path -Fo
 function Test-LocalDirectory([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink' }
 function Copy-IfMissing([string]$Source, [string]$Destination) { if (-not (Test-Path -LiteralPath $Destination)) { Copy-Item -LiteralPath $Source -Destination $Destination } }
 function ConvertTo-YamlQuoted([string]$Value) { return '"' + $Value.Replace('\', '\\').Replace('"', '\"') + '"' }
+if ($Source -and $Target) { Fail 'Source y Target son mutuamente excluyentes' }
+if (-not $Source -and [string]::IsNullOrWhiteSpace($Target)) { Fail 'debe especificarse -Source o -Target' }
+if ($Source) {
+    $role = 'source'
+    $Vault = Join-Path $sourceRoot 'vault'
+} else {
+    if (-not (Test-Path -LiteralPath $Target -PathType Container)) { Fail "el proyecto consumidor no existe: $Target" }
+    $targetItem = Get-Item -LiteralPath $Target -Force
+    if ($targetItem.LinkType -eq 'SymbolicLink') { Fail 'el proyecto consumidor no puede ser un symlink' }
+    $targetRoot = (Resolve-Path -LiteralPath $Target).Path
+    if ($targetRoot -eq $sourceRoot -or $targetRoot.StartsWith($sourceRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+        Fail 'el proyecto consumidor no puede estar dentro de la fuente'
+    }
+    $mem = Join-Path $targetRoot 'mem'
+    if (-not (Test-LocalDirectory $mem)) { Fail 'el directorio mem del consumidor no existe o no es local' }
+    $role = 'consumer'
+    $Vault = Join-Path $mem 'vault'
+}
+if (-not (Test-LocalDirectory $Vault)) { Fail "la vault autorizada no existe o no es local: $Vault" }
+$marker = Join-Path $Vault '.ato-ai-skill-mem-version.yml'
+$markerItem = Get-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
+if ($null -ne $markerItem -and $markerItem.LinkType -eq 'SymbolicLink') { Fail "el manifiesto de vault no es local: $marker" }
+$kind = if ($null -ne $markerItem) { if (-not (Test-LocalFile $marker)) { Fail "el manifiesto de vault no es local: $marker" }; (Get-Content -LiteralPath $marker | Where-Object { $_ -match '^vault_kind:\s*(\S+)' } | Select-Object -First 1) -replace '^vault_kind:\s*', '' } else { '' }
+if ($role -eq 'source' -and $kind -ne 'source') { Fail 'la vault fuente no declara vault_kind: source' }
+if ($role -eq 'consumer' -and $kind -eq 'source') { Fail 'una vault fuente no puede usarse como consumidora' }
 function Test-RagRuntime {
     $runtime = Join-Path $Vault '99_runtime'
     $runtimeItem = Get-Item -LiteralPath $runtime -Force -ErrorAction SilentlyContinue

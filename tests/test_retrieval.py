@@ -22,7 +22,9 @@ class RetrievalTests(unittest.TestCase):
         import tempfile
 
         self.tempdir = tempfile.TemporaryDirectory()
-        self.vault = Path(self.tempdir.name) / "vault"
+        self.project = Path(self.tempdir.name) / "project"
+        (self.project / "mem").mkdir(parents=True)
+        self.vault = self.project / "mem" / "vault"
         create_vault(self.vault)
         self.environment = os.environ.copy()
         self.environment["PYTHONPATH"] = str(SRC)
@@ -43,8 +45,8 @@ class RetrievalTests(unittest.TestCase):
     def test_build_uses_structural_chunks_and_explicit_filters(self) -> None:
         result = self.run_cli(
             "build",
-            "--vault",
-            str(self.vault),
+            "--target",
+            str(self.project),
             "--include",
             "20_domains/example/records/*.md",
             "--exclude",
@@ -62,8 +64,8 @@ class RetrievalTests(unittest.TestCase):
         self.assertRegex(chunk["id"], r"#L\d+-L\d+$")
 
     def test_build_and_retrieve_default_to_text(self) -> None:
-        build = self.run_cli("build", "--vault", str(self.vault))
-        retrieve = self.run_cli("retrieve", "--vault", str(self.vault), "--query", "Activo")
+        build = self.run_cli("build", "--target", str(self.project))
+        retrieve = self.run_cli("retrieve", "--target", str(self.project), "--query", "Activo")
         self.assertEqual(build.returncode, 0)
         self.assertEqual(retrieve.returncode, 0)
         self.assertFalse(build.stdout.lstrip().startswith("{"))
@@ -72,8 +74,8 @@ class RetrievalTests(unittest.TestCase):
     def test_retrieve_uses_or_ranking_limit_and_relations(self) -> None:
         result = self.run_cli(
             "retrieve",
-            "--vault",
-            str(self.vault),
+            "--target",
+            str(self.project),
             "--query",
             "retirado decision enlace",
             "--limit",
@@ -90,7 +92,7 @@ class RetrievalTests(unittest.TestCase):
         self.assertTrue(any(relation["relation"] == "link" for relation in item["relations"]))
 
     def test_retrieve_is_deterministic_and_reports_bounds(self) -> None:
-        args = ("retrieve", "--vault", str(self.vault), "--query", "retirado decision", "--format", "json")
+        args = ("retrieve", "--target", str(self.project), "--query", "retirado decision", "--format", "json")
         first = self.run_cli(*args)
         second = self.run_cli(*args)
         self.assertEqual(first.returncode, 0)
@@ -108,7 +110,7 @@ class RetrievalTests(unittest.TestCase):
             invalid front matter
             # Contenido recuperable
         """)
-        result = self.run_cli("build", "--vault", str(self.vault), "--format", "json")
+        result = self.run_cli("build", "--target", str(self.project), "--format", "json")
         self.assertEqual(result.returncode, 1)
         payload = json.loads(result.stdout)
         self.assertEqual(payload["summary"]["diagnostics"], 1)
@@ -123,8 +125,8 @@ class RetrievalTests(unittest.TestCase):
         }
         result = self.run_cli(
             "retrieve",
-            "--vault",
-            str(self.vault),
+            "--target",
+            str(self.project),
             "--query",
             "term-that-does-not-exist",
             "--format",
@@ -142,8 +144,8 @@ class RetrievalTests(unittest.TestCase):
     def test_retrieve_filters_relation_sources_with_the_corpus(self) -> None:
         result = self.run_cli(
             "retrieve",
-            "--vault",
-            str(self.vault),
+            "--target",
+            str(self.project),
             "--query",
             "retirado",
             "--include",

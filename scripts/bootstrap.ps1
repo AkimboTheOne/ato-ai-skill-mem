@@ -62,10 +62,12 @@ if ($sourceModeCount -gt 0) {
 }
 else {
     $targetRoot = (Resolve-Path -LiteralPath $Target).Path
-    if ($targetRoot -eq $sourceRoot) {
+    if ($targetRoot -eq $sourceRoot -or $targetRoot.StartsWith($sourceRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
         Fail 'la raíz de la fuente no es un proyecto consumidor; usa -SourceStatus'
     }
     $memDir = Join-Path $targetRoot 'mem'
+    $memItem = Get-Item -LiteralPath $memDir -Force -ErrorAction SilentlyContinue
+    if ($null -ne $memItem -and $memItem.LinkType -eq 'SymbolicLink') { Fail 'el directorio mem del consumidor no puede ser un symlink' }
     $workspace = Join-Path $memDir 'vault'
     $legacyWorkspace = Join-Path $memDir 'workspace'
     $expectedWorkspaceKind = 'consumer'
@@ -340,7 +342,7 @@ function Get-ContextState {
     $checkPass = $false
     if (Test-Path -LiteralPath $workspace -PathType Container) {
         try {
-            & (Join-Path $sourceRoot 'scripts/vault.ps1') check -Vault $workspace *> $null
+            & (Join-Path $sourceRoot 'scripts/vault.ps1') check -Target $targetRoot *> $null
             $checkPass = $true
         }
         catch { $checkPass = $false }
@@ -439,7 +441,7 @@ if ($MigrateVaultFormat) {
     if ((Get-MarkerValue 'vault_format') -ne '2') { Fail 'la migración de formato solo admite vault_format: 2' }
     if ((Get-MarkerValue 'vault_kind') -ne 'consumer') { Fail 'la migración de formato solo admite vault_kind: consumer' }
     if (-not $Finalize) {
-        & (Join-Path $sourceRoot 'scripts/vault.ps1') migration-plan -Vault $workspace
+        & (Join-Path $sourceRoot 'scripts/vault.ps1') migration-plan -Target $targetRoot
         Write-Output 'migración de formato preparada: resuelve los registros raíz y ejecuta -MigrateVaultFormat -Finalize'
         exit 0
     }
@@ -549,7 +551,7 @@ foreach ($linkedItem in @('SKILL.md', 'VERSION', 'VAULT_FORMAT', 'references', '
 $workspaceExisted = Test-Path -LiteralPath $workspace
 $initializationState = if ($workspaceExisted) { 'existing' } else { 'new' }
 [System.IO.Directory]::CreateDirectory($workspace) | Out-Null
-& (Join-Path $sourceRoot 'scripts/vault.ps1') init-layout -Vault $workspace
+& (Join-Path $sourceRoot 'scripts/vault.ps1') init-layout -Target $targetRoot
 
 if ($UpdateVault -or -not (Test-Path -LiteralPath $versionFile)) {
     $createdAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
