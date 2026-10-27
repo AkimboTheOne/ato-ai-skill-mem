@@ -121,6 +121,13 @@ class CliTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tempdir.cleanup()
 
+    def test_cli_exposes_only_the_five_low_level_primitives(self) -> None:
+        result = self.run_cli("--help")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for command in ("check", "find", "relate", "build", "retrieve"):
+            self.assertIn(command, result.stdout)
+        self.assertNotIn(" ask ", result.stdout)
+
     def test_check_validates_records_and_indexes(self) -> None:
         result = self.run_cli("check", "--vault", str(self.vault), "--format", "json")
         self.assertEqual(result.returncode, 0, result.stderr)

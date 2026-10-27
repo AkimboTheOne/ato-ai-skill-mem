@@ -1,8 +1,9 @@
 # Roadmap gobernado de retrieval y RAG
 
-Este roadmap describe cómo evolucionar `ato-mem` hacia retrieval semántico y
-RAG sin convertir la vault en estado oculto ni conceder autoridad de escritura
-al runtime.
+Este roadmap describe cómo evolucionar el retrieval de bajo nivel hacia una
+capa RAG externa sin convertir la vault en estado oculto ni conceder autoridad
+de escritura al runtime. `ato-ai-skill-mem` sigue siendo un módulo de memoria;
+el futuro cerebro que razone sobre sus resultados no vive aquí.
 
 ## Ubicación técnica reservada
 
@@ -61,13 +62,13 @@ Una vector database no se autoriza por anticipación. Solo se considera si el
 benchmark demuestra que el volumen o la latencia superan una alternativa local
 simple y auditable.
 
-### Gate 4: generación RAG
+### Gate 4: generación RAG externa
 
-La generación será una capa separada sobre el retrieval demostrado, aunque
-forme parte del producto de memoria. Debe consumir resultados con citas,
-conservar provenance, imponer un límite de contexto y permitir ejecución
-local-first. Un proveedor externo requerirá autorización explícita y sus
-efectos de red deberán ser visibles.
+La generación será un componente separado sobre el retrieval demostrado. No se
+añade al paquete `ato-ai-mem` ni al skill de memoria. Debe consumir resultados
+con citas, conservar provenance, imponer un límite de contexto y permitir
+ejecución local-first. Un proveedor externo requerirá autorización explícita y
+sus efectos de red deberán ser visibles.
 
 No se añade `ato-mem ask` durante la fase léxica. La generación no escribe en
 la vault, no modifica relaciones y no crea memoria implícitamente.

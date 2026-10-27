@@ -146,6 +146,11 @@ La interfaz solo lee vaults formato `3`, no crea cachés ni índices y no accede
 a la red. El roadmap gobernado hacia retrieval semántico y RAG está en
 [references/retrieval-roadmap.md](references/retrieval-roadmap.md).
 
+`ato-mem` es una base técnica de bajo nivel: entrega diagnósticos, chunks y
+resultados con provenance para consumidores posteriores. El futuro cerebro que
+ensamble contexto o genere respuestas será un componente externo y no forma
+parte de este paquete.
+
 El layout reserva `99_runtime/rag/` para una futura persistencia gobernada de
 índices. La extensión es opcional y no convierte esos artefactos en memoria
 canónica; el contrato de la reserva está en
@@ -156,8 +161,8 @@ canónica; el contrato de la reserva está en
 No incluye todavía RAG operativo, bases vectoriales, búsqueda semántica,
 clasificación por confianza, aprendizaje adaptativo, ejecución en segundo
 plano ni sincronización entre vaults. `99_runtime/rag/` es únicamente una
-reserva técnica opcional para una fase posterior. Un futuro cerebro puede
-consumir una o más vaults, pero no recibe autoridad implícita para
+reserva técnica opcional para una fase posterior. Un futuro cerebro externo
+puede consumir una o más vaults, pero no recibe autoridad implícita para
 modificarlas.
 
 Consulta [SKILL.md](SKILL.md) para el comportamiento canónico, [references/instance-contract.md](references/instance-contract.md) para el contrato de instancia y [references/agents-integration.md](references/agents-integration.md) para la integración manual de agentes.

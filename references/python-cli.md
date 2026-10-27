@@ -1,10 +1,14 @@
 # Contrato del CLI Python
 
-`ato-mem` es una interfaz complementaria de lectura para vaults formato `3`.
-No reemplaza `scripts/vault.sh` ni `scripts/vault.ps1`, no modifica archivos,
-no crea cachés ni índices, no consulta la red y no hace inferencia semántica.
+`ato-mem` es una interfaz complementaria de lectura y un MVP técnico de bajo
+nivel para vaults formato `3`. Sus cinco primitivas son `check`, `find`,
+`relate`, `build` y `retrieve`. No reemplaza `scripts/vault.sh` ni
+`scripts/vault.ps1`, no modifica archivos, no crea cachés ni índices, no
+consulta la red y no hace inferencia semántica.
+
 `build` y `retrieve` preparan y consultan un corpus transitorio; no son una
-implementación RAG.
+implementación RAG ni una capa de razonamiento. Un futuro cerebro externo
+puede consumir sus resultados citables, pero queda fuera de este contrato.
 
 La ubicación técnica reservada para futuras implementaciones persistentes es
 `99_runtime/rag/`. Esta versión no la crea ni la consume: el CLI no escribe
