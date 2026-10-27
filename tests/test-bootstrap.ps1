@@ -190,8 +190,13 @@ try {
     catch { if ($_.Exception.Message -eq 'check debía rechazar rag simbólico') { throw } }
     Remove-Item -LiteralPath (Join-Path $vault '99_runtime/rag') -Force
     New-Item -ItemType Directory -Path (Join-Path $vault '99_runtime/rag/indexes/sample/data') -Force | Out-Null
-    @('schema: 1','kind: rag-index','status: pending','source_vault: /tmp/vault','source_revision: test','source_scope: all','content_fingerprint: sha256:test','chunking: heading','retrieval_kind: lexical','embedding:','  status: pending') | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
+    @('schema: 1','kind: rag-index','status: pending',"source_vault: $((Resolve-Path $vault).Path)",'source_revision: 0000000000000000000000000000000000000000','source_scope: all','content_fingerprint: sha256:0000000000000000000000000000000000000000000000000000000000000000','chunking: heading','retrieval_kind: lexical','embedding:','  status: pending') | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    Copy-Item -LiteralPath (Join-Path $vault '99_runtime/rag/manifest.yml') -Destination (Join-Path $vault '99_runtime/rag/manifest.yml.valid')
+    (Get-Content (Join-Path $vault '99_runtime/rag/manifest.yml.valid') -Raw) -replace '(?m)^source_vault:.*$', 'source_vault: /tmp/other-vault' | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
+    try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar provenance RAG inconsistente' }
+    catch { if ($_.Exception.Message -eq 'check debía rechazar provenance RAG inconsistente') { throw } }
+    Move-Item -LiteralPath (Join-Path $vault '99_runtime/rag/manifest.yml.valid') -Destination (Join-Path $vault '99_runtime/rag/manifest.yml') -Force
     (Get-Content (Join-Path $vault '99_runtime/rag/manifest.yml') -Raw) -replace '(?m)^kind: rag-index$', 'kind: invalid' | Set-Content (Join-Path $vault '99_runtime/rag/manifest.yml')
     try { & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault; throw 'check debía rechazar manifiesto RAG inválido' }
     catch { if ($_.Exception.Message -eq 'check debía rechazar manifiesto RAG inválido') { throw } }

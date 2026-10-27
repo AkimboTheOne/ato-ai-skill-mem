@@ -196,6 +196,32 @@ class CliTests(unittest.TestCase):
         self.assertTrue(any(item["relation"] == "link" and item["resolved"] for item in payload["items"]))
         self.assertTrue(all("example.com" not in item["target"] for item in payload["items"]))
 
+    def test_relate_validates_anchors_and_intermediate_symlinks(self) -> None:
+        write(self.vault / "anchor-source.md", """
+            # Source
+
+            [válido](anchor-target.md#sección-uno)
+            [anchor ausente](anchor-target.md#no-existe)
+            [fuera](linked-dir/anchor-target.md)
+        """)
+        write(self.vault / "anchor-target.md", """
+            # Sección Uno
+        """)
+        outside = Path(self.tempdir.name) / "outside"
+        outside.mkdir()
+        (outside / "anchor-target.md").write_text("# Fuera\n", encoding="utf-8")
+        try:
+            (self.vault / "linked-dir").symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("el sistema no admite enlaces simbólicos")
+        result = self.run_cli("relate", "--vault", str(self.vault), "--format", "json")
+        self.assertEqual(result.returncode, 1)
+        relations = json.loads(result.stdout)["items"]
+        by_target = {item["target"]: item for item in relations if item["source"] == "anchor-source.md"}
+        self.assertTrue(by_target["anchor-target.md#sección-uno"]["resolved"])
+        self.assertFalse(by_target["anchor-target.md#no-existe"]["resolved"])
+        self.assertFalse(by_target["linked-dir/anchor-target.md"]["resolved"])
+
     def test_cli_does_not_follow_symlinked_markdown(self) -> None:
         link = self.vault / "linked.md"
         try:

@@ -95,7 +95,8 @@ ensambla prompts.
 
 ## Salida
 
-El formato por defecto es texto. `--format json` produce una línea JSON con
+El formato por defecto es texto, también para `build` y `retrieve`.
+`--format json` produce una línea JSON con
 este sobre estable:
 
 ```json

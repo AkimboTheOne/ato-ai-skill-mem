@@ -51,6 +51,10 @@ check_rag_manifest() {
     value=$(manifest_value "$manifest" "$key")
     [ -n "$value" ] || fail "manifiesto RAG incompleto: $key: $manifest"
   done
+  expected_source=$(CDPATH= cd -- "$VAULT" && pwd -P)
+  [ "$(manifest_value "$manifest" source_vault)" = "$expected_source" ] || fail "manifiesto RAG inconsistente: source_vault: $manifest"
+  printf '%s\n' "$(manifest_value "$manifest" source_revision)" | grep -E '^[0-9a-fA-F]{40}$' >/dev/null || fail "manifiesto RAG inválido: source_revision: $manifest"
+  printf '%s\n' "$(manifest_value "$manifest" content_fingerprint)" | grep -E '^sha256:[0-9a-fA-F]{64}$' >/dev/null || fail "manifiesto RAG inválido: content_fingerprint: $manifest"
   grep -E '^embedding:[[:space:]]*$' "$manifest" >/dev/null || fail "manifiesto RAG incompleto: embedding: $manifest"
   grep -E '^  status:[[:space:]]+(pending|ready|disabled)[[:space:]]*$' "$manifest" >/dev/null || fail "manifiesto RAG inválido: embedding.status: $manifest"
 }

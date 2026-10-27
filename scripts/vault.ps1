@@ -36,6 +36,10 @@ function Test-RagManifest([string]$Path) {
     foreach ($key in @('source_vault','source_revision','source_scope','content_fingerprint','chunking','retrieval_kind')) {
         if ([string]::IsNullOrWhiteSpace((Get-ManifestValue $Path $key))) { Fail "manifiesto RAG incompleto: ${key}: $Path" }
     }
+    $expectedSource = (Resolve-Path -LiteralPath $Vault).Path
+    if ((Get-ManifestValue $Path 'source_vault') -ne $expectedSource) { Fail "manifiesto RAG inconsistente: source_vault: $Path" }
+    if ((Get-ManifestValue $Path 'source_revision') -notmatch '^[0-9a-fA-F]{40}$') { Fail "manifiesto RAG inválido: source_revision: $Path" }
+    if ((Get-ManifestValue $Path 'content_fingerprint') -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "manifiesto RAG inválido: content_fingerprint: $Path" }
     $raw = Get-Content -LiteralPath $Path -Raw
     if ($raw -notmatch '(?m)^embedding:\s*$') { Fail "manifiesto RAG incompleto: embedding: $Path" }
     if ($raw -notmatch '(?m)^  status:\s+(pending|ready|disabled)\s*$') { Fail "manifiesto RAG inválido: embedding.status: $Path" }

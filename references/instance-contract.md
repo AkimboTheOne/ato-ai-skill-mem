@@ -49,11 +49,13 @@ con vaults existentes de formato `3`; si aparece, `check` exige que
 locales y no enlaces simbólicos.
 
 El manifiesto reservado usa `schema: 1`, `kind: rag-index`, `status` (`pending`,
-`ready`, `stale` o `invalid`), `source_vault`, `source_revision`,
-`source_scope`, `content_fingerprint`, `chunking`, `retrieval_kind` y un
-bloque `embedding` cuyo `status` inicial es `pending`. El manifiesto describe
-estado derivado; nunca concede autoridad para modificar la memoria
-documental.
+`ready`, `stale` o `invalid`), `source_vault` con la ruta absoluta canónica de
+la vault, `source_revision` como SHA-1 de 40 caracteres, `source_scope`,
+`content_fingerprint` como `sha256:<64 hex>`, `chunking`, `retrieval_kind` y
+un bloque `embedding` cuyo `status` inicial es `pending`. `check` rechaza un
+provenance que no identifica la vault actual o que no cumple estos formatos.
+El manifiesto describe estado derivado; nunca concede autoridad para
+modificar la memoria documental.
 
 ## Alineación de versión
 

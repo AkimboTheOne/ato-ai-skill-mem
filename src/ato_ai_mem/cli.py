@@ -31,7 +31,7 @@ def _parser() -> argparse.ArgumentParser:
     ):
         command = commands.add_parser(name, help=help_text)
         command.add_argument("--vault", required=True, type=Path, help="ruta de la vault formato 3")
-        command.add_argument("--format", choices=("text", "json"), default="json")
+        command.add_argument("--format", choices=("text", "json"), default="text")
         command.add_argument("--include", action="append", default=[], metavar="GLOB", help="incluye una ruta relativa que coincida con GLOB")
         command.add_argument("--exclude", action="append", default=[], metavar="GLOB", help="excluye una ruta relativa que coincida con GLOB")
         if name == "retrieve":

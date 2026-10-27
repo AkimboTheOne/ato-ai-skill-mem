@@ -61,6 +61,14 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(chunk["heading_path"], ["Activo"])
         self.assertRegex(chunk["id"], r"#L\d+-L\d+$")
 
+    def test_build_and_retrieve_default_to_text(self) -> None:
+        build = self.run_cli("build", "--vault", str(self.vault))
+        retrieve = self.run_cli("retrieve", "--vault", str(self.vault), "--query", "Activo")
+        self.assertEqual(build.returncode, 0)
+        self.assertEqual(retrieve.returncode, 0)
+        self.assertFalse(build.stdout.lstrip().startswith("{"))
+        self.assertFalse(retrieve.stdout.lstrip().startswith("{"))
+
     def test_retrieve_uses_or_ranking_limit_and_relations(self) -> None:
         result = self.run_cli(
             "retrieve",
@@ -113,7 +121,15 @@ class RetrievalTests(unittest.TestCase):
             for path in self.vault.rglob("*")
             if path.is_file() and not path.is_symlink()
         }
-        result = self.run_cli("retrieve", "--vault", str(self.vault), "--query", "term-that-does-not-exist")
+        result = self.run_cli(
+            "retrieve",
+            "--vault",
+            str(self.vault),
+            "--query",
+            "term-that-does-not-exist",
+            "--format",
+            "json",
+        )
         self.assertEqual(result.returncode, 1)
         self.assertEqual(json.loads(result.stdout)["items"], [])
         after = {

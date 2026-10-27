@@ -8,6 +8,7 @@ import os
 import posixpath
 from pathlib import Path
 import re
+import unicodedata
 from urllib.parse import unquote, urlsplit
 
 from .frontmatter import FrontMatter, FrontMatterError, parse_front_matter
@@ -123,6 +124,35 @@ def _hrefs(value: object) -> list[str]:
     return [href for href in result if href]
 
 
+def _anchor_slug(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    normalized = re.sub(r"[^\w\s-]", "", normalized, flags=re.UNICODE)
+    return re.sub(r"[-\s]+", "-", normalized).strip("-")
+
+
+def _anchor_exists(path: Path, fragment: str) -> bool:
+    if path.suffix.lower() != ".md":
+        return False
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return False
+    for line in lines:
+        match = re.match(r"^#{1,6}\s+(.+?)\s*#*\s*$", line)
+        if match and _anchor_slug(match.group(1)) == _anchor_slug(fragment):
+            return True
+    return False
+
+
+def _contains_symlink(root: Path, relative_target: str) -> bool:
+    candidate = root
+    for part in Path(relative_target).parts:
+        candidate /= part
+        if candidate.is_symlink():
+            return True
+    return False
+
+
 def resolve_local_target(root: Path, source: Path, href: str) -> tuple[str, bool]:
     parsed = urlsplit(href)
     if parsed.scheme or parsed.netloc:
@@ -135,10 +165,15 @@ def resolve_local_target(root: Path, source: Path, href: str) -> tuple[str, bool
         target = source_relative
     if target == ".." or target.startswith("../") or target.startswith("/"):
         return target, False
+    if _contains_symlink(root, target):
+        return target, False
     candidate = root.joinpath(*Path(target).parts)
     if candidate.is_symlink() or not candidate.is_file():
         return target, False
-    return target, True
+    fragment = unquote(parsed.fragment)
+    if fragment and not _anchor_exists(candidate, fragment):
+        return f"{target}#{fragment}", False
+    return f"{target}#{fragment}" if fragment else target, True
 
 
 def resolve_declared_target(root: Path, source: Path, href: str) -> tuple[str, bool]:
@@ -235,12 +270,12 @@ def _index_entries(root: Path, index: Path) -> tuple[dict[str, list[str]], list[
             continue
         match = INDEX_LINK_RE.match(line)
         if match and section is not None:
-            href = match.group(1).split("#", 1)[0]
+            href = match.group(1)
             target, resolved = resolve_local_target(root, index, href)
             if not resolved:
                 findings.append(_path_finding(root, index, line_number, "broken-index-link", f"índice no resuelve: {href} -> {target}"))
             else:
-                sections[section].append(target)
+                sections[section].append(target.split("#", 1)[0])
     for name, entries in sections.items():
         if len(entries) != len(set(entries)):
             findings.append(_path_finding(root, index, 1, "duplicate-index-entry", f"el índice repite una entrada en {name}"))
