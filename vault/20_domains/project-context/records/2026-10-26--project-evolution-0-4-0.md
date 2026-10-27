@@ -1,7 +1,7 @@
 ---
 id: 2026-10-26--project-evolution-0-4-0
 type: project-context
-status: active
+status: retired
 created: 2026-10-26
 updated: 2026-10-26
 scope: project
@@ -19,7 +19,7 @@ related:
   - "[Registro anterior](2026-10-26--project-evolution-0-3-0.md)"
   - ../engineering-prompts/records/2026-10-25--engineering-optimization-loop.md
 supersedes: "[Registro anterior](2026-10-26--project-evolution-0-3-0.md)"
-superseded_by: null
+superseded_by: "[Evolución del proyecto y decisiones de la versión 0.5.0](2026-10-26--project-evolution-0-5-0.md)"
 ---
 
 # Evolución del proyecto y decisiones de la versión 0.4.0

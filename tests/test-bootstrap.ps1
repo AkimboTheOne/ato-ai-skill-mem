@@ -3,11 +3,33 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('ato-ai-skill-mem-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $temp | Out-Null
 try {
+    $contract = Join-Path $root 'tests/fixtures/bootstrap-contract.tsv'
+    function Get-ContractAssertions([string]$Scenario) {
+        $line = Get-Content -LiteralPath $contract | Where-Object { $_ -and -not $_.StartsWith('#') -and ($_ -split "`t")[0] -eq $Scenario } | Select-Object -First 1
+        if ($null -eq $line) { throw "escenario contractual ausente: $Scenario" }
+        return (($line -split "`t")[2]).Split(';')
+    }
+    function Assert-ContractOutput([string]$Scenario, [string]$Output) {
+        foreach ($assertion in @(Get-ContractAssertions $Scenario)) {
+            $parts = $assertion.Split('=', 2)
+            $matched = $false
+            foreach ($alternative in $parts[1].Split('|')) {
+                $expected = "$($parts[0]): $alternative"
+                if ($Output -match "(?m)^$([regex]::Escape($expected))$") { $matched = $true; break }
+            }
+            if (-not $matched) { throw "contrato incumplido ($Scenario): $assertion" }
+        }
+    }
+
     $contextNewProject = Join-Path $temp 'context-new'
     New-Item -ItemType Directory -Path $contextNewProject | Out-Null
     $contextNewOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $contextNewProject -Contextualize) -join "`n"
-    if ($contextNewOutput -notmatch 'vault.initialization.state: new' -or $contextNewOutput -notmatch 'vault.context.state: needs-definition' -or $contextNewOutput -notmatch 'vault.context.wizard.phase.4: validate-and-authorize') { throw 'contextualize no reportó el estado nuevo y el wizard' }
+    if ($contextNewOutput -notmatch 'vault.initialization.state: new' -or $contextNewOutput -notmatch 'vault.context.wizard.phase.4: validate-and-authorize') { throw 'contextualize no reportó el estado nuevo y el wizard' }
+    Assert-ContractOutput 'context-new' $contextNewOutput
     if (Test-Path (Join-Path $contextNewProject 'mem')) { throw 'contextualize creó una instancia nueva' }
+
+    $sourceStatusOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -SourceStatus) -join "`n"
+    Assert-ContractOutput 'source-status' $sourceStatusOutput
 
     $stateProject = Join-Path $temp 'state-consumer'
     New-Item -ItemType Directory -Path $stateProject | Out-Null
@@ -26,7 +48,8 @@ try {
     if ((Get-FileHash -LiteralPath $stateMarker).Hash -ne $stateMarkerHash) { throw 'init modificó el manifiesto de una vault existente' }
     & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $stateVault -Id context -Title Context
     $stateContextOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -Contextualize) -join "`n"
-    if ($stateContextOutput -notmatch 'vault.initialization.state: existing' -or $stateContextOutput -notmatch 'vault.context.state: structurally-ready' -or $stateContextOutput -notmatch 'vault.context.domains.total: 1' -or $stateContextOutput -notmatch 'vault.context.next_step: validate-and-authorize') { throw 'contextualize no reportó el estado existente estructuralmente listo' }
+    if ($stateContextOutput -notmatch 'vault.initialization.state: existing' -or $stateContextOutput -notmatch 'vault.context.domains.total: 1') { throw 'contextualize no reportó el estado existente estructuralmente listo' }
+    Assert-ContractOutput 'context-existing-ready' $stateContextOutput
     $statusMarkerHash = (Get-FileHash -LiteralPath $stateMarker).Hash
     $statusOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -Status) -join "`n"
     if ($statusOutput -notmatch 'vault.initialization.state: existing' -or (Get-FileHash -LiteralPath $stateMarker).Hash -ne $statusMarkerHash) { throw 'status modificó el manifiesto o no reportó el estado existente' }
@@ -41,6 +64,88 @@ try {
     foreach ($path in @('AGENTS.md','00_inbox/decisions-pending','20_domains','_templates')) { if (-not (Test-Path (Join-Path $vault $path))) { throw "falta $path" } }
     if ((Get-Content (Join-Path $vault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3\r?$') { throw 'formato incorrecto' }
     & (Join-Path $root 'scripts/vault.ps1') check -Vault $vault
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target $root -Status
+        throw 'la raíz de la fuente debía rechazarse como consumidor'
+    }
+    catch { if ($_.Exception.Message -eq 'la raíz de la fuente debía rechazarse como consumidor') { throw } }
+    $integrationConfigHash = (Get-FileHash -LiteralPath (Join-Path $project '.ato-ai-skill-mem.yml')).Hash
+    $integrationAdapterHash = (Get-FileHash -LiteralPath (Join-Path $project '.agents/skills/ato-ai-project-mem/SKILL.md')).Hash
+    & (Join-Path $root 'scripts/bootstrap.ps1') -Target $project -IntegrateCodex
+    if ((Get-FileHash -LiteralPath (Join-Path $project '.ato-ai-skill-mem.yml')).Hash -ne $integrationConfigHash -or (Get-FileHash -LiteralPath (Join-Path $project '.agents/skills/ato-ai-project-mem/SKILL.md')).Hash -ne $integrationAdapterHash) { throw 'la integración repetida modificó contenido administrado' }
+
+    $conflictProject = Join-Path $temp 'conflict-codex'
+    New-Item -ItemType Directory -Path (Join-Path $conflictProject '.agents/skills/ato-ai-project-mem') -Force | Out-Null
+    '# conflicting adapter' | Set-Content (Join-Path $conflictProject '.agents/skills/ato-ai-project-mem/SKILL.md')
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target $conflictProject -IntegrateCodex
+        throw 'la integración debía rechazar un adaptador conflictivo'
+    }
+    catch { if ($_.Exception.Message -eq 'la integración debía rechazar un adaptador conflictivo') { throw } }
+    if ((Get-Content (Join-Path $conflictProject '.agents/skills/ato-ai-project-mem/SKILL.md') -Raw) -notmatch '# conflicting adapter') { throw 'la integración sobrescribió un adaptador conflictivo' }
+
+    $configConflictProject = Join-Path $temp 'config-conflict-codex'
+    New-Item -ItemType Directory -Path $configConflictProject | Out-Null
+    @('format: 3','vault:','  path: elsewhere') | Set-Content (Join-Path $configConflictProject '.ato-ai-skill-mem.yml')
+    try {
+        & (Join-Path $root 'scripts/bootstrap.ps1') -Target $configConflictProject -IntegrateCodex
+        throw 'la integración debía rechazar una configuración conflictiva'
+    }
+    catch { if ($_.Exception.Message -eq 'la integración debía rechazar una configuración conflictiva') { throw } }
+    if ((Get-Content (Join-Path $configConflictProject '.ato-ai-skill-mem.yml') -Raw) -notmatch 'path: elsewhere') { throw 'la integración sobrescribió una configuración conflictiva' }
+
+    $roleProject = Join-Path $temp 'role-mismatch'
+    New-Item -ItemType Directory -Path (Join-Path $roleProject 'mem/vault') -Force | Out-Null
+    @('format: 1','vault_kind: source','vault_format: 3','skill_version: 0.5.0','source_revision: test','source_tag: v0.5.0','created_at: 2026-10-26','updated_at: 2026-10-26') | Set-Content (Join-Path $roleProject 'mem/vault/.ato-ai-skill-mem-version.yml')
+    $roleStatus = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $roleProject -Status) -join "`n"
+    if ($roleStatus -notmatch 'vault.state: role-mismatch' -or $roleStatus -notmatch 'vault.context.state: blocked') { throw 'no se detectó incompatibilidad de vault_kind' }
+    try { & (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -UpdateVault; throw 'UpdateVault debía rechazar una fuente no alineada' }
+    catch { if ($_.Exception.Message -eq 'UpdateVault debía rechazar una fuente no alineada') { throw } }
+    try { & (Join-Path $root 'scripts/bootstrap.ps1') -UpdateSourceVault; throw 'UpdateSourceVault debía rechazar una fuente no alineada' }
+    catch { if ($_.Exception.Message -eq 'UpdateSourceVault debía rechazar una fuente no alineada') { throw } }
+
+    $legacyProject = Join-Path $temp 'legacy-consumer'
+    New-Item -ItemType Directory -Path (Join-Path $legacyProject 'mem/workspace/records') -Force | Out-Null
+    @('workspace_format: 1','created_at: 2026-10-26') | Set-Content (Join-Path $legacyProject 'mem/workspace/.ato-ai-skill-mem-version.yml')
+    '# Legacy record' | Set-Content (Join-Path $legacyProject 'mem/workspace/records/legacy.md')
+    & (Join-Path $root 'scripts/bootstrap.ps1') -Target $legacyProject -MigrateWorkspaceToVault
+    if ((Test-Path (Join-Path $legacyProject 'mem/workspace')) -or -not (Test-Path (Join-Path $legacyProject 'mem/vault/records'))) { throw 'la migración consumer workspace no terminó correctamente' }
+    if ((Get-Content (Join-Path $legacyProject 'mem/vault/.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 3\r?$') { throw 'la migración consumer no actualizó el formato' }
+
+    $releaseSource = Join-Path $temp 'release-source'
+    New-Item -ItemType Directory -Path $releaseSource | Out-Null
+    foreach ($file in @('SKILL.md','VERSION','VAULT_FORMAT')) { Copy-Item -LiteralPath (Join-Path $root $file) -Destination $releaseSource }
+    foreach ($directory in @('references','templates','scripts','vault')) { Copy-Item -LiteralPath (Join-Path $root $directory) -Destination $releaseSource -Recurse }
+    & git -C $releaseSource init -q
+    & git -C $releaseSource checkout -q -b master
+    & git -C $releaseSource config user.email test@example.com
+    & git -C $releaseSource config user.name 'Contract Tests'
+    & git -C $releaseSource add .
+    & git -C $releaseSource -c user.email=test@example.com -c user.name='Contract Tests' commit -qm 'test release fixture'
+    & git -C $releaseSource tag v0.5.0
+    $updateProject = Join-Path $temp 'update-consumer'
+    New-Item -ItemType Directory -Path $updateProject | Out-Null
+    & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -Target $updateProject -Init
+    $updateMarker = Join-Path $updateProject 'mem/vault/.ato-ai-skill-mem-version.yml'
+    $updateMarkerText = (Get-Content $updateMarker -Raw) -replace '(?m)^skill_version: 0.5.0\r?$', 'skill_version: 0.4.0'
+    [System.IO.File]::WriteAllText($updateMarker, $updateMarkerText)
+    & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -Target $updateProject -UpdateVault
+    if ((Get-Content $updateMarker -Raw) -notmatch '(?m)^skill_version: 0.5.0\r?$') { throw 'UpdateVault no actualizó el manifiesto del consumidor' }
+
+    & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -UpdateSourceVault
+    $releaseMarker = Join-Path $releaseSource 'vault/.ato-ai-skill-mem-version.yml'
+    if ((Get-Content $releaseMarker -Raw) -notmatch '(?m)^skill_version: 0.5.0\r?$' -or (Get-Content $releaseMarker -Raw) -notmatch '(?m)^source_tag: v0.5.0\r?$') { throw 'UpdateSourceVault no actualizó el manifiesto de release' }
+
+    $sourceMigration = Join-Path $temp 'source-migration'
+    New-Item -ItemType Directory -Path (Join-Path $sourceMigration 'workspace/records') -Force | Out-Null
+    foreach ($file in @('SKILL.md','VERSION','VAULT_FORMAT')) { Copy-Item -LiteralPath (Join-Path $root $file) -Destination $sourceMigration }
+    foreach ($directory in @('references','templates','scripts')) { Copy-Item -LiteralPath (Join-Path $root $directory) -Destination $sourceMigration -Recurse }
+    @('workspace_format: 1','created_at: 2026-10-26') | Set-Content (Join-Path $sourceMigration 'workspace/.ato-ai-skill-mem-version.yml')
+    '# Source legacy record' | Set-Content (Join-Path $sourceMigration 'workspace/records/legacy.md')
+    & (Join-Path $sourceMigration 'scripts/bootstrap.ps1') -MigrateSourceWorkspaceToVault
+    if ((Test-Path (Join-Path $sourceMigration 'workspace')) -or -not (Test-Path (Join-Path $sourceMigration 'vault/records'))) { throw 'la migración source workspace no terminó correctamente' }
+    if ((Get-Content (Join-Path $sourceMigration 'vault/.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_kind: source\r?$') { throw 'la migración source no conservó la propiedad source' }
+
     & (Join-Path $root 'scripts/vault.ps1') create-domain -Vault $vault -Id alpha -Title Alpha
     if (-not (Test-Path (Join-Path $vault '20_domains/alpha/domain.yml'))) { throw 'dominio ausente' }
     $alphaDomainFile = Join-Path $vault '20_domains/alpha/domain.yml'
@@ -188,7 +293,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $migrationVault 'INDEX.md') -Destination (Join-Path $temp 'legacy-index.expected')
     '# Registro legado' | Set-Content (Join-Path $migrationVault 'records/2026-01-01--legacy&record.md')
     $migrationContextOutput = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -Contextualize) -join "`n"
-    if ($migrationContextOutput -notmatch 'vault.context.state: blocked') { throw 'contextualize no bloqueó una vault que requiere migración' }
+    Assert-ContractOutput 'context-blocked' $migrationContextOutput
     & (Join-Path $root 'scripts/bootstrap.ps1') -Target $migrationProject -MigrateVaultFormat
     if ((Get-Content (Join-Path $migrationVault '.ato-ai-skill-mem-version.yml') -Raw) -notmatch '(?m)^vault_format: 2\r?$') { throw 'el manifiesto cambió antes de finalizar' }
     if (-not (Test-Path (Join-Path $migrationVault '00_inbox/decisions-pending/2026-01-01--legacy&record.md'))) { throw 'propuesta con carácter especial ausente' }

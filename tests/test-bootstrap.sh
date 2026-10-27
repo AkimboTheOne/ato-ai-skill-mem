@@ -5,14 +5,47 @@ TEMP_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEMP_ROOT"' EXIT
 PROJECT=$TEMP_ROOT/consumer
 mkdir -p "$PROJECT"
+CONTRACT=$ROOT/tests/fixtures/bootstrap-contract.tsv
+
+contract_assertions() {
+  awk -F '\t' -v scenario="$1" '$1 == scenario { print $3; exit }' "$CONTRACT"
+}
+
+assert_contract_output() {
+  scenario=$1
+  output=$2
+  assertions=$(contract_assertions "$scenario")
+  old_ifs=$IFS
+  IFS=';'
+  for assertion in $assertions; do
+    key=${assertion%%=*}
+    expected=${assertion#*=}
+    matched=false
+    alternatives_ifs=$IFS
+    IFS='|'
+    for alternative in $expected; do
+      if printf '%s\n' "$output" | grep -F "${key}: ${alternative}" >/dev/null; then matched=true; break; fi
+    done
+    IFS=$alternatives_ifs
+    [ "$matched" = true ] || {
+      printf 'contrato incumplido (%s): %s\n' "$scenario" "$assertion" >&2
+      IFS=$old_ifs
+      return 1
+    }
+  done
+  IFS=$old_ifs
+}
 
 CONTEXT_NEW_PROJECT=$TEMP_ROOT/context-new
 mkdir -p "$CONTEXT_NEW_PROJECT"
 context_new_output=$($ROOT/scripts/bootstrap.sh --target "$CONTEXT_NEW_PROJECT" --contextualize)
 printf '%s\n' "$context_new_output" | grep -F 'vault.initialization.state: new' >/dev/null
-printf '%s\n' "$context_new_output" | grep -F 'vault.context.state: needs-definition' >/dev/null
+assert_contract_output context-new "$context_new_output"
 printf '%s\n' "$context_new_output" | grep -F 'vault.context.wizard.phase.4: validate-and-authorize' >/dev/null
 [ ! -e "$CONTEXT_NEW_PROJECT/mem" ]
+
+source_status_output=$($ROOT/scripts/bootstrap.sh --source-status)
+assert_contract_output source-status "$source_status_output"
 
 STATE_PROJECT=$TEMP_ROOT/state-consumer
 mkdir -p "$STATE_PROJECT"
@@ -26,7 +59,7 @@ if $ROOT/scripts/bootstrap.sh --target "$STATE_PROJECT" --init >/dev/null 2>&1; 
 sh "$ROOT/scripts/vault.sh" create-domain --vault "$STATE_VAULT" --id context --title Context
 state_context_output=$($ROOT/scripts/bootstrap.sh --target "$STATE_PROJECT" --contextualize)
 printf '%s\n' "$state_context_output" | grep -F 'vault.initialization.state: existing' >/dev/null
-printf '%s\n' "$state_context_output" | grep -F 'vault.context.state: structurally-ready' >/dev/null
+assert_contract_output context-existing-ready "$state_context_output"
 printf '%s\n' "$state_context_output" | grep -F 'vault.context.domains.total: 1' >/dev/null
 printf '%s\n' "$state_context_output" | grep -F 'vault.context.next_step: validate-and-authorize' >/dev/null
 status_marker_hash=$(cksum "$STATE_MARKER")
@@ -46,6 +79,81 @@ grep -F 'mem/vault/' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev
 grep -F 'mem/SKILL.md' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev/null
 ! grep -F -- '--target .' "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev/null
 sh "$ROOT/scripts/vault.sh" check --vault "$VAULT"
+
+if "$ROOT/scripts/bootstrap.sh" --target "$ROOT" --status >/dev/null 2>&1; then exit 1; fi
+integration_config_hash=$(cksum "$PROJECT/.ato-ai-skill-mem.yml")
+integration_adapter_hash=$(cksum "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md")
+"$ROOT/scripts/bootstrap.sh" --target "$PROJECT" --integrate-codex
+[ "$(cksum "$PROJECT/.ato-ai-skill-mem.yml")" = "$integration_config_hash" ]
+[ "$(cksum "$PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md")" = "$integration_adapter_hash" ]
+
+CONFLICT_PROJECT=$TEMP_ROOT/conflict-codex
+mkdir -p "$CONFLICT_PROJECT/.agents/skills/ato-ai-project-mem"
+printf '%s\n' '# conflicting adapter' > "$CONFLICT_PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md"
+if "$ROOT/scripts/bootstrap.sh" --target "$CONFLICT_PROJECT" --integrate-codex >/dev/null 2>&1; then exit 1; fi
+grep -F '# conflicting adapter' "$CONFLICT_PROJECT/.agents/skills/ato-ai-project-mem/SKILL.md" >/dev/null
+
+CONFIG_CONFLICT_PROJECT=$TEMP_ROOT/config-conflict-codex
+mkdir -p "$CONFIG_CONFLICT_PROJECT"
+printf '%s\n' 'format: 3' 'vault:' '  path: elsewhere' > "$CONFIG_CONFLICT_PROJECT/.ato-ai-skill-mem.yml"
+if "$ROOT/scripts/bootstrap.sh" --target "$CONFIG_CONFLICT_PROJECT" --integrate-codex >/dev/null 2>&1; then exit 1; fi
+grep -F 'path: elsewhere' "$CONFIG_CONFLICT_PROJECT/.ato-ai-skill-mem.yml" >/dev/null
+
+ROLE_PROJECT=$TEMP_ROOT/role-mismatch
+mkdir -p "$ROLE_PROJECT/mem/vault"
+printf '%s\n' 'format: 1' 'vault_kind: source' 'vault_format: 3' 'skill_version: 0.5.0' 'source_revision: test' 'source_tag: v0.5.0' 'created_at: 2026-10-26' 'updated_at: 2026-10-26' > "$ROLE_PROJECT/mem/vault/.ato-ai-skill-mem-version.yml"
+role_status=$($ROOT/scripts/bootstrap.sh --target "$ROLE_PROJECT" --status)
+printf '%s\n' "$role_status" | grep -F 'vault.state: role-mismatch' >/dev/null
+printf '%s\n' "$role_status" | grep -F 'vault.context.state: blocked' >/dev/null
+
+if "$ROOT/scripts/bootstrap.sh" --target "$STATE_PROJECT" --update-vault >/dev/null 2>&1; then exit 1; fi
+if "$ROOT/scripts/bootstrap.sh" --update-source-vault >/dev/null 2>&1; then exit 1; fi
+
+LEGACY_PROJECT=$TEMP_ROOT/legacy-consumer
+mkdir -p "$LEGACY_PROJECT/mem/workspace/records"
+printf '%s\n' 'workspace_format: 1' 'created_at: 2026-10-26' > "$LEGACY_PROJECT/mem/workspace/.ato-ai-skill-mem-version.yml"
+printf '%s\n' '# Legacy record' > "$LEGACY_PROJECT/mem/workspace/records/legacy.md"
+"$ROOT/scripts/bootstrap.sh" --target "$LEGACY_PROJECT" --migrate-workspace-to-vault
+[ ! -d "$LEGACY_PROJECT/mem/workspace" ]
+[ -d "$LEGACY_PROJECT/mem/vault/records" ]
+[ "$(sed -n 's/^vault_format: *//p' "$LEGACY_PROJECT/mem/vault/.ato-ai-skill-mem-version.yml")" = 3 ]
+
+RELEASE_SOURCE=$TEMP_ROOT/release-source
+mkdir -p "$RELEASE_SOURCE"
+cp "$ROOT/SKILL.md" "$ROOT/VERSION" "$ROOT/VAULT_FORMAT" "$RELEASE_SOURCE/"
+cp -R "$ROOT/references" "$ROOT/templates" "$ROOT/scripts" "$ROOT/vault" "$RELEASE_SOURCE/"
+git -C "$RELEASE_SOURCE" init -q
+git -C "$RELEASE_SOURCE" checkout -q -b master
+git -C "$RELEASE_SOURCE" config user.email test@example.com
+git -C "$RELEASE_SOURCE" config user.name 'Contract Tests'
+git -C "$RELEASE_SOURCE" add .
+git -C "$RELEASE_SOURCE" commit -qm 'test release fixture'
+git -C "$RELEASE_SOURCE" tag v0.5.0
+
+UPDATE_PROJECT=$TEMP_ROOT/update-consumer
+mkdir -p "$UPDATE_PROJECT"
+"$RELEASE_SOURCE/scripts/bootstrap.sh" --target "$UPDATE_PROJECT" --init >/dev/null
+UPDATE_MARKER=$UPDATE_PROJECT/mem/vault/.ato-ai-skill-mem-version.yml
+awk '{ if ($0 ~ /^skill_version:/) print "skill_version: 0.4.0"; else print }' "$UPDATE_MARKER" > "$UPDATE_MARKER.tmp"
+mv "$UPDATE_MARKER.tmp" "$UPDATE_MARKER"
+"$RELEASE_SOURCE/scripts/bootstrap.sh" --target "$UPDATE_PROJECT" --update-vault >/dev/null
+[ "$(sed -n 's/^skill_version: *//p' "$UPDATE_MARKER")" = 0.5.0 ]
+
+"$RELEASE_SOURCE/scripts/bootstrap.sh" --update-source-vault
+[ "$(sed -n 's/^skill_version: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = 0.5.0 ]
+[ "$(sed -n 's/^source_tag: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = v0.5.0 ]
+
+SOURCE_MIGRATION=$TEMP_ROOT/source-migration
+mkdir -p "$SOURCE_MIGRATION/workspace/records"
+cp "$ROOT/SKILL.md" "$ROOT/VERSION" "$ROOT/VAULT_FORMAT" "$SOURCE_MIGRATION/"
+cp -R "$ROOT/references" "$ROOT/templates" "$ROOT/scripts" "$SOURCE_MIGRATION/"
+printf '%s\n' 'workspace_format: 1' 'created_at: 2026-10-26' > "$SOURCE_MIGRATION/workspace/.ato-ai-skill-mem-version.yml"
+printf '%s\n' '# Source legacy record' > "$SOURCE_MIGRATION/workspace/records/legacy.md"
+"$SOURCE_MIGRATION/scripts/bootstrap.sh" --migrate-source-workspace-to-vault
+[ ! -d "$SOURCE_MIGRATION/workspace" ]
+[ -d "$SOURCE_MIGRATION/vault/records" ]
+[ "$(sed -n 's/^vault_kind: *//p' "$SOURCE_MIGRATION/vault/.ato-ai-skill-mem-version.yml")" = source ]
+
 for option in --vault --id --title --record; do
   error_file="$TEMP_ROOT/${option#--}.err"
   if sh "$ROOT/scripts/vault.sh" check "$option" 2>"$error_file"; then exit 1; fi
@@ -134,7 +242,7 @@ printf '%s\n' '# Índice legado' > "$MIGRATION_VAULT/INDEX.md"
 cp "$MIGRATION_VAULT/INDEX.md" "$TEMP_ROOT/legacy-index.expected"
 printf '%s\n' '# Registro legado' > "$MIGRATION_VAULT/records/2026-01-01--legacy&record.md"
 migration_context_output=$($ROOT/scripts/bootstrap.sh --target "$MIGRATION_PROJECT" --contextualize)
-printf '%s\n' "$migration_context_output" | grep -F 'vault.context.state: blocked' >/dev/null
+assert_contract_output context-blocked "$migration_context_output"
 "$ROOT/scripts/bootstrap.sh" --target "$MIGRATION_PROJECT" --migrate-vault-format
 [ "$(sed -n 's/^vault_format: *//p' "$MIGRATION_VAULT/.ato-ai-skill-mem-version.yml")" = 2 ]
 [ -f "$MIGRATION_VAULT/00_inbox/decisions-pending/2026-01-01--legacy&record.md" ]

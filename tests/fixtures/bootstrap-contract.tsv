@@ -1,0 +1,5 @@
+# scenario	expected_exit	assertions
+context-new	0	vault.context.state=needs-definition;vault.context.next_step=define-expectation
+context-existing-ready	0	vault.context.state=structurally-ready;vault.context.next_step=validate-and-authorize
+context-blocked	0	vault.context.state=blocked;vault.context.next_step=migrate
+source-status	0	source.state=not-release-aligned;vault.state=compatible-update-available|aligned

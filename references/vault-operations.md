@@ -42,6 +42,23 @@ para una vault ausente. `--contextualize` (`-Contextualize`) y `--status`
 (`-Status`) son diagnósticos de solo lectura; no crean enlaces, scaffold,
 manifiestos ni registros.
 
+## Autoridad por operación
+
+| Operación | Lectura o cambio | Precondición principal |
+| --- | --- | --- |
+| `--status`, `--contextualize`, `--source-status` | solo lectura | vault o fuente resoluble |
+| `--init` | crea scaffold | consumidor sin vault |
+| `--update-vault` | cambia solo el manifiesto | fuente `release-aligned` y formato compatible |
+| `--update-source-vault` | cambia solo el manifiesto fuente | `master`, checkout limpio y tag en `HEAD` |
+| `--migrate-vault-format` | prepara o finaliza migración | petición explícita y registros resueltos |
+| `--migrate-workspace-to-vault` | mueve almacenamiento heredado | destino ausente y manifiesto heredado válido |
+| `--integrate-codex` | crea o valida integración | instalación; no sobrescribe rutas existentes |
+
+Las dos implementaciones (`bootstrap.sh` y `bootstrap.ps1`) comparten estas
+claves y decisiones contractuales. La matriz portable de escenarios está en
+`tests/fixtures/bootstrap-contract.tsv`; no constituye memoria persistente ni
+habilita routing.
+
 ## Diagnóstico contextual
 
 El diagnóstico imprime claves estables para `vault.initialization.state`,

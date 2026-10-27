@@ -87,7 +87,7 @@ contrato de datos y layout está en
 
 ## Versiones y release
 
-`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.4.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.5.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
 
 Consulta la vault de fuente con:
 
@@ -100,6 +100,27 @@ no crea commits ni tags. Después de confirmar el commit documental, es normal
 que `source.state` vuelva a `not-release-aligned`: `master` queda después del
 tag, mientras el release sigue identificado por el tag inmutable y la vault
 queda `aligned`. No fuerces el tag para eliminar esa diferencia.
+
+## Matriz de modos
+
+| Modo | Propiedad | Efecto | Autoridad y precondición |
+| --- | --- | --- | --- |
+| `--contextualize` / `--status` | consumidor o fuente | diagnóstico de solo lectura | activación contextual; no modifica archivos |
+| `--init` | consumidor | crea el scaffold de una vault ausente | petición explícita; el destino debe estar ausente |
+| `--update-vault` | consumidor | actualiza solo el manifiesto compatible | petición explícita, checkout fuente `release-aligned` |
+| `--source-status` | fuente | diagnostica la vault `vault/` | activación contextual; no admite `--target` |
+| `--update-source-vault` | fuente | actualiza solo el manifiesto de la fuente | checkout limpio en `master` con `v<VERSION>` en `HEAD` |
+| `--migrate-vault-format` | consumidor | prepara o finaliza la migración 2 → 3 | petición explícita y resolución humana de registros |
+| `--migrate-workspace-to-vault` | consumidor o fuente | mueve el almacenamiento heredado | petición explícita; no puede existir el destino |
+| `--integrate-codex` | consumidor | crea o valida el adaptador local | instalación; nunca sobrescribe configuración existente |
+
+Los modos de actualización y migración no clasifican contenido, no sincronizan
+vaults y no modifican `AGENTS.md`. `VAULT_FORMAT=3` permanece sin cambios en
+la versión `0.5.0`.
+
+El diagnóstico expone claves estables para `source.state`, `vault.state`,
+`vault.context.state` y `vault.context.next_step`. Bash y PowerShell deben
+producir las mismas decisiones para los mismos escenarios.
 
 ## Límites
 

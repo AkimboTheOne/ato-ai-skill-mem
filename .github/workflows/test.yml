@@ -17,6 +17,9 @@ jobs:
       - name: Run Bash tests
         shell: bash
         run: ./tests/test-bootstrap.sh
+      - name: Check source vault
+        shell: bash
+        run: ./scripts/vault.sh check --vault vault
       - name: Verify worktree is clean
         shell: bash
         run: git diff --exit-code
@@ -33,6 +36,9 @@ jobs:
       - name: Run PowerShell tests
         shell: pwsh
         run: ./tests/test-bootstrap.ps1
+      - name: Check source vault
+        shell: pwsh
+        run: ./scripts/vault.ps1 check -Vault vault
       - name: Verify worktree is clean
         shell: pwsh
         run: git diff --exit-code
