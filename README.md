@@ -50,6 +50,10 @@ Los AGENTS de dominio pueden añadir o restringir contexto, pero no habilitan in
 El contrato operativo, incluida la activación contextual y la autoridad de
 cambios, está en [SKILL.md](SKILL.md).
 
+La relación entre el skill principal, sus adaptadores, los contratos y el
+proceso de release está en
+[references/integration-alignment.md](references/integration-alignment.md).
+
 ## Instalación y diagnóstico
 
 macOS/Linux:
@@ -88,7 +92,7 @@ contrato de datos y layout está en
 
 ## Versiones y release
 
-`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.8.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.7.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
 
 La política editorial clasifica `X` como cambio no retrocompatible, `Y` como
 nueva capacidad pública retrocompatible y `Z` como corrección o ajuste sin
@@ -121,7 +125,7 @@ En resumen:
   operación explícita correspondiente y no sobrescriben contenido existente.
 - Las operaciones source usan `vault/`; las operaciones consumer usan
   `mem/vault/` y no comparten registros.
-- `VAULT_FORMAT=3` permanece sin cambios en `0.8.0`; no se añade routing,
+- `VAULT_FORMAT=3` permanece sin cambios en `0.7.0`; no se añade routing,
   sincronización automática ni estado persistente oculto.
 
 ## CLI Python complementario

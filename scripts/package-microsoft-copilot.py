@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_ROOT = ROOT / "templates" / "integrations" / "microsoft-copilot"
 PACKAGE_FILES = ("SKILL.md", "connection-contract.md")
 CAPABILITY_CONTRACT = ROOT / "references" / "capability-contract.md"
+SKILL_VERSION_MARKER = "__SKILL_VERSION__"
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
 
@@ -109,9 +110,12 @@ def write_zip(output: Path, version: str) -> None:
     if output.exists():
         fail(f"la salida ya existe; elige otra ruta: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
-    resources: dict[str, bytes] = {
-        relative: (TEMPLATE_ROOT / relative).read_bytes() for relative in PACKAGE_FILES
-    }
+    resources: dict[str, bytes] = {}
+    for relative in PACKAGE_FILES:
+        content = (TEMPLATE_ROOT / relative).read_text(encoding="utf-8")
+        if relative == "connection-contract.md":
+            content = content.replace(SKILL_VERSION_MARKER, version)
+        resources[relative] = content.encode("utf-8")
     resources["capability-contract.md"] = CAPABILITY_CONTRACT.read_bytes()
     resources["package-metadata.json"] = metadata(version)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:

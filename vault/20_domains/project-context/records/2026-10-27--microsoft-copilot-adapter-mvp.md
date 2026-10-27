@@ -12,6 +12,8 @@ sources:
   - VAULT_FORMAT
   - references/runtime-boundary.md
   - references/capability-contract.md
+  - references/integration-alignment.md
+  - AGENTS.md
   - templates/integrations/microsoft-copilot/SKILL.md
   - templates/integrations/microsoft-copilot/connection-contract.md
   - scripts/package-microsoft-copilot.py
@@ -30,9 +32,9 @@ superseded_by: null
 El adaptador no tiene vida propia: la skill principal, `VERSION` y las reglas
 de propiedad de la vault siguen siendo la fuente de verdad.
 
-La integración inicial fue `0.7.0`; la homologación portable de capacidades se
-incorpora como el siguiente cambio público `minor`, `0.8.0`, mientras
-`VAULT_FORMAT` permanece en `3`.
+La línea de trabajo permanece en `0.7.0`: la homologación portable de
+capacidades todavía no se ha promovido a un release separado. `VAULT_FORMAT`
+permanece en `3`.
 
 El primer destino es Microsoft 365 Copilot mediante Agent Builder y
 declarative agents. La integración genera un ZIP cargable con un `SKILL.md`
@@ -65,3 +67,13 @@ OneDrive y conectores de Microsoft 365 se consideran perfiles `grounding`;
 MCP, REST, CLI, Confluence y Azure DevOps Wiki son perfiles `tool` futuros.
 Cualquier ampliación concreta requiere una revisión separada de alcance,
 estabilidad y gobernanza.
+
+La revisión posterior identificó y corrigió dos riesgos: `memory_check` ya no
+hardcodea una versión antigua, porque el empaquetador materializa `VERSION`,
+y el contrato portable define entradas y salidas mínimas para `inspect`,
+`search`, `fetch` y `transform`, conservando citas, alcance y procedencia.
+
+La alineación permanente queda documentada en
+`references/integration-alignment.md` y referenciada desde el `AGENTS.md` y
+el `SKILL.md` fuente. La guía de consumidores añade la misma advertencia sin
+modificar automáticamente sus instrucciones.

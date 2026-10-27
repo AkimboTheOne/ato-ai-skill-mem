@@ -30,6 +30,9 @@ obtenido; no debe usarse para seleccionar otra vault ni para persistir cambios.
 El contrato es portable entre Microsoft 365 Copilot/Agent Builder y Copilot
 Studio. No es GitHub Copilot ni un servidor MCP.
 
+El marcador `__SKILL_VERSION__` se sustituye por `VERSION` al empaquetar. No
+debe editarse manualmente en el ZIP.
+
 ## `memory_check`
 
 Entrada:
@@ -44,7 +47,7 @@ Salida mínima:
 {
   "schema": 1,
   "status": "ok|findings|error",
-  "skill_version": "0.7.0",
+  "skill_version": "__SKILL_VERSION__",
   "vault_format": 3,
   "role": "source|consumer",
   "scope": "descripción legible del alcance autorizado",

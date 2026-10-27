@@ -11,6 +11,7 @@ from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "package-microsoft-copilot.py"
+VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
 
 class MicrosoftCopilotPackageTests(unittest.TestCase):
@@ -42,11 +43,15 @@ class MicrosoftCopilotPackageTests(unittest.TestCase):
                 contract = archive.read("connection-contract.md").decode("utf-8")
                 self.assertIn("memory_check", contract)
                 self.assertIn("memory_retrieve", contract)
+                self.assertIn(f'"skill_version": "{VERSION}"', contract)
+                self.assertNotIn("__SKILL_VERSION__", contract)
                 capability_contract = archive.read("capability-contract.md").decode("utf-8")
                 self.assertIn("`inspect`", capability_contract)
                 self.assertIn("`search`", capability_contract)
                 self.assertIn("`fetch`", capability_contract)
                 self.assertIn("`transform`", capability_contract)
+                for operation in ("### `inspect`", "### `search`", "### `fetch`", "### `transform`"):
+                    self.assertIn(operation, capability_contract)
                 self.assertIn("Microsoft 365 Copilot", capability_contract)
                 self.assertIn("GitHub Copilot", skill)
                 package_metadata = json.loads(archive.read("package-metadata.json"))

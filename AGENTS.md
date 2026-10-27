@@ -67,6 +67,17 @@ bootstrap no aceptan rutas de vault arbitrarias; usa el contrato técnico de
 [`references/runtime-boundary.md`](references/runtime-boundary.md) como fuente
 normativa de ese límite.
 
+## Alineación de integraciones
+
+Cuando una tarea modifique `SKILL.md`, `references/`, un adaptador, un
+empaquetador o sus pruebas, lee [`references/integration-alignment.md`](references/integration-alignment.md)
+y [`references/capability-contract.md`](references/capability-contract.md).
+El adaptador de Microsoft 365 Copilot es una proyección subordinada del skill
+principal: conserva su versión, semántica, provenance, scope, citas, límites
+read-only y propiedad de la vault. Verifica también el contrato específico y
+el ZIP antes de aceptar el cambio. Esta regla no autoriza editar los
+`AGENTS.md` de proyectos consumidores ni crear tags o releases.
+
 ## Idioma
 
 Usa español para el razonamiento comunicado, las conversaciones, la

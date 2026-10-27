@@ -13,6 +13,13 @@ Si el proyecto usa Codex, también puede crear el adaptador de descubrimiento
 local con `--integrate-codex`. Es independiente de este bloque y no modifica
 `AGENTS.md`.
 
+Cuando una tarea del consumidor toque Microsoft 365 Copilot, Agent Builder o
+Copilot Studio, consulta el `capability-contract.md` distribuido con el
+adaptador. Trátalo como una proyección subordinada del skill principal: no
+inventes capacidades, no mezcles fuentes y conserva `source`, `locator`,
+`revision`, `citation` y `scope`. Esta guía no convierte el consumidor en
+propietario de la vault fuente ni implica sincronización automática.
+
 ~~~md
 ## Memoria del proyecto
 

@@ -40,6 +40,134 @@ adaptadores deben devolver `forbidden` cuando el recurso existe pero el
 alcance o los permisos no permiten consultarlo; no deben probar otra fuente
 silenciosamente.
 
+## Interfaces por operación
+
+Todas las operaciones reciben un objeto JSON y devuelven un objeto JSON con
+`schema` y `status`. Los estados `unavailable`, `forbidden` e `incompatible`
+terminan la operación y deben explicar el motivo sin revelar contenido fuera
+del alcance autorizado.
+
+### `inspect`
+
+Entrada mínima:
+
+```json
+{}
+```
+
+Salida mínima:
+
+```json
+{
+  "schema": 1,
+  "status": "supported",
+  "source": "identificador de la fuente",
+  "scope": "alcance autorizado",
+  "content": {
+    "skill_version": "0.8.0",
+    "vault_format": 3,
+    "role": "source|consumer"
+  }
+}
+```
+
+### `search`
+
+Entrada mínima:
+
+```json
+{
+  "query": "texto concreto",
+  "limit": 5
+}
+```
+
+`query` es obligatoria y `limit` debe estar entre `1` y `50`, con valor
+predeterminado `5`.
+
+Salida mínima:
+
+```json
+{
+  "schema": 1,
+  "status": "supported",
+  "source": "identificador de la fuente",
+  "scope": "alcance autorizado",
+  "content": {
+    "results": [
+      {
+        "locator": "ruta o identificador estable",
+        "revision": "versión o timestamp",
+        "citation": "referencia verificable",
+        "snippet": "fragmento",
+        "matched_terms": []
+      }
+    ]
+  }
+}
+```
+
+### `fetch`
+
+Entrada mínima:
+
+```json
+{
+  "locator": "identificador estable del recurso"
+}
+```
+
+`locator` es obligatorio y debe pertenecer al `source` y `scope` resueltos;
+no puede seleccionar una ruta de vault arbitraria.
+
+Salida mínima:
+
+```json
+{
+  "schema": 1,
+  "status": "supported",
+  "source": "identificador de la fuente",
+  "locator": "identificador estable del recurso",
+  "revision": "versión o timestamp",
+  "citation": "referencia verificable",
+  "scope": "alcance autorizado",
+  "content": "contenido exacto"
+}
+```
+
+### `transform`
+
+Entrada mínima:
+
+```json
+{
+  "content": "contenido ya recuperado",
+  "operation": "transformación solicitada",
+  "provenance": {
+    "source": "identificador de la fuente",
+    "locator": "identificador estable del recurso",
+    "revision": "versión o timestamp",
+    "citation": "referencia verificable"
+  }
+}
+```
+
+`content` y `operation` son obligatorios. La salida conserva la procedencia y
+no persiste el contenido ni ejecuta acciones externas.
+
+```json
+{
+  "schema": 1,
+  "status": "supported",
+  "source": "identificador de la fuente",
+  "locator": "identificador estable del recurso",
+  "revision": "versión o timestamp",
+  "citation": "referencia verificable",
+  "scope": "alcance autorizado",
+  "content": "resultado temporal"
+}
+```
+
 ## Mapeo del skill principal
 
 | Capacidad portable | Primitivas actuales | Comportamiento |
