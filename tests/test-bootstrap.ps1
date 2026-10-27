@@ -190,6 +190,7 @@ try {
     & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -UpdateSourceVault
     $releaseMarker = Join-Path $releaseSource 'vault/.ato-ai-skill-mem-version.yml'
     if ((Get-Content $releaseMarker -Raw) -notmatch "(?m)^skill_version: $([regex]::Escape($skillVersion))\r?$" -or (Get-Content $releaseMarker -Raw) -notmatch "(?m)^source_tag: v$([regex]::Escape($skillVersion))\r?$") { throw 'UpdateSourceVault no actualizó el manifiesto de release' }
+    & git -C $releaseSource add vault/.ato-ai-skill-mem-version.yml
     $postReleaseCheckOutput = (& (Join-Path $releaseSource 'scripts/release-check.ps1') -PostRelease -Format json) -join "`n"
     if ($postReleaseCheckOutput -notmatch '"ready":true') { throw 'release-check debía aceptar el manifiesto posterior al release' }
 

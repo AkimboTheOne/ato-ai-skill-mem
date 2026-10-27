@@ -191,6 +191,7 @@ mv "$UPDATE_MARKER.tmp" "$UPDATE_MARKER"
 "$RELEASE_SOURCE/scripts/bootstrap.sh" --update-source-vault
 [ "$(sed -n 's/^skill_version: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = "$SKILL_VERSION" ]
 [ "$(sed -n 's/^source_tag: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = "v$SKILL_VERSION" ]
+git -C "$RELEASE_SOURCE" add vault/.ato-ai-skill-mem-version.yml
 post_release_check_output=$("$RELEASE_SOURCE/scripts/release-check.sh" --post-release --format json)
 printf '%s\n' "$post_release_check_output" | grep -F '"ready":true' >/dev/null
 

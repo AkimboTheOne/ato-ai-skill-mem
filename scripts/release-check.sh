@@ -80,7 +80,7 @@ if printf '%s\n' "$VAULT_FORMAT" | grep -E '^[1-9][0-9]*$' >/dev/null; then chec
 if [ "$BRANCH" = master ]; then check_branch=pass; else add_blocker branch; fi
 if [ -z "$DIRTY" ]; then
   check_clean=pass
-elif [ "$POST_RELEASE" = true ] && [ "$(git -C "$ROOT" diff --name-only)" = 'vault/.ato-ai-skill-mem-version.yml' ] && [ -z "$(git -C "$ROOT" ls-files --others --exclude-standard)" ]; then
+elif [ "$POST_RELEASE" = true ] && [ "$(git -C "$ROOT" diff --name-only HEAD)" = 'vault/.ato-ai-skill-mem-version.yml' ] && [ -z "$(git -C "$ROOT" ls-files --others --exclude-standard)" ]; then
   check_clean=pass
 else
   add_blocker worktree
