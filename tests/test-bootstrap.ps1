@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$skillVersion = (Get-Content -LiteralPath (Join-Path $root 'VERSION') -Raw).Trim()
 $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('ato-ai-skill-mem-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $temp | Out-Null
 try {
@@ -112,7 +113,7 @@ try {
 
     $roleProject = Join-Path $temp 'role-mismatch'
     New-Item -ItemType Directory -Path (Join-Path $roleProject 'mem/vault') -Force | Out-Null
-    @('format: 1','vault_kind: source','vault_format: 3','skill_version: 0.5.0','source_revision: test','source_tag: v0.5.0','created_at: 2026-10-26','updated_at: 2026-10-26') | Set-Content (Join-Path $roleProject 'mem/vault/.ato-ai-skill-mem-version.yml')
+    @('format: 1','vault_kind: source','vault_format: 3',"skill_version: $skillVersion",'source_revision: test',"source_tag: v$skillVersion",'created_at: 2026-10-26','updated_at: 2026-10-26') | Set-Content (Join-Path $roleProject 'mem/vault/.ato-ai-skill-mem-version.yml')
     $roleStatus = (& (Join-Path $root 'scripts/bootstrap.ps1') -Target $roleProject -Status) -join "`n"
     if ($roleStatus -notmatch 'vault.state: role-mismatch' -or $roleStatus -notmatch 'vault.context.state: blocked') { throw 'no se detectó incompatibilidad de vault_kind' }
     try { & (Join-Path $root 'scripts/bootstrap.ps1') -Target $stateProject -UpdateVault; throw 'UpdateVault debía rechazar una fuente no alineada' }
@@ -138,19 +139,19 @@ try {
     & git -C $releaseSource config user.name 'Contract Tests'
     & git -C $releaseSource add .
     & git -C $releaseSource -c user.email=test@example.com -c user.name='Contract Tests' commit -qm 'test release fixture'
-    & git -C $releaseSource tag v0.5.0
+    & git -C $releaseSource tag "v$skillVersion"
     $updateProject = Join-Path $temp 'update-consumer'
     New-Item -ItemType Directory -Path $updateProject | Out-Null
     & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -Target $updateProject -Init
     $updateMarker = Join-Path $updateProject 'mem/vault/.ato-ai-skill-mem-version.yml'
-    $updateMarkerText = (Get-Content $updateMarker -Raw) -replace '(?m)^skill_version: 0.5.0\r?$', 'skill_version: 0.4.0'
+    $updateMarkerText = (Get-Content $updateMarker -Raw) -replace "(?m)^skill_version: $([regex]::Escape($skillVersion))\r?$", 'skill_version: 0.4.0'
     [System.IO.File]::WriteAllText($updateMarker, $updateMarkerText)
     & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -Target $updateProject -UpdateVault
-    if ((Get-Content $updateMarker -Raw) -notmatch '(?m)^skill_version: 0.5.0\r?$') { throw 'UpdateVault no actualizó el manifiesto del consumidor' }
+    if ((Get-Content $updateMarker -Raw) -notmatch "(?m)^skill_version: $([regex]::Escape($skillVersion))\r?$") { throw 'UpdateVault no actualizó el manifiesto del consumidor' }
 
     & (Join-Path $releaseSource 'scripts/bootstrap.ps1') -UpdateSourceVault
     $releaseMarker = Join-Path $releaseSource 'vault/.ato-ai-skill-mem-version.yml'
-    if ((Get-Content $releaseMarker -Raw) -notmatch '(?m)^skill_version: 0.5.0\r?$' -or (Get-Content $releaseMarker -Raw) -notmatch '(?m)^source_tag: v0.5.0\r?$') { throw 'UpdateSourceVault no actualizó el manifiesto de release' }
+    if ((Get-Content $releaseMarker -Raw) -notmatch "(?m)^skill_version: $([regex]::Escape($skillVersion))\r?$" -or (Get-Content $releaseMarker -Raw) -notmatch "(?m)^source_tag: v$([regex]::Escape($skillVersion))\r?$") { throw 'UpdateSourceVault no actualizó el manifiesto de release' }
 
     $sourceMigration = Join-Path $temp 'source-migration'
     New-Item -ItemType Directory -Path (Join-Path $sourceMigration 'workspace/records') -Force | Out-Null

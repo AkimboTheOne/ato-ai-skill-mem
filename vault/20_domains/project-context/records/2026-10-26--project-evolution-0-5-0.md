@@ -1,7 +1,7 @@
 ---
 id: 2026-10-26--project-evolution-0-5-0
 type: project-context
-status: active
+status: retired
 created: 2026-10-26
 updated: 2026-10-26
 scope: project
@@ -22,7 +22,7 @@ sources:
 related:
   - "[Registro anterior](2026-10-26--project-evolution-0-4-0.md)"
 supersedes: "[Registro anterior](2026-10-26--project-evolution-0-4-0.md)"
-superseded_by: null
+superseded_by: "[Evolución del proyecto y decisiones de la versión 0.5.1](2026-10-26--project-evolution-0-5-1.md)"
 ---
 
 # Evolución del proyecto y decisiones de la versión 0.5.0

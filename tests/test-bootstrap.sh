@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+SKILL_VERSION=$(tr -d '\r\n' < "$ROOT/VERSION")
 TEMP_ROOT=$(mktemp -d)
 trap 'rm -rf "$TEMP_ROOT"' EXIT
 PROJECT=$TEMP_ROOT/consumer
@@ -127,7 +128,7 @@ grep -F 'path: elsewhere' "$CONFIG_CONFLICT_PROJECT/.ato-ai-skill-mem.yml" >/dev
 
 ROLE_PROJECT=$TEMP_ROOT/role-mismatch
 mkdir -p "$ROLE_PROJECT/mem/vault"
-printf '%s\n' 'format: 1' 'vault_kind: source' 'vault_format: 3' 'skill_version: 0.5.0' 'source_revision: test' 'source_tag: v0.5.0' 'created_at: 2026-10-26' 'updated_at: 2026-10-26' > "$ROLE_PROJECT/mem/vault/.ato-ai-skill-mem-version.yml"
+printf '%s\n' 'format: 1' 'vault_kind: source' 'vault_format: 3' "skill_version: $SKILL_VERSION" 'source_revision: test' "source_tag: v$SKILL_VERSION" 'created_at: 2026-10-26' 'updated_at: 2026-10-26' > "$ROLE_PROJECT/mem/vault/.ato-ai-skill-mem-version.yml"
 role_status=$($ROOT/scripts/bootstrap.sh --target "$ROLE_PROJECT" --status)
 printf '%s\n' "$role_status" | grep -F 'vault.state: role-mismatch' >/dev/null
 printf '%s\n' "$role_status" | grep -F 'vault.context.state: blocked' >/dev/null
@@ -154,7 +155,7 @@ git -C "$RELEASE_SOURCE" config user.email test@example.com
 git -C "$RELEASE_SOURCE" config user.name 'Contract Tests'
 git -C "$RELEASE_SOURCE" add .
 git -C "$RELEASE_SOURCE" commit -qm 'test release fixture'
-git -C "$RELEASE_SOURCE" tag v0.5.0
+git -C "$RELEASE_SOURCE" tag "v$SKILL_VERSION"
 
 UPDATE_PROJECT=$TEMP_ROOT/update-consumer
 mkdir -p "$UPDATE_PROJECT"
@@ -163,11 +164,11 @@ UPDATE_MARKER=$UPDATE_PROJECT/mem/vault/.ato-ai-skill-mem-version.yml
 awk '{ if ($0 ~ /^skill_version:/) print "skill_version: 0.4.0"; else print }' "$UPDATE_MARKER" > "$UPDATE_MARKER.tmp"
 mv "$UPDATE_MARKER.tmp" "$UPDATE_MARKER"
 "$RELEASE_SOURCE/scripts/bootstrap.sh" --target "$UPDATE_PROJECT" --update-vault >/dev/null
-[ "$(sed -n 's/^skill_version: *//p' "$UPDATE_MARKER")" = 0.5.0 ]
+[ "$(sed -n 's/^skill_version: *//p' "$UPDATE_MARKER")" = "$SKILL_VERSION" ]
 
 "$RELEASE_SOURCE/scripts/bootstrap.sh" --update-source-vault
-[ "$(sed -n 's/^skill_version: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = 0.5.0 ]
-[ "$(sed -n 's/^source_tag: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = v0.5.0 ]
+[ "$(sed -n 's/^skill_version: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = "$SKILL_VERSION" ]
+[ "$(sed -n 's/^source_tag: *//p' "$RELEASE_SOURCE/vault/.ato-ai-skill-mem-version.yml")" = "v$SKILL_VERSION" ]
 
 SOURCE_MIGRATION=$TEMP_ROOT/source-migration
 mkdir -p "$SOURCE_MIGRATION/workspace/records"

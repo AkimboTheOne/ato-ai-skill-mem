@@ -187,6 +187,23 @@ manifiesto visible registra versión, revisión, tag, fechas, `vault_format` y
 son heredados; detectar uno incompatible produce un diagnóstico y una
 propuesta, nunca una migración automática.
 
+### Política editorial SemVer
+
+La línea editorial interpreta `VERSION` con tres niveles:
+
+- `X` (`major`): cambio público no retrocompatible en el contrato del skill,
+  la CLI, la integración o la estructura que consume una vault.
+- `Y` (`minor`): nueva capacidad pública por extensión, retrocompatible con
+  los flujos y contratos existentes.
+- `Z` (`patch`): corrección, documentación, pruebas, CI, refactor interno o
+  ajuste operativo sin nueva capacidad pública ni cambio de compatibilidad.
+
+Esta convención se aplica también durante `0.x` como política editorial del
+proyecto; `1.0.0` marcará la primera versión con contrato estable declarado.
+`VAULT_FORMAT` es una dimensión independiente: un cambio incompatible de
+formato requiere su propia decisión de migración y no se infiere solo desde
+el número de `VERSION`.
+
 Una distribución válida requiere el tag `v<VERSION>` en `master`. La fuente
 puede leerse durante desarrollo si los datos son compatibles, pero su marcador
 solo se actualiza con `--update-source-vault` desde un checkout limpio y

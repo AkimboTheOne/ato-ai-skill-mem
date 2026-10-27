@@ -87,7 +87,13 @@ contrato de datos y layout está en
 
 ## Versiones y release
 
-`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.5.0` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+`VERSION` declara la versión SemVer y `VAULT_FORMAT` el formato de datos. La versión de desarrollo actual es `0.5.1` y el formato actual es `3`. Un release válido requiere `master`, checkout limpio y el tag `v<VERSION>` sobre el mismo commit.
+
+La política editorial clasifica `X` como cambio no retrocompatible, `Y` como
+nueva capacidad pública retrocompatible y `Z` como corrección o ajuste sin
+nueva capacidad pública. El detalle canónico está en
+[SKILL.md](SKILL.md#política-editorial-semver); `VAULT_FORMAT` se versiona y
+migra por separado.
 
 Consulta la vault de fuente con:
 
@@ -114,7 +120,7 @@ En resumen:
   operación explícita correspondiente y no sobrescriben contenido existente.
 - Las operaciones source usan `vault/`; las operaciones consumer usan
   `mem/vault/` y no comparten registros.
-- `VAULT_FORMAT=3` permanece sin cambios en `0.5.0`; no se añade routing,
+- `VAULT_FORMAT=3` permanece sin cambios en `0.5.1`; no se añade routing,
   sincronización automática ni estado persistente oculto.
 
 ## Límites
