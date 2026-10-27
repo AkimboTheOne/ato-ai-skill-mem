@@ -2,6 +2,7 @@
 
 ## Activos
 
+- [Preflight de release y gobernanza del agente](records/2026-10-27--release-preflight-and-governance.md)
 - [Adaptador Microsoft Copilot MVP](records/2026-10-27--microsoft-copilot-adapter-mvp.md)
 - [Evolución del proyecto y decisiones de la versión 0.6.0](records/2026-10-27--project-evolution-0-6-0.md)
 
