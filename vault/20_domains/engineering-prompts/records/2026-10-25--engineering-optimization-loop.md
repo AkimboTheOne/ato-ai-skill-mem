@@ -29,8 +29,9 @@ breve antes de analizar.
 Activa `ato-ai-skill-governance` en modo rector. Usa como entrada el objetivo
 actual, la conversación relevante, los archivos inspeccionados y las
 restricciones activas. Si el objetivo depende de decisiones, contratos,
-convenciones o historial del producto, activa `ato-ai-source-mem`, ejecuta el
-diagnóstico de la vault fuente y lee solo el contexto pertinente.
+convenciones o historial del producto, activa `ato-ai-skill-mem`, ejecuta
+`scripts/vault.sh check` en la raíz de la skill instalada y lee solo el
+contexto pertinente de `vault/`.
 
 Ejecuta las fases en este orden:
 

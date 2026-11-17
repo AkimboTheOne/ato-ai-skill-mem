@@ -5,21 +5,16 @@ on:
   pull_request:
 
 jobs:
-  python:
-    name: Python CLI
+  contracts:
+    name: Skill contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Run Python tests
+      - name: Check single installation contract
         run: python -m unittest discover -s tests -p 'test_*.py'
-      - name: Evaluate lexical retrieval
-        run: python tests/retrieval/evaluate.py
-      - name: Smoke install and CLI
-        shell: bash
-        run: sh ./tests/test-install.sh
 
   bash:
     name: Bash (${{ matrix.os }})
@@ -30,18 +25,15 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Run Bash tests
+      - name: Run vault tests
         shell: bash
-        run: ./tests/test-bootstrap.sh
-      - name: Check source vault
+        run: ./tests/test-vault.sh
+      - name: Check installed skill vault
         shell: bash
-        run: ./scripts/vault.sh check --source
-      - name: Reject obsolete vault interfaces
+        run: ./scripts/vault.sh check
+      - name: Verify shell syntax
         shell: bash
-        run: test -z "$(git grep -n -E -- '--vault[[:space:]]|[[:space:]]-Vault([[:space:]]|$)' -- scripts || true)"
-      - name: Verify worktree is clean
-        shell: bash
-        run: git diff --exit-code
+        run: sh -n scripts/vault.sh scripts/release-check.sh tests/test-vault.sh
 
   powershell:
     name: PowerShell (${{ matrix.os }})
@@ -52,12 +44,12 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Run PowerShell tests
+      - name: Run vault tests
         shell: pwsh
-        run: ./tests/test-bootstrap.ps1
-      - name: Check source vault
+        run: ./tests/test-vault.ps1
+      - name: Check installed skill vault
         shell: pwsh
-        run: ./scripts/vault.ps1 check -Source
+        run: ./scripts/vault.ps1 check
       - name: Verify worktree is clean
         shell: pwsh
         run: git diff --exit-code

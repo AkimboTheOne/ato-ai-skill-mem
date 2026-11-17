@@ -1,9 +1,9 @@
 ---
 id: 2026-10-27--project-evolution-0-6-0
 type: project-context
-status: active
+status: retired
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-11-16
 scope: project
 author: human
 sources:
@@ -32,10 +32,16 @@ related:
   - "[Registro anterior](2026-10-26--project-evolution-0-5-1.md)"
   - ../engineering-prompts/records/2026-10-25--engineering-optimization-loop.md
 supersedes: "[Registro anterior](2026-10-26--project-evolution-0-5-1.md)"
-superseded_by: null
+superseded_by: "[Modo único de instalación](2026-11-16--single-installation-mode.md)"
 ---
 
 # Evolución del proyecto y decisiones de la versión 0.6.0
+
+## Estado actual
+
+Registro histórico retirado el 2026-11-16. La modalidad de roles y el CLI que
+documenta fueron reemplazados por la instalación única descrita en
+[el registro vigente](2026-11-16--single-installation-mode.md).
 
 ## Decisión de gobierno
 
