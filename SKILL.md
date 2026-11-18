@@ -1,15 +1,19 @@
 ---
-name: ato-ai-skill-mem
-description: Consulta y administra memoria Markdown curada del skill cuando una tarea requiera decisiones, convenciones, lecciones o contexto persistente.
+name: local-mem
+description: Recupera contexto documentado del proyecto desde la memoria Markdown de esta instalación. Úsalo cuando una tarea dependa de decisiones, convenciones, restricciones o lecciones previas; limita la consulta a `vault/` junto a este `SKILL.md` y no busques ni mezcles memoria de otros proyectos, plugins o agentes.
 ---
 
-# Memoria local del skill
+# Módulo Local de Memoria
 
 ## Modelo
 
-La carpeta que contiene este `SKILL.md` es la raíz operativa. Su única vault es
-`vault/`; consulta y administra esa ubicación. No busques ni aceptes una
-segunda raíz, un proyecto destino o una vault configurada externamente.
+La carpeta que contiene el `SKILL.md` activado es la raíz de esta instancia.
+Su única memoria es `vault/` dentro de esa carpeta. Consulta y administra esa
+ubicación solamente. No uses el directorio de trabajo, la ruta del proyecto,
+el nombre de otra skill ni el contexto de otro plugin o agente para localizar
+memoria; no busques ni aceptes una segunda raíz o una vault configurada
+externamente. Dos instalaciones son módulos separados aunque compartan el
+mismo nombre técnico.
 
 La memoria conserva conocimiento explícito, estable y trazable. No captura
 conversaciones ni infiere aprendizajes para persistirlos. Usa español en la
@@ -18,9 +22,11 @@ rutas, comandos y claves consumidos por herramientas.
 
 ## Consulta
 
-Activa la memoria solo si la tarea depende de decisiones, convenciones,
-restricciones, lecciones aprendidas o contexto duradero. Para tareas ordinarias
-no cargues la vault.
+Activa este módulo si el trabajo requiere recuperar decisiones previas,
+convenciones del proyecto, restricciones acordadas, lecciones aprendidas o
+contexto duradero. Es útil, por ejemplo, al continuar un diseño, revisar una
+decisión previa o mantener compatibilidad con contratos existentes. Para una
+tarea ordinaria que no dependa de ese contexto, no cargues la vault.
 
 Al activarla, ejecuta una vez `scripts/vault.sh check` o, en PowerShell,
 `scripts/vault.ps1 check`. Comunica si la estructura es válida. Después lee

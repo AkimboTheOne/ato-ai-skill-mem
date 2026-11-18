@@ -1,5 +1,7 @@
 from pathlib import Path
+import shutil
 import subprocess
+import tempfile
 import unittest
 
 
@@ -11,9 +13,55 @@ class SingleInstallModeTests(unittest.TestCase):
         for path in (ROOT / "SKILL.md", ROOT / "AGENTS.md", ROOT / "README.md"):
             content = path.read_text(encoding="utf-8")
             self.assertIn("vault/", content, str(path))
-        self.assertIn("junto a esta skill", (ROOT / "SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn("junto a este `SKILL.md`", (ROOT / "SKILL.md").read_text(encoding="utf-8"))
         self.assertTrue((ROOT / "vault").is_dir())
         self.assertFalse((ROOT / "vault/.ato-ai-skill-mem-version.yml").exists())
+
+    def test_skill_identity_and_clone_target_are_explicit(self) -> None:
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        interface = (ROOT / "agents/openai.yaml").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn("name: local-mem", skill)
+        self.assertIn("Módulo Local de Memoria", skill)
+        self.assertIn("no busques ni mezcles memoria de otros proyectos, plugins o agentes", skill)
+        self.assertIn('display_name: "Módulo Local de Memoria"', interface)
+        self.assertIn("$local-mem", interface)
+        self.assertIn("allow_implicit_invocation: true", interface)
+        self.assertIn("ato-ai-skill-mem.git local-mem", readme)
+
+    def test_two_instances_check_only_their_adjacent_vault(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temp_root = Path(temporary_directory)
+            first_instance = temp_root / "first-plugin" / "local-mem"
+            second_instance = temp_root / "second-plugin" / "local-mem"
+
+            for instance in (first_instance, second_instance):
+                scripts = instance / "scripts"
+                scripts.mkdir(parents=True)
+                shutil.copy2(ROOT / "scripts/vault.sh", scripts / "vault.sh")
+                shutil.copy2(ROOT / "VERSION", instance / "VERSION")
+                shutil.copy2(ROOT / "VAULT_FORMAT", instance / "VAULT_FORMAT")
+
+            shutil.copytree(ROOT / "vault", first_instance / "vault")
+            (second_instance / "vault").mkdir()
+
+            first_check = subprocess.run(
+                [str(first_instance / "scripts/vault.sh"), "check"],
+                cwd=second_instance,
+                capture_output=True,
+                text=True,
+            )
+            second_check = subprocess.run(
+                [str(second_instance / "scripts/vault.sh"), "check"],
+                cwd=first_instance,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(first_check.returncode, 0, first_check.stdout + first_check.stderr)
+            self.assertIn("vault.state: valid", first_check.stdout)
+            self.assertNotEqual(second_check.returncode, 0, second_check.stdout + second_check.stderr)
 
     def test_retired_interfaces_are_historical_and_not_distributed(self) -> None:
         history = ROOT / "references/history"
