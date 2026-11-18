@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 import unittest
 
 
@@ -43,6 +44,28 @@ class SingleInstallModeTests(unittest.TestCase):
             self.assertNotIn("--source", content, str(path))
             self.assertNotIn("--target", content, str(path))
             self.assertNotIn("mem/vault", content, str(path))
+
+    def test_local_codex_configuration_is_not_tracked_or_distributed(self) -> None:
+        tracked = subprocess.run(
+            ["git", "ls-files", "--", ".codex/"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(tracked.stdout.strip(), "")
+        self.assertIn(".codex/", (ROOT / ".gitignore").read_text(encoding="utf-8"))
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("No copies configuración local (`.codex/`)", readme)
+
+    def test_legacy_vault_migration_is_manual_and_linked(self) -> None:
+        migration = ROOT / "references/legacy-vault-migration.md"
+        self.assertTrue(migration.is_file())
+        content = migration.read_text(encoding="utf-8")
+        for phrase in ("mem/vault/", "respaldo", "formato `3`", "no sobrescribas"):
+            self.assertIn(phrase, content)
+        self.assertIn("legacy-vault-migration.md", (ROOT / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("legacy-vault-migration.md", (ROOT / "references/instance-contract.md").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

@@ -12,6 +12,10 @@ Una ruta ausente, un symlink de `vault/` o una estructura incompatible son
 errores que detienen la consulta; el agente no busca otra ubicación ni crea
 una nueva vault automáticamente.
 
+Las instalaciones antiguas que guardaban memoria en `mem/vault/` deben seguir
+la [migración manual de una sola vez](legacy-vault-migration.md). No hay
+compatibilidad runtime con esa ubicación.
+
 ## Formato de datos
 
 `VAULT_FORMAT` declara el layout. El formato `3` contiene:

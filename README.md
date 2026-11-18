@@ -6,11 +6,13 @@ La carpeta de esta skill es su ámbito: la única memoria que consulta es
 
 ## Uso
 
-Instala o copia la carpeta completa del skill en la ubicación elegida. Incluye
-`SKILL.md`, `vault/`, `scripts/`, `templates/` y `references/`. No ejecutes un
-bootstrap ni configures un proyecto destino. Al activarse para una tarea que
-necesite contexto duradero, la skill verifica `vault/` y lee solo el dominio
-pertinente.
+Instala o copia los componentes del skill en una sola carpeta: `SKILL.md`,
+`VERSION`, `VAULT_FORMAT`, `vault/`, `scripts/`, `templates/` y
+`references/`. La raíz resultante contiene tanto el skill como su única vault.
+No copies configuración local (`.codex/`), metadatos Git (`.git/`), pruebas ni
+artefactos de desarrollo. No ejecutes un bootstrap ni configures un proyecto
+destino. Al activarse para una tarea que necesite contexto duradero, la skill
+verifica `vault/` y lee solo el dominio pertinente.
 
 La lectura no autoriza escrituras. Crear, actualizar, mover o retirar memoria
 requiere una petición humana explícita.
@@ -21,6 +23,8 @@ El formato `3` organiza la memoria con `vault/AGENTS.md`, índices, mapas y
 dominios `20_domains/<id>/`. Cada dominio es una unidad Markdown con metadata,
 índice, registros y recursos. El contrato completo está en
 [instance-contract.md](references/instance-contract.md).
+Si actualizas una instalación antigua que guardaba memoria en `mem/vault/`,
+sigue la [guía de migración manual](references/legacy-vault-migration.md).
 
 Para revisar o administrar la estructura de la única vault:
 
