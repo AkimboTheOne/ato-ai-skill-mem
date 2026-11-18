@@ -1,9 +1,9 @@
 ---
 id: 2026-10-27--microsoft-copilot-adapter-mvp
 type: project-context
-status: active
+status: retired
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-11-16
 scope: project
 author: human
 sources:
@@ -23,10 +23,15 @@ sources:
 related:
   - "[Evolución 0.6.0](2026-10-27--project-evolution-0-6-0.md)"
 supersedes: null
-superseded_by: null
+superseded_by: "[Modo único de instalación](2026-11-16--single-installation-mode.md)"
 ---
 
 # Adaptador Microsoft 365 Copilot MVP
+
+## Estado actual
+
+Registro histórico retirado el 2026-11-16. Este adaptador y su empaquetado ya
+no son interfaces activas; consulta [el registro vigente](2026-11-16--single-installation-mode.md).
 
 ## Decisión
 

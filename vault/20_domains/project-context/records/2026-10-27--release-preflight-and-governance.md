@@ -1,9 +1,9 @@
 ---
 id: 2026-10-27--release-preflight-and-governance
 type: project-context
-status: active
+status: retired
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-11-16
 scope: project
 author: human
 sources:
@@ -26,10 +26,17 @@ related:
   - "[Evolución del proyecto 0.6.0](2026-10-27--project-evolution-0-6-0.md)"
   - "[Ciclo de optimización](../../engineering-prompts/records/2026-10-25--engineering-optimization-loop.md)"
 supersedes: null
-superseded_by: null
+superseded_by: "[Modo único de instalación](2026-11-16--single-installation-mode.md)"
 ---
 
 # Preflight de release y gobernanza del agente
+
+## Estado actual
+
+Registro histórico retirado el 2026-11-16. El preflight ya no actualiza ni
+comprueba un manifiesto de vault fuente; consulta la guía vigente de
+[preparación de release](../../../../references/release-readiness.md) y
+[el registro del modo único](2026-11-16--single-installation-mode.md).
 
 ## Decisión
 
