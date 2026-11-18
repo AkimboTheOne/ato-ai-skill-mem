@@ -67,6 +67,17 @@ class SingleInstallModeTests(unittest.TestCase):
         self.assertIn("legacy-vault-migration.md", (ROOT / "README.md").read_text(encoding="utf-8"))
         self.assertIn("legacy-vault-migration.md", (ROOT / "references/instance-contract.md").read_text(encoding="utf-8"))
 
+    def test_release_gate_tracks_main(self) -> None:
+        for path in (ROOT / "scripts/release-check.sh", ROOT / "scripts/release-check.ps1"):
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("origin/main", content, str(path))
+            self.assertNotIn("origin/master", content, str(path))
+        self.assertIn("main_sync", (ROOT / "scripts/release-check.sh").read_text(encoding="utf-8"))
+        self.assertIn("main_sync", (ROOT / "scripts/release-check.ps1").read_text(encoding="utf-8"))
+        readiness = (ROOT / "references/release-readiness.md").read_text(encoding="utf-8")
+        self.assertIn("rama `main`", readiness)
+        self.assertIn("origin/main", readiness)
+
 
 if __name__ == "__main__":
     unittest.main()

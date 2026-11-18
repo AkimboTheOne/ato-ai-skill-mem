@@ -19,8 +19,8 @@ El preflight es de solo lectura:
 ./scripts/release-check.sh --format json
 ```
 
-Comprueba versión y formato, rama `master`, árbol limpio, tag `v<VERSION>` en
-`HEAD`, sincronización con `origin/master` y `scripts/vault.sh check`. No crea
+Comprueba versión y formato, rama `main`, árbol limpio, tag `v<VERSION>` en
+`HEAD`, sincronización con `origin/main` y `scripts/vault.sh check`. No crea
 tags, commits ni pushes y no modifica `vault/`. Antes de crear el tag, los
 estados `tag` y `head_tag` pueden quedar pendientes.
 
@@ -29,7 +29,7 @@ estados `tag` y `head_tag` pueden quedar pendientes.
 1. Preparar y validar el candidato en una rama `codex/<scope>`.
 2. Comparar el diff completo con el último tag promovido y clasificar SemVer.
 3. Actualizar `VERSION` en el candidato y repetir validaciones.
-4. Integrar en `master` con árbol limpio y sincronizarlo con `origin/master`.
+4. Integrar en `main` con árbol limpio y sincronizarlo con `origin/main`.
 5. Crear el tag inmutable `v<VERSION>` sobre el commit integrado.
 6. Ejecutar el preflight y confirmar que queda listo.
 

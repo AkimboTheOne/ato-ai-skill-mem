@@ -19,17 +19,17 @@ function Get-GitValue([string[]]$Arguments, [string]$Fallback) {
 $branch = Get-GitValue @('symbolic-ref','--quiet','--short','HEAD') 'unavailable'
 $head = Get-GitValue @('rev-parse','HEAD') 'unavailable'
 $tagHead = Get-GitValue @('rev-list','-n','1',$tag) 'unavailable'
-$master = Get-GitValue @('rev-parse','master') 'unavailable'
-$originMaster = Get-GitValue @('rev-parse','refs/remotes/origin/master') 'unavailable'
+$main = Get-GitValue @('rev-parse','main') 'unavailable'
+$originMain = Get-GitValue @('rev-parse','refs/remotes/origin/main') 'unavailable'
 $dirty = (& git -C $root status --porcelain 2>$null) -join "`n"
 $checks = [ordered]@{
     version = if ($version -match '^\d+\.\d+\.\d+$') { 'pass' } else { 'fail' }
     vault_format = if ($vaultFormat -match '^[1-9]\d*$') { 'pass' } else { 'fail' }
-    branch = if ($branch -eq 'master') { 'pass' } else { 'fail' }
+    branch = if ($branch -eq 'main') { 'pass' } else { 'fail' }
     worktree = if ([string]::IsNullOrEmpty($dirty)) { 'pass' } else { 'fail' }
     tag = if ($tagHead -ne 'unavailable') { 'pass' } else { 'fail' }
     head_tag = if ($head -ne 'unavailable' -and $head -eq $tagHead) { 'pass' } else { 'fail' }
-    master_sync = if ($master -ne 'unavailable' -and $master -eq $originMaster) { 'pass' } else { 'fail' }
+    main_sync = if ($main -ne 'unavailable' -and $main -eq $originMain) { 'pass' } else { 'fail' }
     vault = 'fail'
 }
 try {
