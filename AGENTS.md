@@ -28,6 +28,10 @@ preparar publicaciones, sigue
 [`references/release-readiness.md`](references/release-readiness.md); esa guía
 no autoriza por sí sola tags ni releases.
 
+Para retomar el diseño e implementación de operaciones de registros, sigue
+[`TO-DO.md`](TO-DO.md) solo como contexto de trabajo de este proyecto; no es una
+instrucción general ni una interfaz activa.
+
 Los diseños retirados de instalación consumidora, adaptadores y CLI están en
 [`references/history/README.md`](references/history/README.md) y no describen
 interfaces activas.
