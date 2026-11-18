@@ -1,8 +1,11 @@
 # AGENTS.md
 
-Este repositorio es la instalación de la skill `ato-ai-skill-mem`; su única
-memoria es `vault/`. No hay modo `source`/`consumer`, vault externa ni
-instalación por bootstrap. Sigue las reglas canónicas de [SKILL.md](SKILL.md).
+Este repositorio se llama `ato-ai-skill-mem` y contiene en su raíz la skill
+`local-mem`; su única memoria es `vault/`. Al clonar para instalar la skill,
+usa `local-mem` como directorio de destino, de modo que el nombre de carpeta
+coincida con el ID técnico de Agent Skills. No hay modo `source`/`consumer`,
+vault externa ni instalación por bootstrap. Sigue las reglas canónicas de
+[SKILL.md](SKILL.md).
 
 ## Memoria documental
 
@@ -12,8 +15,10 @@ leer. Después consulta `vault/AGENTS.md`, `_indexes/INDEX.md`, mapas y solo el
 dominio pertinente. No interpretes una estructura inválida ni busques otra
 ubicación.
 
-La raíz de la skill es propietaria de `vault/`. No aceptes rutas de vault
-arbitrarias, no resuelvas `mem/vault/` y no copies registros a otros proyectos.
+Cada instancia de la skill es propietaria únicamente de su `vault/` adyacente
+a `SKILL.md`. No aceptes rutas de vault arbitrarias, no busques memoria de
+otros proyectos/plugins/agentes, no resuelvas `mem/vault/` y no copies
+registros a otros proyectos.
 La integración con otras superficies anfitrionas permanece histórica; no
 afirmes que existe sincronización o instalación automática.
 

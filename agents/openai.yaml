@@ -1,0 +1,7 @@
+interface:
+  display_name: "Módulo Local de Memoria"
+  short_description: "Contexto documentado del proyecto en esta instalación"
+  default_prompt: "Usa $local-mem para recuperar contexto documentado de esta instalación."
+
+policy:
+  allow_implicit_invocation: true
