@@ -42,9 +42,11 @@ vocabulario y fuentes antes de registrar conocimiento.
 ```
 
 `migration-plan` crea propuestas revisables para los archivos Markdown en la
-raíz heredada `records/`, sin moverlos ni clasificarlos. `migration-apply`
-mueve un solo registro al dominio seleccionado y anota la acción en
-`_indexes/action-log.md`; si no puede registrar el movimiento, lo revierte.
+raíz heredada `records/` de la vault activa, sin moverlos ni clasificarlos.
+`migration-apply` mueve un solo registro al dominio seleccionado y anota la
+acción en `_indexes/action-log.md`; si no puede registrar el movimiento, lo
+revierte. Estos comandos no leen ni migran una vault externa como `mem/vault/`;
+para esa transición puntual, sigue la [guía de migración manual](legacy-vault-migration.md).
 
 ## Esquema y procedencia
 

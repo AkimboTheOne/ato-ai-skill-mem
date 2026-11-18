@@ -17,6 +17,10 @@ consumidor.
 4. Diagnostica la vault de la skill con `./scripts/vault.sh check`. Si no es
    válida, detén la migración hasta resolverlo por separado.
 
+Los comandos `migration-plan` y `migration-apply` no trasladan esta vault:
+operan solo sobre registros heredados en `records/` dentro de la vault activa.
+No leen `mem/vault/`.
+
 ## Trasladar contenido
 
 - Realiza cambios en la vault solo después de una petición explícita de la
@@ -30,8 +34,17 @@ consumidor.
   versiones en la lista de conflicto. La persona decide cómo reconciliarlas;
   no sobrescribas, fusiones ni retires contenido automáticamente.
 - Mantén la procedencia de los registros trasladados. Registra cada movimiento
-  explícito en `vault/_indexes/action-log.md` conforme a
-  [las operaciones de vault](vault-operations.md).
+  explícito en `vault/_indexes/action-log.md`. Para cada movimiento, anota la
+  ruta relativa de origen bajo el proyecto antiguo y la ruta de destino bajo
+  la raíz de esta skill, por ejemplo:
+
+  ```text
+  YYYY-MM-DDThh:mm:ssZ | manual-legacy-vault-migration | <domain-id> | explicit-human-request | <old-project>/mem/vault/<path> -> vault/20_domains/<domain-id>/<path> | operator
+  ```
+
+  Las operaciones disponibles para la vault activa se describen en
+  [la guía de operaciones](vault-operations.md); sus comandos de migración no
+  ejecutan este traslado entre ubicaciones.
 
 La skill no incluye un migrador automático entre estas ubicaciones. Si el
 formato de origen no puede convertirse con seguridad, conserva el respaldo y
