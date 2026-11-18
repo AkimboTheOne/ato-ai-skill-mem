@@ -23,8 +23,8 @@ TAG=v$VERSION
 BRANCH=$(git -C "$ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null || printf unavailable)
 HEAD=$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf unavailable)
 TAG_HEAD=$(git -C "$ROOT" rev-list -n 1 "$TAG" 2>/dev/null || printf unavailable)
-MASTER=$(git -C "$ROOT" rev-parse master 2>/dev/null || printf unavailable)
-ORIGIN_MASTER=$(git -C "$ROOT" rev-parse refs/remotes/origin/master 2>/dev/null || printf unavailable)
+MAIN=$(git -C "$ROOT" rev-parse main 2>/dev/null || printf unavailable)
+ORIGIN_MAIN=$(git -C "$ROOT" rev-parse refs/remotes/origin/main 2>/dev/null || printf unavailable)
 DIRTY=$(git -C "$ROOT" status --porcelain 2>/dev/null || printf unknown)
 
 check_version=fail
@@ -39,16 +39,16 @@ blockers=''
 add_blocker() { if [ -n "$blockers" ]; then blockers="$blockers,$1"; else blockers=$1; fi; }
 printf '%s\n' "$VERSION" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' >/dev/null && check_version=pass || add_blocker version
 printf '%s\n' "$VAULT_FORMAT" | grep -E '^[1-9][0-9]*$' >/dev/null && check_format=pass || add_blocker vault_format
-[ "$BRANCH" = master ] && check_branch=pass || add_blocker branch
+[ "$BRANCH" = main ] && check_branch=pass || add_blocker branch
 [ -z "$DIRTY" ] && check_worktree=pass || add_blocker worktree
 [ "$TAG_HEAD" != unavailable ] && check_tag=pass || add_blocker tag
 [ "$HEAD" != unavailable ] && [ "$HEAD" = "$TAG_HEAD" ] && check_head_tag=pass || add_blocker head_tag
-[ "$MASTER" != unavailable ] && [ "$MASTER" = "$ORIGIN_MASTER" ] && check_sync=pass || add_blocker master_sync
+[ "$MAIN" != unavailable ] && [ "$MAIN" = "$ORIGIN_MAIN" ] && check_sync=pass || add_blocker main_sync
 if "$ROOT/scripts/vault.sh" check >/dev/null 2>&1; then check_vault=pass; else add_blocker vault; fi
 
 if [ -n "$blockers" ]; then READY=false; EXIT_CODE=1; else READY=true; EXIT_CODE=0; fi
 if [ "$FORMAT" = json ]; then
-  printf '{"schema":1,"ready":%s,"version":"%s","expected_tag":"%s","checks":{"version":"%s","vault_format":"%s","branch":"%s","worktree":"%s","tag":"%s","head_tag":"%s","master_sync":"%s","vault":"%s"},"blockers":[' "$READY" "$VERSION" "$TAG" "$check_version" "$check_format" "$check_branch" "$check_worktree" "$check_tag" "$check_head_tag" "$check_sync" "$check_vault"
+  printf '{"schema":1,"ready":%s,"version":"%s","expected_tag":"%s","checks":{"version":"%s","vault_format":"%s","branch":"%s","worktree":"%s","tag":"%s","head_tag":"%s","main_sync":"%s","vault":"%s"},"blockers":[' "$READY" "$VERSION" "$TAG" "$check_version" "$check_format" "$check_branch" "$check_worktree" "$check_tag" "$check_head_tag" "$check_sync" "$check_vault"
   old_ifs=$IFS; IFS=,
   first=true
   for blocker in $blockers; do
@@ -69,7 +69,7 @@ else
   printf 'release.check.worktree: %s\n' "$check_worktree"
   printf 'release.check.tag: %s\n' "$check_tag"
   printf 'release.check.head_tag: %s\n' "$check_head_tag"
-  printf 'release.check.master_sync: %s\n' "$check_sync"
+  printf 'release.check.main_sync: %s\n' "$check_sync"
   printf 'release.check.vault: %s\n' "$check_vault"
   printf 'release.blockers: %s\n' "${blockers:-none}"
 fi
