@@ -1,3 +1,8 @@
+---
+type: domain-index
+format: 1
+---
+
 # Índice del dominio
 
 ## Activos

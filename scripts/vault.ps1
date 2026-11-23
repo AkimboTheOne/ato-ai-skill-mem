@@ -14,9 +14,10 @@ $titleWasProvided = $PSBoundParameters.ContainsKey('Title')
 function Fail([string]$Message) { throw "error: $Message" }
 $skillRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $layout = Join-Path $skillRoot 'templates/vault-layout'
+function Test-NewId([string]$Value) { return $Value.Length -le 63 -and $Value -cmatch '^[a-z0-9]+(-[a-z0-9]+)*$' -and $Value -cnotmatch '^(con|prn|aux|nul|com[1-9]|lpt[1-9])$' }
 function Test-ValidId([string]$Value) { return $Value -cmatch '^[a-z0-9][a-z0-9-]{0,62}$' }
-function Test-LocalFile([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and -not $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink' }
-function Test-LocalDirectory([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and $item.PSIsContainer -and $item.LinkType -ne 'SymbolicLink' }
+function Test-LocalFile([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and -not $item.PSIsContainer -and (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0) }
+function Test-LocalDirectory([string]$Path) { $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue; return $null -ne $item -and $item.PSIsContainer -and (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0) }
 function Copy-IfMissing([string]$Source, [string]$Destination) { if (-not (Test-Path -LiteralPath $Destination)) { Copy-Item -LiteralPath $Source -Destination $Destination } }
 function ConvertTo-YamlQuoted([string]$Value) { return '"' + $Value.Replace('\', '\\').Replace('"', '\"') + '"' }
 $Vault = Join-Path $skillRoot 'vault'
@@ -24,14 +25,14 @@ if (-not (Test-LocalDirectory $Vault)) { Fail "la vault de la skill no existe o 
 function Initialize-Layout {
     foreach ($directory in @('00_inbox/decisions-pending','10_areas','20_domains','30_resources','40_archive','50_daily','60_exports','_indexes','_maps','_templates')) { [System.IO.Directory]::CreateDirectory((Join-Path $Vault $directory)) | Out-Null }
     Copy-IfMissing (Join-Path $layout 'AGENTS.md') (Join-Path $Vault 'AGENTS.md')
-    foreach ($name in @('domain.yml','domain-AGENTS.md','domain-INDEX.md','area.md','daily.md','pending-decision.md','export.md')) { Copy-IfMissing (Join-Path $layout $name) (Join-Path $Vault "_templates/$name") }
+    foreach ($name in @('domain.yml','domain-AGENTS.md','domain-INDEX.md','area.md','daily.md','pending-decision.md','export.md','resource.md','map.md','archive.md')) { Copy-IfMissing (Join-Path $layout $name) (Join-Path $Vault "_templates/$name") }
     if (-not (Test-Path -LiteralPath (Join-Path $Vault '_indexes/INDEX.md'))) { [System.IO.File]::WriteAllText((Join-Path $Vault '_indexes/INDEX.md'), '# Índices de la vault') }
     if (-not (Test-Path -LiteralPath (Join-Path $Vault '_indexes/action-log.md'))) { [System.IO.File]::WriteAllText((Join-Path $Vault '_indexes/action-log.md'), '# Registro de acciones' + [Environment]::NewLine) }
     if (-not (Test-Path -LiteralPath (Join-Path $Vault '_maps/INDEX.md'))) { [System.IO.File]::WriteAllText((Join-Path $Vault '_maps/INDEX.md'), '# Mapas de la vault') }
 }
 function New-Domain {
     $domainId = if ($Id) { $Id } else { $Domain }
-    if (-not (Test-ValidId $domainId)) { Fail '--id debe usar minúsculas, dígitos y guiones' }
+    if (-not (Test-NewId $domainId)) { Fail '--id inválido o reservado: usa minúsculas, dígitos y guiones simples' }
     if (-not $titleWasProvided) { $Title = $domainId }
     elseif ([string]::IsNullOrWhiteSpace($Title)) { Fail '--title no puede estar vacío ni contener solo espacios' }
     if ($Title -match '[\r\n]') { Fail '--title debe ser una sola línea' }
@@ -45,7 +46,10 @@ function New-Domain {
         $metadata = "format: 1$([Environment]::NewLine)id: $domainId$([Environment]::NewLine)title: $(ConvertTo-YamlQuoted $Title)$([Environment]::NewLine)status: active$([Environment]::NewLine)scope: contextual$([Environment]::NewLine)areas: []$([Environment]::NewLine)routing:$([Environment]::NewLine)  rules: []$([Environment]::NewLine)"
         [System.IO.File]::WriteAllText((Join-Path $temporaryPath 'domain.yml'), $metadata)
         $agentTemplate = Get-Content -LiteralPath (Join-Path $layout 'domain-AGENTS.md') -Raw
-        [System.IO.File]::WriteAllText((Join-Path $temporaryPath 'AGENTS.md'), "# Dominio: $Title$([Environment]::NewLine)" + $agentTemplate.Substring($agentTemplate.IndexOf([Environment]::NewLine) + [Environment]::NewLine.Length))
+        $headingPattern = [regex]::new('(?m)^# Dominio: [^\r\n]*')
+        if (-not $headingPattern.IsMatch($agentTemplate)) { Fail 'falta encabezado de dominio en la plantilla' }
+        $agentContent = $headingPattern.Replace($agentTemplate, [System.Text.RegularExpressions.MatchEvaluator]{ param($match) "# Dominio: $Title" }, 1)
+        [System.IO.File]::WriteAllText((Join-Path $temporaryPath 'AGENTS.md'), $agentContent)
         Copy-Item -LiteralPath (Join-Path $layout 'domain-INDEX.md') -Destination (Join-Path $temporaryPath 'INDEX.md')
         Move-Item -LiteralPath $temporaryPath -Destination $domainPath
     }
@@ -63,7 +67,7 @@ function Test-Vault {
     if (Test-Path -LiteralPath (Join-Path $Vault 'INDEX.md')) { Fail 'INDEX.md raíz heredado; archívalo antes de validar formato 3' }
     foreach ($directory in @('00_inbox','10_areas','20_domains','30_resources','40_archive','50_daily','60_exports','_indexes','_maps','_templates')) { if (-not (Test-LocalDirectory (Join-Path $Vault $directory))) { Fail "falta directorio local: $directory" } }
     foreach ($file in @('_indexes/INDEX.md','_indexes/action-log.md','_maps/INDEX.md')) { if (-not (Test-LocalFile (Join-Path $Vault $file))) { Fail "falta archivo canónico local: $file" } }
-    foreach ($file in @('domain.yml','domain-AGENTS.md','domain-INDEX.md','area.md','daily.md','pending-decision.md','export.md')) { if (-not (Test-LocalFile (Join-Path $Vault "_templates/$file"))) { Fail "falta plantilla canónica local: $file" } }
+    foreach ($file in @('domain.yml','domain-AGENTS.md','domain-INDEX.md','area.md','daily.md','pending-decision.md','export.md','resource.md','map.md','archive.md')) { if (-not (Test-LocalFile (Join-Path $Vault "_templates/$file"))) { Fail "falta plantilla canónica local: $file" } }
     $ids = @{}
     Get-ChildItem -LiteralPath (Join-Path $Vault '20_domains') -Force | ForEach-Object {
         $domain = $_.FullName
@@ -103,7 +107,7 @@ function New-MigrationPlan {
             $staged = Join-Path $planDirectory "$($record.BaseName).md"
             $template = Get-Content -LiteralPath (Join-Path $layout 'pending-decision.md') -Raw
             $body = $template.Substring($template.IndexOf('# Decisión pendiente'))
-            $content = "---$([Environment]::NewLine)id: $(ConvertTo-YamlQuoted $record.BaseName)$([Environment]::NewLine)status: pending$([Environment]::NewLine)source: $(ConvertTo-YamlQuoted "records/$($record.Name)")$([Environment]::NewLine)proposed_domain: null$([Environment]::NewLine)created: $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))$([Environment]::NewLine)---$([Environment]::NewLine)$([Environment]::NewLine)$body"
+            $content = "---$([Environment]::NewLine)id: $(ConvertTo-YamlQuoted $record.BaseName)$([Environment]::NewLine)type: pending-decision$([Environment]::NewLine)status: pending$([Environment]::NewLine)source: $(ConvertTo-YamlQuoted "records/$($record.Name)")$([Environment]::NewLine)proposed_domain: null$([Environment]::NewLine)created: $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))$([Environment]::NewLine)updated: $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))$([Environment]::NewLine)author: operator$([Environment]::NewLine)sources: []$([Environment]::NewLine)---$([Environment]::NewLine)$([Environment]::NewLine)$body"
             [System.IO.File]::WriteAllText($staged, $content)
         }
         Get-ChildItem -LiteralPath $planDirectory -File | ForEach-Object {
@@ -128,7 +132,10 @@ function Invoke-MigrationApply {
     $source = Join-Path $Vault "records/$Record"
     $destination = Join-Path $Vault "20_domains/$domainId/records/$Record"
     if (-not (Test-LocalFile $source)) { Fail "registro raíz inexistente o no local: $Record" }
-    if (-not (Test-Path -LiteralPath (Split-Path $destination) -PathType Container)) { Fail "dominio inexistente: $domainId" }
+    $domainsRoot = Join-Path $Vault '20_domains'
+    $domainPath = Join-Path $domainsRoot $domainId
+    $recordsPath = Join-Path $domainPath 'records'
+    if (-not (Test-LocalDirectory $domainsRoot) -or -not (Test-LocalDirectory $domainPath) -or -not (Test-LocalDirectory $recordsPath)) { Fail "dominio inexistente o ruta de destino no local: $domainId" }
     if (Test-Path -LiteralPath $destination) { Fail "destino existente: $destination" }
     $actionLog = Join-Path $Vault '_indexes/action-log.md'
     if (-not (Test-LocalFile $actionLog)) { Fail "falta el registro de acciones local: $actionLog" }
@@ -146,10 +153,39 @@ function Invoke-MigrationApply {
         throw "no se pudo registrar la migración; el movimiento fue revertido: $Record"
     }
 }
-switch ($Command) {
-    'init-layout' { Initialize-Layout }
-    'create-domain' { New-Domain }
-    'check' { Test-Vault; Write-Output 'vault.state: valid' }
-    'migration-plan' { New-MigrationPlan }
-    'migration-apply' { Invoke-MigrationApply }
+$lockPath = Join-Path $Vault '.local-mem.lock'
+$needsLock = $Command -ne 'check'
+$finished = $false
+if ($needsLock) {
+    try {
+        $lockFile = [System.IO.File]::Open($lockPath, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::Read)
+    }
+    catch { Fail 'vault bloqueada o lock inaccesible; revisa .local-mem.lock antes de continuar' }
+    try {
+        $plan = "operation: $Command`npid: $PID`nhost: $([System.Environment]::MachineName)`ndomain: $Domain $Id`nrecord: $Record`nstage: execute`n"
+        $pathSummary = switch ($Command) {
+            'init-layout' { 'estructura y plantillas de la vault' }
+            'create-domain' { "20_domains/$(if ($Id) { $Id } else { $Domain }) y estructura básica" }
+            'migration-plan' { '00_inbox/decisions-pending y estructura básica' }
+            'migration-apply' { "records/$Record, 20_domains/$(if ($Domain) { $Domain } else { $Id })/records/$Record, _indexes/action-log.md" }
+        }
+        $plan += "paths: $pathSummary`n"
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($plan)
+        $lockFile.Write($bytes, 0, $bytes.Length)
+        $lockFile.Flush($true)
+    }
+    finally { $lockFile.Dispose() }
+}
+try {
+    switch ($Command) {
+        'init-layout' { Initialize-Layout }
+        'create-domain' { New-Domain }
+        'check' { Test-Vault; Write-Output 'vault.state: valid' }
+        'migration-plan' { New-MigrationPlan }
+        'migration-apply' { Invoke-MigrationApply }
+    }
+    $finished = $true
+}
+finally {
+    if ($needsLock -and $finished) { Remove-Item -LiteralPath $lockPath -Force -ErrorAction Stop }
 }

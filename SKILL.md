@@ -56,11 +56,26 @@ confianza ni historial, y no apliques routing automáticamente. Si no hay un
 dominio inequívoco, prepara una propuesta en `vault/00_inbox/decisions-pending/`
 solo cuando la persona haya pedido persistirla.
 
-Los scripts `scripts/vault.sh` y `scripts/vault.ps1` operan sobre la única
-`vault/` junto a esta skill. Consulta [vault-operations.md](references/vault-operations.md)
-para comandos estructurales y migraciones. La versión del skill (`VERSION`) y
-el formato de datos (`VAULT_FORMAT`) son independientes; las reglas de
-publicación están en [release-readiness.md](references/release-readiness.md).
+## Operaciones
+
+Para toda operación, identifica su propósito, alcance, entradas y efectos;
+consulta la referencia pertinente y usa solo el contexto necesario. Comprueba
+el resultado frente a la solicitud y comunica lo relevante. Ante un error o
+ambigüedad, detente, conserva la evidencia y revisa la causa antes de continuar;
+no fuerces la operación ni supongas éxito.
+
+Las consultas son de solo lectura: interpreta los resultados a la luz de las
+fuentes originales y su estado. Para escribir, verifica autorización, destino,
+contenido y efectos sobre registros y referencias. Usa el lock también en
+operaciones manuales; si permanece, sigue su recuperación. Para mover o retirar,
+revisa las referencias y aplica los cambios manualmente según la referencia.
+
+- Para buscar, consulta [search.md](references/search.md).
+- Para leer o cambiar contenido y orientar sus nombres, consulta [content-operations.md](references/content-operations.md).
+- Para diagnóstico, layout, dominios o migración, consulta [vault-operations.md](references/vault-operations.md).
+- Para preparación de publicaciones, consulta [release-readiness.md](references/release-readiness.md).
+
+`VERSION` y `VAULT_FORMAT` son independientes.
 
 ## Límites
 

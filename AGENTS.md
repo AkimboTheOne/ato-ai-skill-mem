@@ -43,10 +43,33 @@ interfaces activas.
 
 ## Gobernanza
 
-Cuando `ato-ai-skill-governance` esté disponible, úsala en planificación,
-diseño, validación y simplificación. Conserva auditabilidad humana y detén la
-automatización si el proceso no es estable. La skill de gobernanza no es una
-dependencia runtime.
+Usa siempre la skill local
+[`ato-ai-skill-governance`](.codex/skills/ato-ai-skill-governance/SKILL.md)
+al planificar, diseñar, crear, modificar, revisar, validar o simplificar la
+skill de este proyecto. Si falta en un clon, instálala localmente antes de
+continuar:
+
+```sh
+mkdir -p .codex/skills
+git clone git@github.com:AkimboTheOne/ato-ai-skill-governance.git .codex/skills/ato-ai-skill-governance
+```
+
+Conserva auditabilidad humana y detén la automatización si el proceso no es
+estable. La skill de gobernanza no es una dependencia runtime.
+
+## Cierre de revisiones
+
+Define el alcance y los criterios de cierre antes de revisar. En cada
+iteración, realiza una revisión integral, agrupa los hallazgos por causa y,
+si la corrección está autorizada, resuélvelos y verifica los cambios de forma
+enfocada. Termina al cumplir los criterios; no encadenes nuevas revisiones
+integrales automáticamente. Una revisión adicional requiere una petición
+explícita o un cambio material que la justifique.
+
+Si reaparecen fallos de la misma causa, detén el ciclo automático de parches,
+examina el diseño y sus límites y simplifica la solución dentro del alcance
+autorizado. Comunica los problemas y riesgos pendientes; no declares que no
+hay defectos solo por alcanzar un límite de iteraciones.
 
 ## Idioma y ramas
 

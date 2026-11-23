@@ -1,3 +1,8 @@
+---
+type: vault-instructions
+format: 1
+---
+
 # Guía maestra de la vault
 
 Esta vault pertenece a la skill que la contiene. `SKILL.md` define activación,

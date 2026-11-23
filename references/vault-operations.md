@@ -33,6 +33,7 @@ En PowerShell, usa `init-layout` y `create-domain -Id arquitectura -Title Arquit
 
 El dominio inicial declara `routing.rules: []`. Completa propósito, límites,
 vocabulario y fuentes antes de registrar conocimiento.
+Para nombrar dominios nuevos, sigue el criterio de [nombres de contenido](content-operations.md#nombres-para-contenido-nuevo).
 
 ## Migración de registros raíz heredados
 
@@ -53,3 +54,9 @@ para esa transición puntual, sigue la [guía de migración manual](legacy-vault
 Cada registro Markdown conserva su front matter, evidencia, enlaces y cadena
 de reemplazo. Un cambio estructural requiere revisión explícita; no existe
 routing automático. La persona decide el dominio cuando no hay uno claro.
+
+## Contenido
+
+Para los flujos y el asistente Python de contenido, consulta [content-operations.md](content-operations.md). Bash y PowerShell conservan las operaciones de instancia y diagnóstico existentes.
+
+Las operaciones de escritura de instancia participan en el lock compartido; consulta [coordinación de escrituras](content-operations.md#coordinación-de-escrituras) antes de recuperar una operación interrumpida.

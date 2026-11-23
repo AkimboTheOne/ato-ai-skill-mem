@@ -1,3 +1,8 @@
+---
+type: domain-instructions
+format: 1
+---
+
 # Dominio: DOMAIN_TITLE
 
 ## Propósito

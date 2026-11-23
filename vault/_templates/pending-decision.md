@@ -1,9 +1,13 @@
 ---
 id: YYYY-MM-DD--pending-slug
+type: pending-decision
 status: pending
 source: SOURCE_PATH
 proposed_domain: null
 created: YYYY-MM-DD
+updated: YYYY-MM-DD
+author: AUTHOR
+sources: []
 ---
 
 # Decisión pendiente

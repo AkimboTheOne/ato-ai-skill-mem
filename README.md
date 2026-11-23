@@ -71,3 +71,7 @@ La skill no implementa RAG operativo, embeddings, bases vectoriales,
 sincronización, fusión de memorias ni ejecución en segundo plano. Las
 definiciones de instalación consumidora, adaptadores y CLI independiente se
 conservan como historia en [references/history/README.md](references/history/README.md).
+
+### Operaciones de contenido
+
+La skill orienta la consulta y los cambios explícitos sobre su vault. Los flujos, las plantillas recomendadas y el asistente Python se describen en [operaciones de contenido](references/content-operations.md).

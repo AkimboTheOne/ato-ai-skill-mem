@@ -33,6 +33,10 @@ VAULT=$SKILL_ROOT/vault
 [ ! -L "$VAULT" ] || fail 'la vault de la skill no puede ser un symlink'
 LAYOUT=$SKILL_ROOT/templates/vault-layout
 
+valid_new_id() {
+  [ "${#1}" -le 63 ] && printf '%s\n' "$1" | grep -E '^[a-z0-9]+(-[a-z0-9]+)*$' >/dev/null || return 1
+  case "$1" in con|prn|aux|nul|com[1-9]|lpt[1-9]) return 1 ;; esac
+}
 valid_id() { printf '%s\n' "$1" | grep -E '^[a-z0-9][a-z0-9-]{0,62}$' >/dev/null; }
 local_file() { [ -f "$1" ] && [ ! -L "$1" ]; }
 local_dir() { [ -d "$1" ] && [ ! -L "$1" ]; }
@@ -42,13 +46,13 @@ single_line() { [ "$(printf '%s\n' "$1" | wc -l | tr -d '[:space:]')" = 1 ]; }
 init_layout() {
   for dir in 00_inbox/decisions-pending 10_areas 20_domains 30_resources 40_archive 50_daily 60_exports _indexes _maps _templates; do mkdir -p "$VAULT/$dir"; done
   copy_if_missing "$LAYOUT/AGENTS.md" "$VAULT/AGENTS.md"
-  for name in domain.yml domain-AGENTS.md domain-INDEX.md area.md daily.md pending-decision.md export.md; do copy_if_missing "$LAYOUT/$name" "$VAULT/_templates/$name"; done
+  for name in domain.yml domain-AGENTS.md domain-INDEX.md area.md daily.md pending-decision.md export.md resource.md map.md archive.md; do copy_if_missing "$LAYOUT/$name" "$VAULT/_templates/$name"; done
   [ -e "$VAULT/_indexes/INDEX.md" ] || printf '# Índices de la vault\n' > "$VAULT/_indexes/INDEX.md"
   [ -e "$VAULT/_indexes/action-log.md" ] || printf '# Registro de acciones\n\n' > "$VAULT/_indexes/action-log.md"
   [ -e "$VAULT/_maps/INDEX.md" ] || printf '# Mapas de la vault\n' > "$VAULT/_maps/INDEX.md"
 }
 create_domain() {
-  valid_id "$DOMAIN_ID" || fail '--id debe usar minúsculas, dígitos y guiones'
+  valid_new_id "$DOMAIN_ID" || fail '--id inválido o reservado: usa minúsculas, dígitos y guiones simples'
   if [ "$TITLE_SET" = false ]; then DOMAIN_TITLE=$DOMAIN_ID; fi
   [ -n "$(printf '%s' "$DOMAIN_TITLE" | tr -d '[:space:]')" ] || fail '--title no puede estar vacío ni contener solo espacios'
   single_line "$DOMAIN_TITLE" || fail '--title debe ser una sola línea'
@@ -59,7 +63,7 @@ create_domain() {
   ESCAPED_TITLE=$(yaml_escape "$DOMAIN_TITLE")
   if ! mkdir -p "$TMP_DOMAIN/records" "$TMP_DOMAIN/resources" \
     || ! { printf '%s\n' 'format: 1' "id: $DOMAIN_ID" "title: \"$ESCAPED_TITLE\"" 'status: active' 'scope: contextual' 'areas: []' 'routing:' '  rules: []'; } > "$TMP_DOMAIN/domain.yml" \
-    || ! { printf '# Dominio: %s\n' "$DOMAIN_TITLE"; sed '1d' "$LAYOUT/domain-AGENTS.md"; } > "$TMP_DOMAIN/AGENTS.md" \
+    || ! { sed '/^# Dominio: /,$d' "$LAYOUT/domain-AGENTS.md"; printf '# Dominio: %s\n' "$DOMAIN_TITLE"; sed -n '/^# Dominio: /,$p' "$LAYOUT/domain-AGENTS.md" | sed '1d'; } > "$TMP_DOMAIN/AGENTS.md" \
     || ! cp "$LAYOUT/domain-INDEX.md" "$TMP_DOMAIN/INDEX.md" \
     || ! mv "$TMP_DOMAIN" "$DOMAIN"; then
     rm -rf "$TMP_DOMAIN"
@@ -74,7 +78,7 @@ check_vault() {
   [ ! -e "$VAULT/INDEX.md" ] || fail 'INDEX.md raíz heredado; archívalo antes de validar formato 3'
   for dir in 00_inbox 10_areas 20_domains 30_resources 40_archive 50_daily 60_exports _indexes _maps _templates; do local_dir "$VAULT/$dir" || fail "falta directorio local: $dir"; done
   for file in _indexes/INDEX.md _indexes/action-log.md _maps/INDEX.md; do local_file "$VAULT/$file" || fail "falta archivo canónico local: $file"; done
-  for file in domain.yml domain-AGENTS.md domain-INDEX.md area.md daily.md pending-decision.md export.md; do local_file "$VAULT/_templates/$file" || fail "falta plantilla canónica local: $file"; done
+  for file in domain.yml domain-AGENTS.md domain-INDEX.md area.md daily.md pending-decision.md export.md resource.md map.md archive.md; do local_file "$VAULT/_templates/$file" || fail "falta plantilla canónica local: $file"; done
   ids=''
   for domain in "$VAULT"/20_domains/* "$VAULT"/20_domains/.[!.]* "$VAULT"/20_domains/..?*; do
     [ -e "$domain" ] || continue
@@ -109,7 +113,7 @@ migration_plan() {
     fi
     body=$(sed -n '/^# Decisión pendiente$/,$p' "$LAYOUT/pending-decision.md")
     staged=$PLAN_DIR/$name.md
-    { printf '%s\n' '---' "id: \"$(yaml_escape "$name")\"" 'status: pending' "source: \"$(yaml_escape "records/$(basename "$record")")\"" 'proposed_domain: null' "created: $(date -u +%Y-%m-%d)" '---' ''; printf '%s\n' "$body"; } > "$staged" || { rm -rf "$PLAN_DIR"; fail "no se pudo crear la propuesta: $pending"; }
+    { printf '%s\n' '---' "id: \"$(yaml_escape "$name")\"" 'type: pending-decision' 'status: pending' "source: \"$(yaml_escape "records/$(basename "$record")")\"" 'proposed_domain: null' "created: $(date -u +%Y-%m-%d)" "updated: $(date -u +%Y-%m-%d)" 'author: operator' 'sources: []' '---' ''; printf '%s\n' "$body"; } > "$staged" || { rm -rf "$PLAN_DIR"; fail "no se pudo crear la propuesta: $pending"; }
     printf '%s\n' "$name.md" >> "$PLAN_LIST"
   done
   MOVED_LIST=$PLAN_DIR/.moved
@@ -135,7 +139,7 @@ migration_apply() {
     */*|*'\'*) fail '--record no puede incluir rutas' ;;
   esac
   DOMAIN=$VAULT/20_domains/$DOMAIN_ID
-  [ -d "$DOMAIN/records" ] || fail "dominio inexistente: $DOMAIN_ID"
+  local_dir "$VAULT/20_domains" && local_dir "$DOMAIN" && local_dir "$DOMAIN/records" || fail "dominio inexistente o ruta de destino no local: $DOMAIN_ID"
   SOURCE=$VAULT/records/$RECORD
   local_file "$SOURCE" || fail "registro raíz inexistente o no local: $RECORD"
   DEST=$DOMAIN/records/$RECORD
@@ -148,6 +152,20 @@ migration_apply() {
     fail "no se pudo registrar la migración; el movimiento fue revertido: $RECORD"
   fi
 }
+# El archivo se crea exclusivamente; queda como evidencia si el proceso falla.
+LOCK=$VAULT/.local-mem.lock
+case "$COMMAND" in
+  init-layout|create-domain|migration-plan|migration-apply)
+    ( set -C; : > "$LOCK" ) 2>/dev/null || fail 'vault bloqueada; revisa .local-mem.lock antes de continuar'
+    printf 'operation: %s\npid: %s\nhost: %s\ndomain: %s\nrecord: %s\nstage: execute\n' "$COMMAND" "$$" "$(hostname)" "$DOMAIN_ID" "$RECORD" > "$LOCK" || fail 'no se pudo registrar el plan; revisa .local-mem.lock'
+    case "$COMMAND" in
+      init-layout) printf '%s\n' 'paths: estructura y plantillas de la vault' >> "$LOCK" ;;
+      create-domain) printf '%s\n' "paths: 20_domains/$DOMAIN_ID y estructura básica" >> "$LOCK" ;;
+      migration-plan) printf '%s\n' 'paths: 00_inbox/decisions-pending y estructura básica' >> "$LOCK" ;;
+      migration-apply) printf '%s\n' "paths: records/$RECORD, 20_domains/$DOMAIN_ID/records/$RECORD, _indexes/action-log.md" >> "$LOCK" ;;
+    esac || fail 'no se pudo registrar el plan; revisa .local-mem.lock'
+    ;;
+esac
 case "$COMMAND" in
   init-layout) init_layout ;;
   create-domain) create_domain ;;
@@ -157,3 +175,7 @@ case "$COMMAND" in
   *) fail "comando desconocido: $COMMAND" ;;
 esac
 
+
+case "$COMMAND" in
+  init-layout|create-domain|migration-plan|migration-apply) rm "$LOCK" || fail 'no se pudo liberar .local-mem.lock' ;;
+esac

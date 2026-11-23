@@ -1,3 +1,13 @@
+---
+id: DOCUMENT_ID
+type: export
+status: active
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+author: AUTHOR
+sources: []
+---
+
 # Exportación
 
 ## Alcance

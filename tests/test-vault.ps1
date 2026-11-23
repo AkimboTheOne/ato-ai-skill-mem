@@ -22,6 +22,18 @@ try {
     Assert-Fails { & (Join-Path $install 'scripts/vault.ps1') check -Target $temp } 'selector -Target'
     Assert-Fails { & (Join-Path $install 'scripts/vault.ps1') check -Source } 'selector -Source'
 
+    $domainTemplatePath = Join-Path $install 'templates/vault-layout/domain-AGENTS.md'
+    $domainTemplate = [System.IO.File]::ReadAllText($domainTemplatePath)
+    foreach ($lineEnding in @("`n", "`r`n")) {
+        $normalized = $domainTemplate -replace "`r?`n", $lineEnding
+        [System.IO.File]::WriteAllText($domainTemplatePath, $normalized)
+        $suffix = if ($lineEnding -eq "`n") { 'lf' } else { 'crlf' }
+        & (Join-Path $install 'scripts/vault.ps1') create-domain -Id "sample-$suffix" -Title "Domain $suffix"
+        $created = [System.IO.File]::ReadAllText((Join-Path $install "vault/20_domains/sample-$suffix/AGENTS.md"))
+        Assert-True ($created.Contains("# Dominio: Domain $suffix")) "creación con plantilla $suffix"
+        Assert-True ($created.Contains($lineEnding)) "saltos de línea $suffix"
+    }
+
     & (Join-Path $install 'scripts/vault.ps1') create-domain -Id isolated -Title 'Isolated Skill'
     Assert-True (Test-Path -LiteralPath (Join-Path $install 'vault/20_domains/isolated/domain.yml')) 'el dominio no se creó en la raíz instalada'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $root 'vault/20_domains/isolated'))) 'se modificó la vault del repositorio anfitrión'
