@@ -29,9 +29,9 @@ breve antes de analizar.
 Activa `ato-ai-skill-governance` en modo rector. Usa como entrada el objetivo
 actual, la conversación relevante, los archivos inspeccionados y las
 restricciones activas. Si el objetivo depende de decisiones, contratos,
-convenciones o historial del producto, activa `ato-ai-skill-mem`, ejecuta
-`scripts/wiki.sh check` en la raíz de la skill instalada y lee solo el
-contexto pertinente de `wiki/`.
+convenciones o historial del producto, consulta el contexto pertinente de la
+memoria documental conforme al `SKILL.md` de la instancia. La activación y el
+diagnóstico de la memoria se rigen por los artefactos técnicos de la skill.
 
 Ejecuta las fases en este orden:
 

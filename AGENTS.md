@@ -9,6 +9,10 @@ wiki externa ni instalación por bootstrap. Sigue las reglas canónicas de
 
 ## Memoria documental
 
+Para trabajar con la memoria de este repositorio, usa la skill `local-mem`
+de esta instancia, disponible en `.agents/skills/local-mem`, y sigue su
+[`SKILL.md`](SKILL.md) como fuente canónica.
+
 Al activar memoria, ejecuta una sola vez `scripts/wiki.sh check` (o
 `scripts/wiki.ps1 check`) como diagnóstico estructural y comunícalo antes de
 leer. Después consulta `wiki/AGENTS.md`, `_indexes/INDEX.md`, mapas y solo el
