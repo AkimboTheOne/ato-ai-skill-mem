@@ -1,28 +1,32 @@
 # AGENTS.md
 
 Este repositorio se llama `ato-ai-skill-mem` y contiene en su raíz la skill
-`local-mem`; su única memoria es `wiki/`. Al clonar para instalar la skill,
-usa `local-mem` como directorio de destino, de modo que el nombre de carpeta
-coincida con el ID técnico de Agent Skills. No hay modo `source`/`consumer`,
-wiki externa ni instalación por bootstrap. Sigue las reglas canónicas de
-[SKILL.md](SKILL.md).
+`local-mem`. La documentación del proyecto está en `doc/`; `wiki/` contiene
+solo el layout base vacío de memoria, sin datos ni registros del proyecto.
+Al clonar para instalar la skill, usa `local-mem` como directorio de destino,
+de modo que el nombre de carpeta coincida con el ID técnico de Agent Skills.
+No hay modo `source`/`consumer`, wiki externa ni instalación por bootstrap.
+Sigue las reglas canónicas de [SKILL.md](SKILL.md).
 
 ## Memoria documental
 
-Para trabajar con la memoria de este repositorio, usa la skill `local-mem`
-de esta instancia, disponible en `.agents/skills/local-mem`, y sigue su
-[`SKILL.md`](SKILL.md) como fuente canónica.
+Para trabajar en la documentación o el historial de este proyecto, usa la
+skill local `project-doc` de `.agents/skills/project-doc` y consulta solo las
+páginas pertinentes de `doc/`. No trates esos documentos como registros de
+memoria activa.
 
-Al activar memoria, ejecuta una sola vez `scripts/wiki.sh check` (o
-`scripts/wiki.ps1 check`) como diagnóstico estructural y comunícalo antes de
-leer. Después consulta `wiki/AGENTS.md`, `_indexes/INDEX.md`, mapas y solo el
-dominio pertinente. No interpretes una estructura inválida ni busques otra
-ubicación.
+`wiki/` es la plantilla base que se incluye al instalar la skill; este
+repositorio no tiene una instancia activa de memoria del proyecto. Si una
+tarea requiere operar sobre memoria de otra instalación, usa la skill
+`local-mem` de esa instalación y sigue su `SKILL.md`; trabaja solo con la
+`wiki/` adyacente a ese archivo. Al activar esa memoria, ejecuta una sola vez
+su diagnóstico estructural y comunícalo antes de leer. No uses esta wiki base
+ni `doc/` como sustituto de la memoria de otra instalación.
 
 Cada instancia de la skill es propietaria únicamente de su `wiki/` adyacente
 a `SKILL.md`. No aceptes rutas de wiki arbitrarias, no busques memoria de
-otros proyectos/plugins/agentes, no resuelvas `mem/vault/` y no copies
-registros a otros proyectos.
+otros proyectos/plugins/agentes, no resuelvas `mem/vault/` y no copies los
+registros históricos de `doc/memory/history/` a una instancia.
 La integración con otras superficies anfitrionas permanece histórica; no
 afirmes que existe sincronización o instalación automática.
 

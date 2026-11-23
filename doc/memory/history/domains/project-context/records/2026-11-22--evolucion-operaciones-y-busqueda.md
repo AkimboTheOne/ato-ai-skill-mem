@@ -30,7 +30,7 @@ La skill conserva las reglas comunes y dirige a referencias específicas. Las pl
 
 ## Evidencia
 
-La conversación de trabajo acordó y maduró estos flujos; la interfaz vigente y sus límites están documentados en [operaciones de contenido](../../../../references/content-operations.md) y [búsqueda local](../../../../references/search.md). La evolución de instalación y validación se documenta en el [registro relacionado](2026-11-22--evolucion-local-mem-y-validacion.md).
+La conversación de trabajo acordó y maduró estos flujos; la interfaz vigente y sus límites están documentados en [operaciones de contenido](../../../../../../references/content-operations.md) y [búsqueda local](../../../../../../references/search.md). La evolución de instalación y validación se documenta en el [registro relacionado](2026-11-22--evolucion-local-mem-y-validacion.md).
 
 - `content.py` consulta, prepara plantillas, crea y actualiza documentos. Para registros de dominio conserva metadatos protegidos y añade al índice una entrada basada en el identificador, evitando que el Markdown de un título rompa el enlace. La creación y actualización registran su operación en el log.
 - Un lock visible coordina las escrituras de las interfaces participantes. Las operaciones preparan sus cambios, detectan conflictos e intentan revertirlos si falla la publicación; los cambios entre archivos no son atómicos. La recuperación de una interrupción o reversión incompleta requiere revisión.
@@ -42,4 +42,4 @@ La conversación de trabajo acordó y maduró estos flujos; la interfaz vigente 
 
 El agente debe interpretar los resultados de búsqueda junto con sus fuentes y revisar el alcance de cada cambio autorizado. Los planes de movimiento o retiro no sustituyen la inspección de referencias; ante ambigüedad se detiene la operación. Las instrucciones de gobierno del proyecto piden una revisión integral por iteración y verificaciones enfocadas después de corregir, evitando ciclos automáticos indefinidos.
 
-El trabajo pendiente y cualquier evaluación de capacidades adicionales se mantienen en [TO-DO.md](../../../../TO-DO.md). Este artículo resume decisiones y resultados de la conversación; no es una transcripción ni sustituye los contratos activos.
+El trabajo pendiente y cualquier evaluación de capacidades adicionales se mantienen en [TO-DO.md](../../../../../../TO-DO.md). Este artículo resume decisiones y resultados de la conversación; no es una transcripción ni sustituye los contratos activos.

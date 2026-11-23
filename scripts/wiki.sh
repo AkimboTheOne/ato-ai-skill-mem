@@ -95,6 +95,7 @@ check_wiki() {
   ids=''
   for domain in "$WIKI"/20_domains/* "$WIKI"/20_domains/.[!.]* "$WIKI"/20_domains/..?*; do
     [ -e "$domain" ] || continue
+    if [ "$(basename "$domain")" = .gitkeep ]; then local_file "$domain" || fail "marcador estructural inválido: $domain"; continue; fi
     local_dir "$domain" || fail "dominio inválido: $domain"
     id=$(sed -n 's/^id: *//p' "$domain/domain.yml" 2>/dev/null | sed -n '1p')
     format=$(sed -n 's/^format: *//p' "$domain/domain.yml" 2>/dev/null | sed -n '1p')

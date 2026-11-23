@@ -20,6 +20,7 @@ class ContentOperations(unittest.TestCase):
         shutil.copytree(ROOT / 'scripts', self.root / 'scripts')
         shutil.copytree(ROOT / 'templates', self.root / 'templates')
         shutil.copytree(ROOT / 'wiki', self.root / 'wiki')
+        shutil.copytree(ROOT / 'doc/memory/history/domains/project-context', self.root / 'wiki/20_domains/project-context', dirs_exist_ok=True)
         self.input = self.root / 'input.md'
         self.input.write_text('---\nid: note\ntype: resource\nstatus: active\ncreated: 2026-11-17\nupdated: 2026-11-17\nauthor: human\nsources: []\n---\n\n# Nota\n', encoding='utf-8')
 
