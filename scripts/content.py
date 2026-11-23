@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Operaciones explícitas de contenido sobre la vault de esta instalación."""
+"""Operaciones explícitas de contenido sobre la wiki de esta instalación."""
 import argparse
 import datetime as dt
 import hashlib
@@ -13,7 +13,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
-VAULT = ROOT / 'vault'
+WIKI = ROOT / 'wiki'
 SECTIONS = {'00_inbox', '10_areas', '20_domains', '30_resources', '40_archive', '50_daily', '60_exports', '_maps'}
 PROTECTED = {'AGENTS.md', 'INDEX.md', 'domain.yml', 'action-log.md'}
 RECORD = re.compile(r'^\d{4}-\d{2}-\d{2}--[a-z0-9]+(?:-[a-z0-9]+)*\.md$')
@@ -21,9 +21,9 @@ DOCUMENT = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*\.md$')
 DAILY = re.compile(r'^\d{4}-\d{2}-\d{2}\.md$')
 RESERVED = re.compile(r'^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$', re.IGNORECASE)
 LINK = re.compile(r'!?\[[^]]*\]\(([^)]+)\)')
-TEMPLATES = {**{name: ROOT / 'templates/records' / (name + '.md') for name in ('decision', 'convention', 'lesson', 'project-context')}, **{name: VAULT / '_templates' / (name + '.md') for name in ('area', 'daily', 'pending-decision', 'export', 'resource', 'map', 'archive')}}
+TEMPLATES = {**{name: ROOT / 'templates/records' / (name + '.md') for name in ('decision', 'convention', 'lesson', 'project-context')}, **{name: WIKI / '_templates' / (name + '.md') for name in ('area', 'daily', 'pending-decision', 'export', 'resource', 'map', 'archive')}}
 SNAPSHOTS = {}
-LOCK_PATH = VAULT / '.local-mem.lock'
+LOCK_PATH = WIKI / '.local-mem.lock'
 LOCK_STREAM = None
 PUBLICATION_STARTED = False
 ROLLBACK_FAILED = False
@@ -35,6 +35,14 @@ class OperationError(Exception):
 def fail(message):
     raise OperationError(message)
 
+def is_redirect(path):
+    """Detecta enlaces simbólicos y otros reparse points, incluidos junctions Windows."""
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, 'st_file_attributes', 0) & 0x400)
+
 def path_for(value, *, exists=False, allow_missing_parent=False):
     if not value or '\\' in value or value.startswith('/'):
         fail('ruta inválida')
@@ -43,13 +51,13 @@ def path_for(value, *, exists=False, allow_missing_parent=False):
         fail('ruta fuera del contenido permitido')
     if Path(value).suffix != '.md' or parts[-1] in PROTECTED:
         fail('destino reservado o no Markdown')
-    current = VAULT
-    if current.is_symlink() or not current.is_dir():
-        fail('vault ausente o no local')
+    current = WIKI
+    if is_redirect(current) or not current.is_dir():
+        fail('wiki ausente o no local')
     for part in parts:
         current = current / part
-        if current.is_symlink():
-            fail('se rechazan enlaces simbólicos')
+        if is_redirect(current):
+            fail('se rechazan enlaces simbólicos y junctions')
     if not current.parent.is_dir() and not allow_missing_parent:
         fail('directorio padre inexistente')
     if exists and not current.is_file():
@@ -59,17 +67,17 @@ def path_for(value, *, exists=False, allow_missing_parent=False):
 def read_path(value):
     if not value or '\\' in value or value.startswith('/') or any(part in ('', '.', '..') for part in value.split('/')):
         fail('ruta inválida')
-    if VAULT.is_symlink() or not VAULT.is_dir(): fail('vault ausente o no local')
-    current = VAULT
+    if is_redirect(WIKI) or not WIKI.is_dir(): fail('wiki ausente o no local')
+    current = WIKI
     for part in PurePosixPath(value).parts:
         current = current / part
-        if current.is_symlink(): fail('se rechazan enlaces simbólicos')
+        if is_redirect(current): fail('se rechazan enlaces simbólicos y junctions')
     if not current.is_file(): fail('archivo inexistente o no regular')
     return current
 
 def validate_new_name(path):
     """Valida solo el nombre nuevo; las rutas heredadas permanecen accesibles."""
-    parts = path.relative_to(VAULT).parts
+    parts = path.relative_to(WIKI).parts
     name = parts[-1]
     is_record = len(parts) == 4 and parts[0] == '20_domains' and parts[2] == 'records'
     if is_record:
@@ -88,14 +96,14 @@ def validate_new_name(path):
         except ValueError: fail('fecha inválida en el nombre')
 
 def record_info(path):
-    parts = path.relative_to(VAULT).parts
+    parts = path.relative_to(WIKI).parts
     if len(parts) >= 4 and parts[0] == '20_domains' and parts[2] == 'records':
         if len(parts) != 4: fail('los registros deben estar directamente en records/')
         if not RECORD.fullmatch(parts[3]):
             fail('nombre de registro inválido')
-        domain = VAULT / '20_domains' / parts[1]
+        domain = WIKI / '20_domains' / parts[1]
         meta = domain / 'domain.yml'
-        if meta.is_symlink() or not meta.is_file() or not re.search(r'(?m)^id:\s*' + re.escape(parts[1]) + r'\s*$', meta.read_text(encoding='utf-8')):
+        if is_redirect(meta) or not meta.is_file() or not re.search(r'(?m)^id:\s*' + re.escape(parts[1]) + r'\s*$', meta.read_text(encoding='utf-8')):
             fail('identidad de dominio inválida')
         return domain
     return None
@@ -163,7 +171,7 @@ def validate_record(path, content):
 
 def snapshot(path):
     if path not in SNAPSHOTS:
-        if path.is_symlink(): fail('se rechazan enlaces simbólicos')
+        if is_redirect(path): fail('se rechazan enlaces simbólicos y junctions')
         if path.exists():
             data = path.read_bytes()
             SNAPSHOTS[path] = (data, stat.S_IMODE(path.stat().st_mode))
@@ -177,7 +185,7 @@ def read_text(path):
     return value[0].decode('utf-8')
 
 def validate_legacy_pending(path, content):
-    parts = path.relative_to(VAULT).parts
+    parts = path.relative_to(WIKI).parts
     if parts[:2] != ('00_inbox', 'decisions-pending'): return None
     match = re.match(r'\A---\r?\n(.*?)\r?\n---(?:\r?\n|$)', content, re.S)
     if not match: return None
@@ -189,15 +197,15 @@ def validate_legacy_pending(path, content):
     return fields
 
 def regular(path):
-    if path.is_symlink() or not path.is_file(): fail('archivo auxiliar ausente o no local: ' + str(path))
+    if is_redirect(path) or not path.is_file(): fail('archivo auxiliar ausente o no local: ' + str(path))
     value = snapshot(path)
     return value[0]
 
 def prepare_template(name, path):
     data = regular(path)
-    if not path.is_relative_to(VAULT): return data
+    if not path.is_relative_to(WIKI): return data
     text = data.decode('utf-8')
-    canonical = (ROOT / 'templates/vault-layout' / (name + '.md')).read_text(encoding='utf-8')
+    canonical = (ROOT / 'templates/wiki-layout' / (name + '.md')).read_text(encoding='utf-8')
     canonical_match = re.match(r'\A---\r?\n(.*?)\r?\n---\r?\n', canonical, re.S)
     if not canonical_match: fail('plantilla canónica inválida')
     baseline = canonical_match.group(1).splitlines()
@@ -216,22 +224,22 @@ def manual_plan(operation, source, destination):
     def traversal_error(error):
         raise error
     documents = []
-    for base, dirs, files in os.walk(VAULT, followlinks=False, onerror=traversal_error):
+    for base, dirs, files in os.walk(WIKI, followlinks=False, onerror=traversal_error):
         dirs.sort(); files.sort()
         for name in dirs + files:
             path = Path(base) / name
-            if path.is_symlink(): fail('symlink en la vault: ' + str(path.relative_to(VAULT)))
+            if is_redirect(path): fail('enlace o junction en la wiki: ' + str(path.relative_to(WIKI)))
         for name in files:
             path = Path(base) / name
             if path == LOCK_PATH: continue
-            if not path.is_file(): fail('archivo no regular: ' + str(path.relative_to(VAULT)))
+            if not path.is_file(): fail('archivo no regular: ' + str(path.relative_to(WIKI)))
             digest = hashlib.sha256()
             with path.open('rb') as stream:
                 for chunk in iter(lambda: stream.read(1024 * 1024), b''):
                     digest.update(chunk)
-            documents.append({'path': path.relative_to(VAULT).as_posix(), 'sha256': digest.hexdigest()})
-    return {'operation': operation, 'source': source.relative_to(VAULT).as_posix(),
-            'destination': destination.relative_to(VAULT).as_posix(),
+            documents.append({'path': path.relative_to(WIKI).as_posix(), 'sha256': digest.hexdigest()})
+    return {'operation': operation, 'source': source.relative_to(WIKI).as_posix(),
+            'destination': destination.relative_to(WIKI).as_posix(),
             'documents': documents, 'review_required': True}
 
 def index_section(text, line, retired=False):
@@ -251,13 +259,13 @@ def publish(changes, snapshots=None, modes=None):
     applied = []
     cleanup_errors = []
     if LOCK_STREAM is not None:
-        LOCK_STREAM.write(json.dumps({'stage': 'publish', 'paths': [str(p.relative_to(VAULT)) for p in changes]}, ensure_ascii=False) + '\n')
+        LOCK_STREAM.write(json.dumps({'stage': 'publish', 'paths': [str(p.relative_to(WIKI)) for p in changes]}, ensure_ascii=False) + '\n')
         LOCK_STREAM.flush(); os.fsync(LOCK_STREAM.fileno())
     PUBLICATION_STARTED = True
     try:
         for path, data in changes.items():
             expected = original[path]
-            if path.is_symlink(): raise OSError('conflicto: enlace simbólico: ' + str(path))
+            if is_redirect(path): raise OSError('conflicto: enlace o junction: ' + str(path))
             current = (path.read_bytes(), stat.S_IMODE(path.stat().st_mode)) if path.exists() else None
             if current != expected: raise OSError('conflicto: archivo modificado: ' + str(path))
             if data is None:
@@ -312,7 +320,7 @@ def main(args):
     if args.operation == 'template':
         if not args.type or args.path or args.input or args.destination: fail('template requiere solo --type')
         template = TEMPLATES[args.type]
-        if template.is_relative_to(VAULT): template = read_path(template.relative_to(VAULT).as_posix())
+        if template.is_relative_to(WIKI): template = read_path(template.relative_to(WIKI).as_posix())
         sys.stdout.buffer.write(prepare_template(args.type, template)); return
     if args.type or not args.path: fail('se requiere --path y --type solo se usa con template')
     if (args.operation in ('create', 'update')) != bool(args.input) or (args.operation in ('move', 'plan-move')) != bool(args.destination):
@@ -326,11 +334,11 @@ def main(args):
         if args.operation == 'plan-move':
             destination = path_for(args.destination)
             validate_new_name(destination)
-            if source.relative_to(VAULT).parts[0] != destination.relative_to(VAULT).parts[0]: fail('el movimiento debe permanecer en la misma sección')
+            if source.relative_to(WIKI).parts[0] != destination.relative_to(WIKI).parts[0]: fail('el movimiento debe permanecer en la misma sección')
             if record_info(source): fail('un registro conserva su identidad y dominio; usa plan-retire')
         else:
             destination = path_for('40_archive/' + args.path, allow_missing_parent=True)
-        if destination.exists() or destination.is_symlink(): fail('destino existente')
+        if destination.exists() or is_redirect(destination): fail('destino existente')
         print(json.dumps(manual_plan(args.operation[5:], source, destination), ensure_ascii=False, indent=2))
         return
     domain = record_info(source)
@@ -380,7 +388,7 @@ def main(args):
     entry = f'{timestamp} | {args.operation} | {json.dumps(args.path, ensure_ascii=False)} | operator\n'
     changes[log] = log_bytes + (b'\n' if log_bytes and not log_bytes.endswith(b'\n') else b'') + entry.encode('utf-8')
     if LOCK_STREAM is not None:
-        LOCK_STREAM.write(json.dumps({'stage': 'prepared', 'paths': [str(p.relative_to(VAULT)) for p in changes]}, ensure_ascii=False) + '\n')
+        LOCK_STREAM.write(json.dumps({'stage': 'prepared', 'paths': [str(p.relative_to(WIKI)) for p in changes]}, ensure_ascii=False) + '\n')
         LOCK_STREAM.flush(); os.fsync(LOCK_STREAM.fileno())
     created_dirs = []
     try:
@@ -402,11 +410,11 @@ def main(args):
 
 def run_locked(args):
     global LOCK_STREAM
-    if VAULT.is_symlink() or not VAULT.is_dir(): fail('vault ausente o no local')
+    if is_redirect(WIKI) or not WIKI.is_dir(): fail('wiki ausente o no local')
     try:
         fd = os.open(LOCK_PATH, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError:
-        fail('vault bloqueada; revisa .local-mem.lock antes de continuar')
+        fail('wiki bloqueada; revisa .local-mem.lock antes de continuar')
     release = False
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as stream:

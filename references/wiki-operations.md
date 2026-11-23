@@ -1,19 +1,19 @@
-# Operaciones de la vault
+# Operaciones de la wiki
 
 `SKILL.md` define activación, propiedad y autoridad. Los scripts de esta guía
-resuelven una sola ruta: `vault/` junto a la skill. No reciben `--source`,
-`--target`, `--vault` ni otra ruta.
+resuelven una sola ruta: `wiki/` junto a la skill. No reciben `--source`,
+`--target`, `--wiki` ni otra ruta.
 
 ## Diagnóstico
 
 En macOS/Linux o PowerShell:
 
 ```sh
-./scripts/vault.sh check
+./scripts/wiki.sh check
 ```
 
 ```powershell
-./scripts/vault.ps1 check
+./scripts/wiki.ps1 check
 ```
 
 `check` es de solo lectura. Valida el layout, los índices y los paquetes de
@@ -22,8 +22,8 @@ dominio; no repara ni reorganiza archivos.
 ## Layout y dominios
 
 ```sh
-./scripts/vault.sh init-layout
-./scripts/vault.sh create-domain --id arquitectura --title Arquitectura
+./scripts/wiki.sh init-layout
+./scripts/wiki.sh create-domain --id arquitectura --title Arquitectura
 ```
 
 `init-layout` crea únicamente elementos ausentes de la estructura básica.
@@ -38,16 +38,17 @@ Para nombrar dominios nuevos, sigue el criterio de [nombres de contenido](conten
 ## Migración de registros raíz heredados
 
 ```sh
-./scripts/vault.sh migration-plan
-./scripts/vault.sh migration-apply --domain arquitectura --record 2026-10-25--decision.md
+./scripts/wiki.sh migration-plan
+./scripts/wiki.sh migration-apply --domain arquitectura --record 2026-10-25--decision.md
 ```
 
 `migration-plan` crea propuestas revisables para los archivos Markdown en la
-raíz heredada `records/` de la vault activa, sin moverlos ni clasificarlos.
+raíz heredada `records/` de la wiki activa, sin moverlos ni clasificarlos.
 `migration-apply` mueve un solo registro al dominio seleccionado y anota la
 acción en `_indexes/action-log.md`; si no puede registrar el movimiento, lo
-revierte. Estos comandos no leen ni migran una vault externa como `mem/vault/`;
-para esa transición puntual, sigue la [guía de migración manual](legacy-vault-migration.md).
+revierte. Estos comandos no leen ni migran instalaciones retiradas en
+`mem/vault/`; para actualizar una instalación antigua con `vault/`, sigue la
+[guía de migración manual](legacy-wiki-migration.md).
 
 ## Esquema y procedencia
 

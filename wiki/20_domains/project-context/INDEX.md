@@ -2,10 +2,11 @@
 
 ## Activo
 
-- [Modo único de instalación del skill](records/2026-11-16--single-installation-mode.md)
+- [Ubicación de la memoria en wiki](records/2026-11-22--wiki-storage-location.md)
 
 ## Históricos retirados
 
+- [Modo único de instalación del skill](records/2026-11-16--single-installation-mode.md)
 - [Preflight de release y gobernanza](records/2026-10-27--release-preflight-and-governance.md)
 - [Adaptador Microsoft 365 Copilot](records/2026-10-27--microsoft-copilot-adapter-mvp.md)
 - [Evolución y decisiones de la versión 0.6.0](records/2026-10-27--project-evolution-0-6-0.md)

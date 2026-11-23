@@ -5,11 +5,20 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import sys
 import unicodedata
 
 ROOT = Path(__file__).resolve().parent.parent
-VAULT = ROOT / 'vault'
+WIKI = ROOT / 'wiki'
+
+def is_redirect(path):
+    """Detecta enlaces simbólicos y otros reparse points, incluidos junctions Windows."""
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, 'st_file_attributes', 0) & 0x400)
 
 def normalize(value):
     return ''.join(c for c in unicodedata.normalize('NFKD', value.casefold()) if not unicodedata.combining(c))
@@ -18,24 +27,24 @@ def tokens(value):
     return set(re.findall(r'[^\W_]+', normalize(value), re.UNICODE))
 
 def files(scope, domain):
-    if VAULT.is_symlink() or not VAULT.is_dir(): raise ValueError('vault ausente o no local')
+    if is_redirect(WIKI) or not WIKI.is_dir(): raise ValueError('wiki ausente o no local')
     if domain:
         if not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,62}', domain): raise ValueError('id de dominio inválido')
-        base = VAULT / '20_domains' / domain
-        for part in (VAULT / '20_domains', base):
-            if part.is_symlink() or not part.is_dir(): raise ValueError('dominio ausente o no local')
+        base = WIKI / '20_domains' / domain
+        for part in (WIKI / '20_domains', base):
+            if is_redirect(part) or not part.is_dir(): raise ValueError('dominio ausente o no local')
     else:
-        base = VAULT
+        base = WIKI
     def traversal_error(error):
         raise error
     for folder, dirs, names in os.walk(base, followlinks=False, onerror=traversal_error):
         dirs.sort(); names.sort()
         for name in dirs + names:
-            if (Path(folder) / name).is_symlink(): raise ValueError('se rechazan enlaces simbólicos: ' + str((Path(folder) / name).relative_to(VAULT)))
+            if is_redirect(Path(folder) / name): raise ValueError('se rechazan enlaces simbólicos y junctions: ' + str((Path(folder) / name).relative_to(WIKI)))
         for name in names:
             path = Path(folder) / name
             if path.suffix.lower() not in ('.md', '.yml', '.yaml'): continue
-            is_index = name == 'INDEX.md' or '_indexes' in path.relative_to(VAULT).parts
+            is_index = name == 'INDEX.md' or '_indexes' in path.relative_to(WIKI).parts
             if scope == 'indexes' and not is_index: continue
             yield path
 
@@ -75,7 +84,7 @@ def main():
                 common = terms & tokens(line); seen_terms.update(common); matched = bool(common)
             if matched: hits.append({'line': number, 'text': line[:500]})
         if hits:
-            results.append({'path': path.relative_to(VAULT).as_posix(), 'score': len(seen_terms) if args.mode == 'language' else len(hits), 'matches': hits[:5]})
+            results.append({'path': path.relative_to(WIKI).as_posix(), 'score': len(seen_terms) if args.mode == 'language' else len(hits), 'matches': hits[:5]})
     results.sort(key=lambda item: (-item['score'], item['path']))
     print(json.dumps({'mode': args.mode, 'scope': args.scope, 'results': results[:args.limit]}, ensure_ascii=False, indent=2))
 

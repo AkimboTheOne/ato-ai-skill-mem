@@ -2,7 +2,7 @@
 
 Este repositorio contiene `local-mem`, un Módulo Local de Memoria documental
 Markdown, legible por personas y versionable. La skill consulta únicamente la
-`vault/` junto a su propio `SKILL.md`; cada instalación mantiene un ámbito
+`wiki/` junto a su propio `SKILL.md`; cada instalación mantiene un ámbito
 separado aunque otras copias estén disponibles para otros plugins o agentes.
 
 ## Instalación desde Git
@@ -22,45 +22,47 @@ separadas y conserva el nombre final `local-mem` en cada una.
 `local-mem` identifica el tipo de skill, no un plugin o proyecto concreto. Si
 el anfitrión carga varias copias con ese mismo ID, la selección entre ellas
 depende del anfitrión; la skill no puede garantizar qué copia se invocará. Una
-vez activada, cada copia solo consulta la `vault/` junto a su propio
+vez activada, cada copia solo consulta la `wiki/` junto a su propio
 `SKILL.md`.
 
 ## Uso
 
 Instala o copia los componentes de la skill en una sola carpeta llamada
 `local-mem`: `SKILL.md`,
-`VERSION`, `VAULT_FORMAT`, `agents/`, `vault/`, `scripts/`, `templates/` y
-`references/`. La raíz resultante contiene tanto la skill como su única vault.
+`VERSION`, `WIKI_FORMAT`, `agents/`, `wiki/`, `scripts/`, `templates/` y
+`references/`. La raíz resultante contiene tanto la skill como su única wiki.
 No copies configuración local (`.codex/`), metadatos Git (`.git/`), pruebas ni
 artefactos de desarrollo. No ejecutes un bootstrap ni configures un proyecto
 destino. Al activarse para una tarea que necesite contexto duradero, la skill
-verifica `vault/` y lee solo el dominio pertinente.
+verifica `wiki/` y lee solo el dominio pertinente.
 
 La lectura no autoriza escrituras. Crear, actualizar, mover o retirar memoria
 requiere una petición humana explícita.
 
-## Vault
+## Wiki
 
-El formato `3` organiza la memoria con `vault/AGENTS.md`, índices, mapas y
+El formato `3` organiza la memoria con `wiki/AGENTS.md`, índices, mapas y
 dominios `20_domains/<id>/`. Cada dominio es una unidad Markdown con metadata,
 índice, registros y recursos. El contrato completo está en
 [instance-contract.md](references/instance-contract.md).
-Si actualizas una instalación antigua que guardaba memoria en `mem/vault/`,
-sigue la [guía de migración manual](references/legacy-vault-migration.md).
+Si actualizas una instalación que aún guarda su memoria en `vault/`, sigue la
+[guía de migración manual](references/legacy-wiki-migration.md). La skill nueva
+no consulta ni traslada esa ruta automáticamente. La ubicación histórica
+retirada `mem/vault/` tampoco se reconoce como una raíz activa.
 
-Para revisar o administrar la estructura de la única vault:
+Para revisar o administrar la estructura de la única wiki:
 
 ```sh
-./scripts/vault.sh check
-./scripts/vault.sh create-domain --id arquitectura --title Arquitectura
+./scripts/wiki.sh check
+./scripts/wiki.sh create-domain --id arquitectura --title Arquitectura
 ```
 
-PowerShell ofrece los mismos comandos con `scripts/vault.ps1`. Los comandos
-operan siempre en `vault/` junto a esta skill y no admiten otra ruta.
+PowerShell ofrece los mismos comandos con `scripts/wiki.ps1`. Los comandos
+operan siempre en `wiki/` junto a esta skill y no admiten otra ruta.
 
 ## Versiones y publicación
 
-`VERSION` identifica la versión del skill y `VAULT_FORMAT` la del layout de
+`VERSION` identifica la versión del skill y `WIKI_FORMAT` la del layout de
 datos. Son independientes. El gate de integración clasifica SemVer sobre el
 diff final; la guía de publicación está en
 [release-readiness.md](references/release-readiness.md).
@@ -74,4 +76,4 @@ conservan como historia en [references/history/README.md](references/history/REA
 
 ### Operaciones de contenido
 
-La skill orienta la consulta y los cambios explícitos sobre su vault. Los flujos, las plantillas recomendadas y el asistente Python se describen en [operaciones de contenido](references/content-operations.md).
+La skill orienta la consulta y los cambios explícitos sobre su wiki. Los flujos, las plantillas recomendadas y el asistente Python se describen en [operaciones de contenido](references/content-operations.md).

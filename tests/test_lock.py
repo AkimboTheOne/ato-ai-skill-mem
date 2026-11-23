@@ -12,13 +12,13 @@ class LockTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        for name in ('scripts', 'templates', 'vault'):
+        for name in ('scripts', 'templates', 'wiki'):
             shutil.copytree(ROOT / name, self.root / name)
-        for name in ('SKILL.md', 'VAULT_FORMAT', 'VERSION'):
+        for name in ('SKILL.md', 'WIKI_FORMAT', 'VERSION'):
             shutil.copy(ROOT / name, self.root / name)
         self.input = self.root / 'input.md'
         self.input.write_text('---\nid: example\ntype: resource\nstatus: active\ncreated: 2026-11-17\nupdated: 2026-11-17\nauthor: human\nsources: []\n---\n# Example\n')
-        self.lock = self.root / 'vault/.local-mem.lock'
+        self.lock = self.root / 'wiki/.local-mem.lock'
 
     def tearDown(self): self.tmp.cleanup()
 
@@ -29,10 +29,10 @@ class LockTests(unittest.TestCase):
         self.lock.write_text('operation: existing\n')
         p = self.cli('create', '--path', '30_resources/a.md', '--input', str(self.input))
         self.assertNotEqual(p.returncode, 0); self.assertIn('bloqueada', p.stderr)
-        p = subprocess.run(['sh', str(self.root / 'scripts/vault.sh'), 'init-layout'], capture_output=True, text=True)
+        p = subprocess.run(['sh', str(self.root / 'scripts/wiki.sh'), 'init-layout'], capture_output=True, text=True)
         self.assertNotEqual(p.returncode, 0); self.assertIn('bloqueada', p.stderr)
         if shutil.which('pwsh'):
-            p = subprocess.run(['pwsh', '-NoProfile', '-File', str(self.root / 'scripts/vault.ps1'), 'init-layout'], capture_output=True, text=True)
+            p = subprocess.run(['pwsh', '-NoProfile', '-File', str(self.root / 'scripts/wiki.ps1'), 'init-layout'], capture_output=True, text=True)
             self.assertNotEqual(p.returncode, 0); self.assertIn('bloqueada', p.stderr)
         self.assertEqual(self.cli('read', '--path', '_indexes/INDEX.md').returncode, 0)
         self.assertEqual(self.lock.read_text(), 'operation: existing\n')
@@ -68,7 +68,7 @@ m.run_locked(m.parse_args())
             for stream in (process.stdin, process.stdout, process.stderr): stream.close()
 
     def test_shell_error_retains_plan(self):
-        p = subprocess.run(['sh', str(self.root / 'scripts/vault.sh'), 'create-domain', '--id', 'INVALID'], capture_output=True, text=True)
+        p = subprocess.run(['sh', str(self.root / 'scripts/wiki.sh'), 'create-domain', '--id', 'INVALID'], capture_output=True, text=True)
         self.assertNotEqual(p.returncode, 0)
         self.assertIn('create-domain', self.lock.read_text())
 
@@ -96,7 +96,7 @@ except m.OperationError: pass
         result = self.cli('--path', '30_resources/a.md', '--input', str(self.input), 'create')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('bloqueada', result.stderr)
-        self.assertFalse((self.root / 'vault/30_resources/a.md').exists())
+        self.assertFalse((self.root / 'wiki/30_resources/a.md').exists())
         self.assertEqual(self.lock.read_text(), 'operation: other\n')
 
     def test_invalid_arguments_do_not_create_lock(self):

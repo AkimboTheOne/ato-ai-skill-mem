@@ -9,13 +9,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SingleInstallModeTests(unittest.TestCase):
-    def test_active_instructions_resolve_the_skill_root_vault(self) -> None:
+    def test_active_instructions_resolve_the_skill_root_wiki(self) -> None:
         for path in (ROOT / "SKILL.md", ROOT / "AGENTS.md", ROOT / "README.md"):
             content = path.read_text(encoding="utf-8")
-            self.assertIn("vault/", content, str(path))
+            self.assertIn("wiki/", content, str(path))
         self.assertIn("junto a este `SKILL.md`", (ROOT / "SKILL.md").read_text(encoding="utf-8"))
-        self.assertTrue((ROOT / "vault").is_dir())
-        self.assertFalse((ROOT / "vault/.ato-ai-skill-mem-version.yml").exists())
+        self.assertTrue((ROOT / "wiki").is_dir())
+        self.assertFalse((ROOT / "wiki/.ato-ai-skill-mem-version.yml").exists())
 
     def test_skill_identity_and_clone_target_are_explicit(self) -> None:
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
@@ -30,7 +30,7 @@ class SingleInstallModeTests(unittest.TestCase):
         self.assertIn("allow_implicit_invocation: true", interface)
         self.assertIn("ato-ai-skill-mem.git local-mem", readme)
 
-    def test_two_instances_check_only_their_adjacent_vault(self) -> None:
+    def test_two_instances_check_only_their_adjacent_wiki(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             temp_root = Path(temporary_directory)
             first_instance = temp_root / "first-plugin" / "local-mem"
@@ -39,28 +39,28 @@ class SingleInstallModeTests(unittest.TestCase):
             for instance in (first_instance, second_instance):
                 scripts = instance / "scripts"
                 scripts.mkdir(parents=True)
-                shutil.copy2(ROOT / "scripts/vault.sh", scripts / "vault.sh")
+                shutil.copy2(ROOT / "scripts/wiki.sh", scripts / "wiki.sh")
                 shutil.copy2(ROOT / "VERSION", instance / "VERSION")
-                shutil.copy2(ROOT / "VAULT_FORMAT", instance / "VAULT_FORMAT")
+                shutil.copy2(ROOT / "WIKI_FORMAT", instance / "WIKI_FORMAT")
 
-            shutil.copytree(ROOT / "vault", first_instance / "vault")
-            (second_instance / "vault").mkdir()
+            shutil.copytree(ROOT / "wiki", first_instance / "wiki")
+            (second_instance / "wiki").mkdir()
 
             first_check = subprocess.run(
-                [str(first_instance / "scripts/vault.sh"), "check"],
+                [str(first_instance / "scripts/wiki.sh"), "check"],
                 cwd=second_instance,
                 capture_output=True,
                 text=True,
             )
             second_check = subprocess.run(
-                [str(second_instance / "scripts/vault.sh"), "check"],
+                [str(second_instance / "scripts/wiki.sh"), "check"],
                 cwd=first_instance,
                 capture_output=True,
                 text=True,
             )
 
             self.assertEqual(first_check.returncode, 0, first_check.stdout + first_check.stderr)
-            self.assertIn("vault.state: valid", first_check.stdout)
+            self.assertIn("wiki.state: valid", first_check.stdout)
             self.assertNotEqual(second_check.returncode, 0, second_check.stdout + second_check.stderr)
 
     def test_retired_interfaces_are_historical_and_not_distributed(self) -> None:
@@ -86,8 +86,8 @@ class SingleInstallModeTests(unittest.TestCase):
         ):
             self.assertFalse((ROOT / name).exists(), name)
 
-    def test_vault_tools_do_not_accept_scope_selectors(self) -> None:
-        for path in (ROOT / "scripts/vault.sh", ROOT / "scripts/vault.ps1"):
+    def test_wiki_tools_do_not_accept_scope_selectors(self) -> None:
+        for path in (ROOT / "scripts/wiki.sh", ROOT / "scripts/wiki.ps1"):
             content = path.read_text(encoding="utf-8")
             self.assertNotIn("--source", content, str(path))
             self.assertNotIn("--target", content, str(path))
@@ -106,14 +106,33 @@ class SingleInstallModeTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("No copies configuración local (`.codex/`)", readme)
 
-    def test_legacy_vault_migration_is_manual_and_linked(self) -> None:
-        migration = ROOT / "references/legacy-vault-migration.md"
+    def test_legacy_wiki_migration_is_manual_and_linked(self) -> None:
+        migration = ROOT / "references/legacy-wiki-migration.md"
         self.assertTrue(migration.is_file())
         content = migration.read_text(encoding="utf-8")
-        for phrase in ("mem/vault/", "respaldo", "formato `3`", "no sobrescribas"):
+        for phrase in ("vault/", "respaldo", "formato `3`", "no la reemplaces"):
             self.assertIn(phrase, content)
-        self.assertIn("legacy-vault-migration.md", (ROOT / "README.md").read_text(encoding="utf-8"))
-        self.assertIn("legacy-vault-migration.md", (ROOT / "references/instance-contract.md").read_text(encoding="utf-8"))
+        self.assertIn("legacy-wiki-migration.md", (ROOT / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("legacy-wiki-migration.md", (ROOT / "references/instance-contract.md").read_text(encoding="utf-8"))
+
+    def test_old_vault_path_is_not_a_runtime_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            instance = Path(temporary_directory) / "local-mem"
+            scripts = instance / "scripts"
+            scripts.mkdir(parents=True)
+            shutil.copy2(ROOT / "scripts/wiki.sh", scripts / "wiki.sh")
+            shutil.copy2(ROOT / "WIKI_FORMAT", instance / "WIKI_FORMAT")
+            (instance / "vault").mkdir()
+
+            result = subprocess.run(
+                [str(scripts / "wiki.sh"), "check"],
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("wiki", result.stderr)
+            self.assertFalse((instance / "wiki").exists())
 
     def test_release_gate_tracks_main(self) -> None:
         for path in (ROOT / "scripts/release-check.sh", ROOT / "scripts/release-check.ps1"):

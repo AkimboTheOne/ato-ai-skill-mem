@@ -17,3 +17,6 @@
 2026-10-27T17:00:00Z | update-record | project-context | explicit-human-request | vault/20_domains/project-context/records/2026-10-27--microsoft-copilot-adapter-mvp.md | operator
 2026-10-27T17:15:00Z | update-record | project-context | explicit-human-request | vault/20_domains/project-context/records/2026-10-27--microsoft-copilot-adapter-mvp.md | operator
 2026-10-27T18:00:00Z | create-record | project-context | explicit-human-request | vault/20_domains/project-context/records/2026-10-27--release-preflight-and-governance.md | operator
+2026-11-23T00:11:38Z | retire-record | project-context | explicit-human-request | wiki/20_domains/project-context/records/2026-11-16--single-installation-mode.md | operator
+2026-11-23T00:11:38Z | create-record | project-context | explicit-human-request | wiki/20_domains/project-context/records/2026-11-22--wiki-storage-location.md | operator
+2026-11-23T00:11:38Z | update-record | engineering-prompts | explicit-human-request | wiki/20_domains/engineering-prompts/records/2026-10-25--engineering-optimization-loop.md | operator

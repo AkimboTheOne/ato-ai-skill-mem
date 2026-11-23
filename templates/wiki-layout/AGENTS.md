@@ -1,11 +1,11 @@
 ---
-type: vault-instructions
+type: wiki-instructions
 format: 1
 ---
 
-# Guía maestra de la vault
+# Guía maestra de la wiki
 
-Esta vault pertenece a la skill que la contiene. `SKILL.md` define activación,
+Esta wiki pertenece a la skill que la contiene. `SKILL.md` define activación,
 autoridad y precedencia. Para leer, abre primero `_indexes/INDEX.md`, los mapas
 o áreas relevantes y después únicamente el dominio necesario.
 
@@ -31,7 +31,7 @@ persona: define propósito, audiencia y límites; lee este archivo, `_indexes`,
 mapas y metadata de dominios; acuerda tipos de datos, evidencia, ciclo de vida
 e índices; y ejecuta `check` antes de solicitar una escritura explícita.
 
-La salida `vault.context.state` es una observación transitoria. No se debe
-crear un marcador de vault contextualizada ni clasificar registros por
+La salida `wiki.context.state` es una observación transitoria. No se debe
+crear un marcador de wiki contextualizada ni clasificar registros por
 similitud. Las propuestas no autorizan crear, mover, actualizar o archivar
 datos.

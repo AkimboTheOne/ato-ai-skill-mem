@@ -2,7 +2,7 @@
 
 ## Cierre de la iteración de operaciones y búsqueda
 
-Los flujos de contenido, las plantillas y la búsqueda local están documentados. La CLI asiste la revisión manual de movimientos y retiros; no los aplica automáticamente. Las pruebas existentes cubren operaciones en vaults temporales, rutas, enlaces, trazabilidad y algunos fallos de publicación. Antes de dar por cerrada la iteración:
+Los flujos de contenido, las plantillas y la búsqueda local están documentados. La CLI asiste la revisión manual de movimientos y retiros; no los aplica automáticamente. Las pruebas existentes cubren operaciones en wikis temporales, rutas, enlaces, trazabilidad y algunos fallos de publicación. Antes de dar por cerrada la iteración:
 
 - Revisar el diff completo, incluidos los archivos nuevos, y contrastar la interfaz con los contratos y las instrucciones de la skill. Decidir SemVer en el gate de integración; no cambiar `VERSION` por anticipado.
 - Confirmar que los límites actuales satisfacen el alcance: la CLI protege índices e instrucciones, no edita `domain.yml`, y no mueve registros entre dominios. Documentar o implementar por separado cualquier capacidad adicional que se acuerde.

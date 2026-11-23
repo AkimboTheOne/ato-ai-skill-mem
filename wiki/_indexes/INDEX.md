@@ -1,4 +1,4 @@
-# Índices de la vault
+# Índices de la wiki
 
 ## Dominios
 

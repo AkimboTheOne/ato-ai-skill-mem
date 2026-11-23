@@ -1,22 +1,22 @@
 # AGENTS.md
 
 Este repositorio se llama `ato-ai-skill-mem` y contiene en su raíz la skill
-`local-mem`; su única memoria es `vault/`. Al clonar para instalar la skill,
+`local-mem`; su única memoria es `wiki/`. Al clonar para instalar la skill,
 usa `local-mem` como directorio de destino, de modo que el nombre de carpeta
 coincida con el ID técnico de Agent Skills. No hay modo `source`/`consumer`,
-vault externa ni instalación por bootstrap. Sigue las reglas canónicas de
+wiki externa ni instalación por bootstrap. Sigue las reglas canónicas de
 [SKILL.md](SKILL.md).
 
 ## Memoria documental
 
-Al activar memoria, ejecuta una sola vez `scripts/vault.sh check` (o
-`scripts/vault.ps1 check`) como diagnóstico estructural y comunícalo antes de
-leer. Después consulta `vault/AGENTS.md`, `_indexes/INDEX.md`, mapas y solo el
+Al activar memoria, ejecuta una sola vez `scripts/wiki.sh check` (o
+`scripts/wiki.ps1 check`) como diagnóstico estructural y comunícalo antes de
+leer. Después consulta `wiki/AGENTS.md`, `_indexes/INDEX.md`, mapas y solo el
 dominio pertinente. No interpretes una estructura inválida ni busques otra
 ubicación.
 
-Cada instancia de la skill es propietaria únicamente de su `vault/` adyacente
-a `SKILL.md`. No aceptes rutas de vault arbitrarias, no busques memoria de
+Cada instancia de la skill es propietaria únicamente de su `wiki/` adyacente
+a `SKILL.md`. No aceptes rutas de wiki arbitrarias, no busques memoria de
 otros proyectos/plugins/agentes, no resuelvas `mem/vault/` y no copies
 registros a otros proyectos.
 La integración con otras superficies anfitrionas permanece histórica; no
@@ -27,8 +27,8 @@ transcripciones, no infieras memoria persistente ni crees estado oculto.
 
 ## Contratos y release
 
-Las operaciones estructurales de la vault están en
-[`references/vault-operations.md`](references/vault-operations.md). Para
+Las operaciones estructurales de la wiki están en
+[`references/wiki-operations.md`](references/wiki-operations.md). Para
 preparar publicaciones, sigue
 [`references/release-readiness.md`](references/release-readiness.md); esa guía
 no autoriza por sí sola tags ni releases.

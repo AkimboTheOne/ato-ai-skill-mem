@@ -11,14 +11,14 @@ agentes y las personas que mantienen este repositorio.
 `optimization cycle` designa el ciclo `Question → Eliminate → Simplify →
 Bound Scope → Check Stability`. La fuente normativa de gobernanza es
 `ato-ai-skill-governance`; la fuente de memoria del producto es el `SKILL.md`
-canónico y su vault.
+canónico y su wiki.
 
 ## Reglas locales
 
 Cuando una persona diga “Ejecuta un ciclo de optimización”, carga el registro
 activo del ciclo y úsalo sobre el objetivo actual o el objetivo explícito de la
 petición. El contexto puede incluir la conversación, archivos inspeccionados,
-restricciones y decisiones relevantes de la vault, pero el agente debe
+restricciones y decisiones relevantes de la wiki, pero el agente debe
 declarar qué utilizó.
 
 El ciclo ejecuta análisis y produce un resultado accionable; no autoriza por sí
@@ -27,5 +27,5 @@ fuera del ciclo y solo pueden proponerse después de comprobar estabilidad.
 
 Las reglas locales pueden acotar la operación del dominio, pero no habilitan
 inferencia adaptativa, sincronización automática, sobrescritura ni movimientos
-sin trazabilidad. Prevalecen `SKILL.md`, `vault/AGENTS.md` y la autorización
+sin trazabilidad. Prevalecen `SKILL.md`, `wiki/AGENTS.md` y la autorización
 humana explícita.

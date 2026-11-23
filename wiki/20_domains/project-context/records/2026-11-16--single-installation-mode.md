@@ -1,9 +1,9 @@
 ---
 id: 2026-11-16--single-installation-mode
 type: project-context
-status: active
+status: retired
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-22
 scope: project
 author: codex
 sources:
@@ -24,7 +24,7 @@ related:
   - "[Adaptador Microsoft 365 Copilot, retirado](2026-10-27--microsoft-copilot-adapter-mvp.md)"
   - "[Preflight anterior, retirado](2026-10-27--release-preflight-and-governance.md)"
 supersedes: "[Evolución 0.6.0](2026-10-27--project-evolution-0-6-0.md)"
-superseded_by: null
+superseded_by: "[Ubicación de la memoria en wiki](2026-11-22--wiki-storage-location.md)"
 ---
 
 # Modo único de instalación del skill

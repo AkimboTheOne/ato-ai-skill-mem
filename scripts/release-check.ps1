@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $version = (Get-Content -LiteralPath (Join-Path $root 'VERSION') -Raw).Trim()
-$vaultFormat = (Get-Content -LiteralPath (Join-Path $root 'VAULT_FORMAT') -Raw).Trim()
+$wikiFormat = (Get-Content -LiteralPath (Join-Path $root 'WIKI_FORMAT') -Raw).Trim()
 $tag = "v$version"
 
 function Get-GitValue([string[]]$Arguments, [string]$Fallback) {
@@ -24,17 +24,17 @@ $originMain = Get-GitValue @('rev-parse','refs/remotes/origin/main') 'unavailabl
 $dirty = (& git -C $root status --porcelain 2>$null) -join "`n"
 $checks = [ordered]@{
     version = if ($version -match '^\d+\.\d+\.\d+$') { 'pass' } else { 'fail' }
-    vault_format = if ($vaultFormat -match '^[1-9]\d*$') { 'pass' } else { 'fail' }
+    wiki_format = if ($wikiFormat -match '^[1-9]\d*$') { 'pass' } else { 'fail' }
     branch = if ($branch -eq 'main') { 'pass' } else { 'fail' }
     worktree = if ([string]::IsNullOrEmpty($dirty)) { 'pass' } else { 'fail' }
     tag = if ($tagHead -ne 'unavailable') { 'pass' } else { 'fail' }
     head_tag = if ($head -ne 'unavailable' -and $head -eq $tagHead) { 'pass' } else { 'fail' }
     main_sync = if ($main -ne 'unavailable' -and $main -eq $originMain) { 'pass' } else { 'fail' }
-    vault = 'fail'
+    wiki = 'fail'
 }
 try {
-    & (Join-Path $root 'scripts/vault.ps1') check *> $null
-    $checks.vault = 'pass'
+    & (Join-Path $root 'scripts/wiki.ps1') check *> $null
+    $checks.wiki = 'pass'
 }
 catch {}
 $blockers = @($checks.GetEnumerator() | Where-Object Value -eq 'fail' | ForEach-Object Key)

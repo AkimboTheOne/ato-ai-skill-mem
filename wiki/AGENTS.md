@@ -1,6 +1,6 @@
-# Guía maestra de la vault
+# Guía maestra de la wiki
 
-Esta es la única memoria de la skill y vive en `vault/`. `SKILL.md` define
+Esta es la única memoria de la skill y vive en `wiki/`. `SKILL.md` define
 activación, autoridad y precedencia. Lee primero `_indexes/INDEX.md`, los
 mapas pertinentes y después únicamente el dominio necesario.
 
@@ -16,5 +16,5 @@ mapas pertinentes y después únicamente el dominio necesario.
 
 Los `AGENTS.md` de dominio pueden añadir contexto local o restricciones, pero
 no relajan estas reglas ni las de `SKILL.md`. El diagnóstico estructural es
-`scripts/vault.sh check`; no crea estado de contextualización ni modifica
+`scripts/wiki.sh check`; no crea estado de contextualización ni modifica
 contenido.

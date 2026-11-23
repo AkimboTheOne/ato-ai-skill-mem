@@ -3,12 +3,12 @@ id: 2026-10-25--engineering-optimization-loop
 type: convention
 status: active
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-11-22
 scope: project
 author: human
 sources:
   - SKILL.md
-  - vault/AGENTS.md
+  - wiki/AGENTS.md
   - ato-ai-skill-governance/SKILL.md
 related: []
 supersedes: null
@@ -30,8 +30,8 @@ Activa `ato-ai-skill-governance` en modo rector. Usa como entrada el objetivo
 actual, la conversación relevante, los archivos inspeccionados y las
 restricciones activas. Si el objetivo depende de decisiones, contratos,
 convenciones o historial del producto, activa `ato-ai-skill-mem`, ejecuta
-`scripts/vault.sh check` en la raíz de la skill instalada y lee solo el
-contexto pertinente de `vault/`.
+`scripts/wiki.sh check` en la raíz de la skill instalada y lee solo el
+contexto pertinente de `wiki/`.
 
 Ejecuta las fases en este orden:
 
