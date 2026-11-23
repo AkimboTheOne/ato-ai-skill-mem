@@ -57,6 +57,13 @@ git clone git@github.com:AkimboTheOne/ato-ai-skill-governance.git .codex/skills/
 Conserva auditabilidad humana y detén la automatización si el proceso no es
 estable. La skill de gobernanza no es una dependencia runtime.
 
+## Validación de desarrollo
+
+Para validar los metadatos de la skill usa el entorno `.venv` y
+`scripts/validate-skill.py` según [README.md](README.md). Si falta el entorno o
+PyYAML, créalo e instala `requirements-dev.txt` antes de validar; no dependas
+del Python global. La dependencia es solo de desarrollo.
+
 ## Cierre de revisiones
 
 Define el alcance y los criterios de cierre antes de revisar. En cada
