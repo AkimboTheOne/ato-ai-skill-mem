@@ -2,6 +2,8 @@
 
 ## Activo
 
+
+- [2026-11-22--evolucion-local-mem-y-validacion](records/2026-11-22--evolucion-local-mem-y-validacion.md)
 - [Ubicación de la memoria en wiki](records/2026-11-22--wiki-storage-location.md)
 
 ## Históricos retirados

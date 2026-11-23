@@ -20,3 +20,5 @@
 2026-11-23T00:11:38Z | retire-record | project-context | explicit-human-request | wiki/20_domains/project-context/records/2026-11-16--single-installation-mode.md | operator
 2026-11-23T00:11:38Z | create-record | project-context | explicit-human-request | wiki/20_domains/project-context/records/2026-11-22--wiki-storage-location.md | operator
 2026-11-23T00:11:38Z | update-record | engineering-prompts | explicit-human-request | wiki/20_domains/engineering-prompts/records/2026-10-25--engineering-optimization-loop.md | operator
+2026-11-23T01:22:41+00:00 | update | "20_domains/engineering-prompts/records/2026-10-25--engineering-optimization-loop.md" | operator
+2026-11-23T01:24:30+00:00 | create | "20_domains/project-context/records/2026-11-22--evolucion-local-mem-y-validacion.md" | operator
