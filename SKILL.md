@@ -72,6 +72,7 @@ revisa las referencias y aplica los cambios manualmente según la referencia.
 
 - Para buscar, consulta [search.md](references/search.md).
 - Para leer o cambiar contenido y orientar sus nombres, consulta [content-operations.md](references/content-operations.md).
+- Para convertir Wikilinks de Obsidian a enlaces Markdown, sigue la sección de curaduría de [content-operations.md](references/content-operations.md).
 - Para diagnóstico, layout, dominios o migración, consulta [wiki-operations.md](references/wiki-operations.md).
 - Para preparación de publicaciones, consulta [release-readiness.md](references/release-readiness.md).
 

@@ -370,6 +370,130 @@ class ContentOperations(unittest.TestCase):
         self.run_cli('plan-move', '--path', path, '--destination', '20_domains/project-context/records/new.md', ok=False)
         self.run_cli('plan-move', '--path', '30_resources/nonexistent.md', '--destination', '30_resources/b.md', ok=False)
 
+    def test_wikilink_plan_apply_converts_supported_links_and_logs_changes(self):
+        target = self.root / 'wiki/30_resources/nota con espacio.md'
+        target.write_text('# Sección con ñ\n')
+        source = self.root / 'wiki/30_resources/origen.md'
+        source.write_text(
+            '---\nid: origen\ntype: resource\nstatus: active\ncreated: 2026-11-17\nupdated: 2026-11-17\n'
+            'author: human\nsources:\n  - \"[[nota con espacio]]\"\nrelated: \"[[nota con espacio#Sección con ñ|Sección]]\"\n'
+            'supersedes: [\"[[nota con espacio|Previa]]\"]\ncustom: \"[[nota con espacio]]\"\n---\n# Example\n[[nota con espacio]]\n[[nota con espacio|Etiqueta]]\n'
+            '[[nota con espacio#Sección con ñ]]\n[[#Example]]\n`[[nota con espacio]]`\n'
+            '```md\n[[nota con espacio]]\n```\n%% [[nota con espacio]] %%\n'
+            '<!-- [[nota con espacio]] -->\n![[nota con espacio]]\n[[nota con espacio#^bloque]]\n[[ausente]]\n[[|empty-target]]\n'
+            '`%%` %% [[nota con espacio]] %% [[nota con espacio]]\n'
+            '`<!--` <!-- [[nota con espacio]] --> [[nota con espacio]]\n',
+            encoding='utf-8')
+        agents = self.root / 'wiki/AGENTS.md'
+        agents.write_text(agents.read_text(encoding='utf-8') + '\n[[nota con espacio|instrucción]]\n', encoding='utf-8')
+        index = self.root / 'wiki/_indexes/INDEX.md'
+        index.write_text(index.read_text(encoding='utf-8') + '\n[[nota con espacio]]\n', encoding='utf-8')
+        obsidian = self.root / 'wiki/.obsidian'
+        obsidian.mkdir()
+        (obsidian / 'sample.md').write_text('[[nota con espacio]]\n', encoding='utf-8')
+
+        log = self.root / 'wiki/_indexes/action-log.md'
+        before_log = log.read_bytes()
+        result = self.run_cli('plan-links')
+        plan = json.loads(result.stdout)
+        plan_path = self.root / 'plan.json'
+        plan_path.write_text(result.stdout, encoding='utf-8')
+
+        self.assertIn('nota%20con%20espacio.md#Secci%C3%B3n%20con%20%C3%B1', plan['diff'])
+        self.assertNotIn('.obsidian/sample.md', [item['path'] for item in plan['snapshot']])
+        self.assertEqual(log.read_bytes(), before_log)
+        self.assertIn('[[nota con espacio]]', source.read_text(encoding='utf-8'))
+        self.assertGreaterEqual(len(plan['changes']), 3)
+        reasons = {item['reason'] for item in plan['unsupported']}
+        self.assertIn('embed no soportado', reasons)
+        self.assertIn('referencia a bloque no soportada', reasons)
+        self.assertTrue(any(item['link'] == '![[nota con espacio]]' for item in plan['unsupported']))
+        self.assertTrue(any(item['reason'] == 'campo YAML fuera del alcance' for item in plan['unsupported']))
+        self.assertTrue(any(item['reason'] == 'destino vacío' for item in plan['unsupported']))
+        self.assertTrue(any(item['reason'] == 'destino inexistente o alias de nota' for item in plan['unresolved']))
+
+        applied = json.loads(self.run_cli('apply-links', '--plan', str(plan_path)).stdout)
+        self.assertEqual(applied['converted'], sum(len(item['replacements']) for item in plan['changes']))
+        self.assertIn('[Etiqueta](nota%20con%20espacio.md)', source.read_text(encoding='utf-8'))
+        self.assertIn('[Sección](nota%20con%20espacio.md#Secci%C3%B3n%20con%20%C3%B1)', source.read_text(encoding='utf-8'))
+        self.assertIn('supersedes: [\"[Previa](nota%20con%20espacio.md)\"]', source.read_text(encoding='utf-8'))
+        self.assertIn('[Example](#Example)', source.read_text(encoding='utf-8'))
+        self.assertIn('`[[nota con espacio]]`', source.read_text(encoding='utf-8'))
+        self.assertIn('```md\n[[nota con espacio]]\n```', source.read_text(encoding='utf-8'))
+        self.assertIn('%% [[nota con espacio]] %%', source.read_text(encoding='utf-8'))
+        self.assertIn('<!-- [[nota con espacio]] -->', source.read_text(encoding='utf-8'))
+        self.assertIn('`%%` %% [[nota con espacio]] %% [nota con espacio](nota%20con%20espacio.md)', source.read_text(encoding='utf-8'))
+        self.assertIn('`<!--` <!-- [[nota con espacio]] --> [nota con espacio](nota%20con%20espacio.md)', source.read_text(encoding='utf-8'))
+        self.assertIn('![[nota con espacio]]', source.read_text(encoding='utf-8'))
+        self.assertIn('[[nota con espacio#^bloque]]', source.read_text(encoding='utf-8'))
+        self.assertIn(' | curate-links | \"30_resources/origen.md\" | ', log.read_text(encoding='utf-8'))
+        self.assertIn(' | curate-links | \"AGENTS.md\" | ', log.read_text(encoding='utf-8'))
+        self.assertFalse((self.root / 'wiki/.local-mem.lock').exists())
+        self.assertEqual(json.loads(self.run_cli('plan-links').stdout)['changes'], [])
+
+    def test_wikilink_plan_reports_ambiguity_and_stale_apply_does_not_write(self):
+        source = self.root / 'wiki/30_resources/source.md'
+        source.write_text('[[shared]]\n[[30_resources/shared]]\n[[one#Missing]]\n[[one#Repeated]]\n',
+                          encoding='utf-8')
+        (self.root / 'wiki/30_resources/shared.md').write_text('# Shared\n')
+        (self.root / 'wiki/40_archive/shared.md').write_text('# Other shared\n')
+        (self.root / 'wiki/30_resources/one.md').write_text('# Repeated\n# Repeated\n')
+        result = self.run_cli('plan-links')
+        plan = json.loads(result.stdout)
+        self.assertTrue(any(item['reason'] == 'nombre de nota ambiguo' for item in plan['unresolved']))
+        self.assertTrue(any(item['reason'] == 'encabezado inexistente' for item in plan['unresolved']))
+        self.assertTrue(any(item['reason'] == 'encabezado repetido' for item in plan['unresolved']))
+        self.assertEqual(len(plan['changes']), 1)
+        plan_path = self.root / 'plan.json'
+        plan_path.write_text(result.stdout, encoding='utf-8')
+        source.write_text(source.read_text(encoding='utf-8') + 'changed after review\n', encoding='utf-8')
+        log_before = (self.root / 'wiki/_indexes/action-log.md').read_bytes()
+        self.run_cli('apply-links', '--plan', str(plan_path), ok=False)
+        self.assertIn('[[30_resources/shared]]', source.read_text(encoding='utf-8'))
+        self.assertEqual((self.root / 'wiki/_indexes/action-log.md').read_bytes(), log_before)
+        self.assertFalse((self.root / 'wiki/.local-mem.lock').exists())
+
+    def test_wikilink_plan_scope_lock_and_symlink_guards(self):
+        source = self.root / 'wiki/30_resources/source.md'
+        source.write_text('[[target]]\n')
+        (self.root / 'wiki/30_resources/target.md').write_text('# Target\n')
+        other = self.root / 'wiki/40_archive/other.md'
+        other.write_text('[[target]]\n')
+        result = json.loads(self.run_cli('plan-links', '--path', '30_resources/source.md').stdout)
+        self.assertEqual([item['path'] for item in result['changes']], ['30_resources/source.md'])
+        lock = self.root / 'wiki/.local-mem.lock'
+        lock.write_text('manual operation\n')
+        self.run_cli('plan-links', ok=False)
+        self.assertEqual(lock.read_text(), 'manual operation\n')
+        lock.unlink()
+        link = self.root / 'wiki/60_exports/external.md'
+        link.symlink_to(source)
+        self.run_cli('plan-links', ok=False)
+        link.unlink()
+
+    def test_wikilink_apply_rolls_back_if_action_log_publication_fails(self):
+        source = self.root / 'wiki/30_resources/source.md'
+        source.write_text('[[target]]\n')
+        (self.root / 'wiki/30_resources/target.md').write_text('# Target\n')
+        plan_path = self.root / 'plan.json'
+        plan_path.write_text(self.run_cli('plan-links').stdout, encoding='utf-8')
+        log = self.root / 'wiki/_indexes/action-log.md'
+        before_source, before_log = source.read_bytes(), log.read_bytes()
+
+        spec = importlib.util.spec_from_file_location('content_links_rollback', self.root / 'scripts/content.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        args = Namespace(operation='apply-links', plan=str(plan_path), path=None, type=None, input=None, destination=None)
+        real_replace = module.os.replace
+        def fail_log_replace(origin, destination):
+            if Path(destination).name == 'action-log.md': raise OSError('simulated action log failure')
+            return real_replace(origin, destination)
+        with mock.patch.object(module.os, 'replace', side_effect=fail_log_replace):
+            with self.assertRaises(module.OperationError): module.run_locked(args)
+        self.assertEqual(source.read_bytes(), before_source)
+        self.assertEqual(log.read_bytes(), before_log)
+        self.assertFalse((self.root / 'wiki/.local-mem.lock').exists())
+
     def test_new_names_are_validated_without_rejecting_legacy_reads(self):
         for name in ('bad name.md', 'bad_name.md', 'Bad.md', 'a--b.md', 'aux.md', 'com1.md'):
             with self.subTest(name=name):

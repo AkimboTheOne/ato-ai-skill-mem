@@ -2,15 +2,18 @@
 """Operaciones explícitas de contenido sobre la wiki de esta instalación."""
 import argparse
 import datetime as dt
+import difflib
 import hashlib
 import json
 import socket
 import os
+import posixpath
 from pathlib import Path, PurePosixPath
 import re
 import stat
 import sys
 import tempfile
+from urllib.parse import quote, unquote
 
 ROOT = Path(__file__).resolve().parent.parent
 WIKI = ROOT / 'wiki'
@@ -21,6 +24,9 @@ DOCUMENT = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*\.md$')
 DAILY = re.compile(r'^\d{4}-\d{2}-\d{2}\.md$')
 RESERVED = re.compile(r'^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$', re.IGNORECASE)
 LINK = re.compile(r'!?\[[^]]*\]\(([^)]+)\)')
+WIKILINK = re.compile(r'(!?)\[\[([^\[\]\r\n]+)\]\]')
+LINK_FIELDS = {'sources', 'related', 'supersedes', 'superseded_by'}
+PLAN_SCHEMA = 1
 TEMPLATES = {**{name: ROOT / 'templates/records' / (name + '.md') for name in ('decision', 'convention', 'lesson', 'project-context')}, **{name: WIKI / '_templates' / (name + '.md') for name in ('area', 'daily', 'pending-decision', 'export', 'resource', 'map', 'archive')}}
 SNAPSHOTS = {}
 LOCK_PATH = WIKI / '.local-mem.lock'
@@ -242,6 +248,380 @@ def manual_plan(operation, source, destination):
             'destination': destination.relative_to(WIKI).as_posix(),
             'documents': documents, 'review_required': True}
 
+def blank_range(mask, start, end):
+    for index in range(start, end):
+        if mask[index] not in '\r\n': mask[index] = ' '
+
+def mask_markdown_literals(text):
+    """Hide fenced code, comments, and inline code while retaining offsets."""
+    mask = list(text)
+    offset = 0
+    fence = None
+    tick = chr(96)
+    for line in text.splitlines(keepends=True):
+        visible = ''.join(mask[offset:offset + len(line)])
+        marker = re.match(r' {0,3}(' + re.escape(tick) + r'{3,}|~{3,})', visible)
+        if fence is None and marker:
+            fence = (marker.group(1)[0], len(marker.group(1)))
+            blank_range(mask, offset, offset + len(line))
+        elif fence is not None:
+            close = re.match(r' {0,3}(' + re.escape(tick) + r'+|~+)[ \t]*(?:\r?\n)?$', visible)
+            blank_range(mask, offset, offset + len(line))
+            if close and close.group(1)[0] == fence[0] and len(close.group(1)) >= fence[1]:
+                fence = None
+        offset += len(line)
+
+    visible = ''.join(mask)
+    index = 0
+    while index < len(visible):
+        if visible[index] == tick:
+            end = index + 1
+            while end < len(visible) and visible[end] == tick: end += 1
+            delimiter = tick * (end - index)
+            search = end
+            closing = None
+            while search < len(visible):
+                found = visible.find(delimiter, search)
+                if found < 0: break
+                after = found + len(delimiter)
+                if (found == 0 or visible[found - 1] != tick) and (after == len(visible) or visible[after] != tick):
+                    closing = after
+                    break
+                search = found + 1
+            if closing is not None:
+                blank_range(mask, index, closing)
+                index = closing
+            else:
+                index = end
+            continue
+
+        if visible.startswith('%%', index):
+            closing = visible.find('%%', index + 2)
+            if closing >= 0:
+                blank_range(mask, index, closing + 2)
+                index = closing + 2
+            else:
+                index += 2
+            continue
+
+        if visible.startswith('<!--', index):
+            closing = visible.find('-->', index + 4)
+            if closing >= 0:
+                blank_range(mask, index, closing + 3)
+                index = closing + 3
+            else:
+                index += 4
+            continue
+        index += 1
+    return ''.join(mask)
+
+def normalized_heading(value):
+    return re.sub(r'\s+', ' ', value.strip()).casefold()
+
+def heading_status(document, heading):
+    visible = mask_markdown_literals(document)
+    headings = []
+    for original, masked in zip(document.splitlines(), visible.splitlines()):
+        if not re.match(r'^ {0,3}#{1,6}[ \t]+', masked): continue
+        raw = re.sub(r'^ {0,3}#{1,6}[ \t]+', '', original)
+        raw = re.sub(r'[ \t]+#+[ \t]*$', '', raw).strip()
+        headings.append(normalized_heading(raw))
+    count = headings.count(normalized_heading(unquote(heading)))
+    if count == 1: return 'ok', None
+    if count == 0: return 'unresolved', 'encabezado inexistente'
+    return 'unresolved', 'encabezado repetido'
+
+def resolve_wikilink_target(target, documents):
+    decoded = unquote(target)
+    if not decoded or decoded.startswith('/') or '\\' in decoded or any(part in ('.', '..') for part in decoded.split('/')):
+        return None, 'destino no compatible'
+    if '/' in decoded:
+        relative = decoded if decoded.endswith('.md') else decoded + '.md'
+        if relative in documents: return relative, None
+        return None, 'destino inexistente o alias de nota'
+    name = decoded[:-3] if decoded.endswith('.md') else decoded
+    matches = [path for path in documents if PurePosixPath(path).stem == name]
+    if len(matches) == 1: return matches[0], None
+    if len(matches) > 1: return None, 'nombre de nota ambiguo'
+    return None, 'destino inexistente o alias de nota'
+
+def curate_wikilink(token, source, documents):
+    match = WIKILINK.fullmatch(token)
+    if not match: return None, None
+    if match.group(1): return None, ('unsupported', 'embed no soportado')
+    raw = match.group(2)
+    if raw.count('|') > 1: return None, ('unsupported', 'alias con sintaxis no compatible')
+    if '|' in raw:
+        target, alias = raw.split('|', 1)
+        if not alias.strip(): return None, ('unsupported', 'alias vacío')
+    else:
+        target, alias = raw, None
+    if not target.strip(): return None, ('unsupported', 'destino vacío')
+    if target.count('#') > 1: return None, ('unsupported', 'ruta de encabezados anidada no soportada')
+    if '#' in target:
+        note_target, heading = target.split('#', 1)
+        if heading.startswith('^'): return None, ('unsupported', 'referencia a bloque no soportada')
+        if not heading: return None, ('unsupported', 'encabezado vacío')
+    else:
+        note_target, heading = target, None
+    if not note_target:
+        resolved = source
+    else:
+        resolved, reason = resolve_wikilink_target(note_target, documents)
+        if reason: return None, ('unresolved', reason)
+    if heading:
+        status, reason = heading_status(documents[resolved], heading)
+        if status != 'ok': return None, (status, reason)
+    if alias is not None:
+        label = alias.strip()
+    else:
+        label = PurePosixPath(note_target).name.removesuffix('.md') if note_target else unquote(heading)
+        if heading and note_target: label += '#' + unquote(heading)
+    label = re.sub(r'([\\\[\]])', r'\\\1', label)
+    relative = posixpath.relpath(resolved, posixpath.dirname(source) or '.') if note_target else ''
+    destination = quote(relative, safe='/-._~')
+    if heading: destination += '#' + quote(unquote(heading), safe='-._~')
+    return '[' + label + '](' + destination + ')', None
+
+def convert_text_links(text, source, documents, line_offset=0, mask_literals=False):
+    visible = mask_markdown_literals(text) if mask_literals else text
+    replacements = []
+    unresolved = []
+    unsupported = []
+    for match in WIKILINK.finditer(visible):
+        token = text[match.start():match.end()]
+        line = line_offset + text.count('\n', 0, match.start()) + 1
+        replacement, issue = curate_wikilink(token, source, documents)
+        if issue:
+            entry = {'path': source, 'line': line, 'link': token, 'reason': issue[1]}
+            (unresolved if issue[0] == 'unresolved' else unsupported).append(entry)
+        elif replacement:
+            replacements.append({'start': match.start(), 'end': match.end(), 'source': token,
+                                 'replacement': replacement, 'line': line, 'path': source})
+    updated = text
+    for item in reversed(replacements):
+        updated = updated[:item['start']] + item['replacement'] + updated[item['end']:]
+    return updated, replacements, unresolved, unsupported
+
+def convert_quoted_yaml(raw, source, documents, line):
+    prefix = raw[:len(raw) - len(raw.lstrip())]
+    suffix = raw[len(raw.rstrip()):]
+    value = raw.strip()
+    if not WIKILINK.search(value): return raw, [], [], []
+    if len(value) < 2 or value[0] not in ('"', "'") or value[-1] != value[0]:
+        issue = {'path': source, 'line': line, 'link': value, 'reason': 'valor YAML no es una cadena citada compatible'}
+        return raw, [], [], [issue]
+    try:
+        decoded = json.loads(value) if value[0] == '"' else value[1:-1].replace("''", "'")
+    except (ValueError, json.JSONDecodeError):
+        issue = {'path': source, 'line': line, 'link': value, 'reason': 'cadena YAML no compatible'}
+        return raw, [], [], [issue]
+    updated, replacements, unresolved, unsupported = convert_text_links(decoded, source, documents, line - 1)
+    if not replacements: return raw, [], unresolved, unsupported
+    serialized = json.dumps(updated, ensure_ascii=False) if value[0] == '"' else "'" + updated.replace("'", "''") + "'"
+    return prefix + serialized + suffix, replacements, unresolved, unsupported
+
+def convert_inline_yaml_list(raw, source, documents, line):
+    prefix = raw[:len(raw) - len(raw.lstrip())]
+    suffix = raw[len(raw.rstrip()):]
+    value = raw.strip()
+    if not value.startswith('[') or not value.endswith(']'):
+        return raw, [], [], [{'path': source, 'line': line, 'link': value, 'reason': 'lista YAML no compatible'}]
+    inner_start = len(prefix) + 1
+    inner_end = len(raw) - len(suffix) - 1
+    cursor = inner_start
+    spans = []
+    while cursor < inner_end:
+        while cursor < inner_end and raw[cursor].isspace(): cursor += 1
+        if cursor == inner_end: break
+        start = cursor
+        quote_char = raw[cursor]
+        if quote_char not in ('"', "'"):
+            return raw, [], [], [{'path': source, 'line': line, 'link': value, 'reason': 'lista YAML solo admite cadenas citadas'}]
+        cursor += 1
+        closed = False
+        while cursor < inner_end:
+            if quote_char == '"' and raw[cursor] == '\\':
+                cursor += 2
+                continue
+            if raw[cursor] == quote_char:
+                if quote_char == "'" and cursor + 1 < inner_end and raw[cursor + 1] == "'":
+                    cursor += 2
+                    continue
+                cursor += 1
+                closed = True
+                break
+            cursor += 1
+        if not closed: return raw, [], [], [{'path': source, 'line': line, 'link': value, 'reason': 'cadena YAML sin cierre'}]
+        spans.append((start, cursor))
+        while cursor < inner_end and raw[cursor].isspace(): cursor += 1
+        if cursor < inner_end:
+            if raw[cursor] != ',': return raw, [], [], [{'path': source, 'line': line, 'link': value, 'reason': 'lista YAML no compatible'}]
+            cursor += 1
+    if not spans:
+        if WIKILINK.search(value):
+            return raw, [], [], [{'path': source, 'line': line, 'link': value, 'reason': 'lista YAML no compatible'}]
+        return raw, [], [], []
+    updated = raw
+    conversions = []
+    unresolved = []
+    unsupported = []
+    for start, end in reversed(spans):
+        token = raw[start:end]
+        converted, found, missing, ignored = convert_quoted_yaml(token, source, documents, line)
+        updated = updated[:start] + converted + updated[end:]
+        conversions.extend(found); unresolved.extend(missing); unsupported.extend(ignored)
+    return updated, conversions, unresolved, unsupported
+
+def curate_markdown(text, source, documents):
+    match = re.match(r'\A---\r?\n(.*?)\r?\n---(?:\r?\n|$)', text, re.S)
+    unresolved = []
+    unsupported = []
+    conversions = []
+    if text.startswith('---') and not match:
+        unsupported.extend({'path': source, 'line': text.count('\n', 0, item.start()) + 1,
+                           'link': item.group(0), 'reason': 'front matter sin delimitador de cierre'}
+                          for item in WIKILINK.finditer(text))
+        return text, conversions, unresolved, unsupported
+    if match:
+        block = match.group(1)
+        output = []
+        current_key = None
+        line_no = text.count('\n', 0, match.start(1)) + 1
+        for line in block.splitlines(keepends=True):
+            field = re.match(r'^([a-z_]+):([ \t]*)(.*?)(\r?\n)?$', line)
+            if field:
+                current_key = field.group(1)
+                value = field.group(3)
+                if current_key in LINK_FIELDS and value:
+                    if value.strip().startswith('['):
+                        updated, found, missing, ignored = convert_inline_yaml_list(value, source, documents, line_no)
+                    else:
+                        updated, found, missing, ignored = convert_quoted_yaml(value, source, documents, line_no)
+                    line = line[:field.start(3)] + updated + (field.group(4) or '')
+                    conversions.extend(found); unresolved.extend(missing); unsupported.extend(ignored)
+                elif current_key not in LINK_FIELDS and WIKILINK.search(value):
+                    unsupported.extend({'path': source, 'line': line_no, 'link': item.group(0),
+                                        'reason': 'campo YAML fuera del alcance'}
+                                       for item in WIKILINK.finditer(value))
+            elif line.lstrip().startswith('#'):
+                pass
+            elif line.startswith('  - ') and current_key in LINK_FIELDS:
+                value = line[4:].rstrip('\r\n')
+                newline = line[len(line.rstrip('\r\n')):]
+                updated, found, missing, ignored = convert_quoted_yaml(value, source, documents, line_no)
+                line = line[:4] + updated + newline
+                conversions.extend(found); unresolved.extend(missing); unsupported.extend(ignored)
+            elif WIKILINK.search(line):
+                unsupported.extend({'path': source, 'line': line_no, 'link': item.group(0),
+                                    'reason': 'estructura YAML no compatible'}
+                                   for item in WIKILINK.finditer(line))
+            output.append(line)
+            line_no += line.count('\n') or 1
+        body_start = match.end()
+        body = text[body_start:]
+        body_line_offset = text.count('\n', 0, body_start)
+        updated_body, found, missing, ignored = convert_text_links(body, source, documents, body_line_offset, mask_literals=True)
+        conversions.extend(found); unresolved.extend(missing); unsupported.extend(ignored)
+        header = text[:match.start(1)] + ''.join(output) + text[match.end(1):body_start]
+        return header + updated_body, conversions, unresolved, unsupported
+    updated, conversions, unresolved, unsupported = convert_text_links(text, source, documents, mask_literals=True)
+    return updated, conversions, unresolved, unsupported
+
+def scan_wiki_markdown(scope=None, allow_lock=False):
+    if is_redirect(WIKI) or not WIKI.is_dir(): fail('wiki ausente o no local')
+    if LOCK_PATH.exists() and not allow_lock: fail('wiki bloqueada; no se puede preparar la curaduría durante una escritura')
+    SNAPSHOTS.clear()
+    if scope is not None:
+        read_path(scope)
+        if not scope.lower().endswith('.md') or scope == '_indexes/action-log.md' or scope.startswith('.obsidian/'):
+            fail('ámbito de curaduría inválido')
+    documents = {}
+    def traversal_error(error): raise error
+    for base, dirs, names in os.walk(WIKI, followlinks=False, onerror=traversal_error):
+        dirs.sort(); names.sort()
+        for name in dirs + names:
+            path = Path(base) / name
+            if is_redirect(path): fail('se rechazan enlaces simbólicos y junctions: ' + str(path.relative_to(WIKI)))
+        dirs[:] = [name for name in dirs if (Path(base) / name).relative_to(WIKI).parts[0] != '.obsidian']
+        for name in names:
+            path = Path(base) / name
+            relative = path.relative_to(WIKI).as_posix()
+            if path.suffix.lower() != '.md' or relative == '_indexes/action-log.md' or relative.startswith('.obsidian/'):
+                continue
+            data = path.read_bytes()
+            try: content = data.decode('utf-8')
+            except UnicodeError: fail('archivo Markdown no es UTF-8: ' + relative)
+            SNAPSHOTS[path] = (data, stat.S_IMODE(path.stat().st_mode))
+            documents[relative] = content
+    if scope is not None and scope not in documents: fail('archivo Markdown no existe o está fuera del ámbito')
+    snapshot_list = [{'path': relative, 'sha256': hashlib.sha256(SNAPSHOTS[WIKI / relative][0]).hexdigest()}
+                     for relative in sorted(documents)]
+    return documents, snapshot_list
+
+def make_link_plan(scope=None, allow_lock=False):
+    documents, snapshot_list = scan_wiki_markdown(scope, allow_lock=allow_lock)
+    changes = []
+    unresolved = []
+    unsupported = []
+    diff = []
+    converted_contents = {}
+    for source in sorted(documents):
+        if scope is not None and source != scope: continue
+        original = documents[source]
+        updated, conversions, missing, ignored = curate_markdown(original, source, documents)
+        unresolved.extend(missing); unsupported.extend(ignored)
+        if not conversions: continue
+        before = SNAPSHOTS[WIKI / source][0]
+        after = updated.encode('utf-8')
+        relative = [{'line': item['line'], 'source': item['source'], 'replacement': item['replacement']}
+                    for item in conversions]
+        changes.append({'path': source, 'before_sha256': hashlib.sha256(before).hexdigest(),
+                        'after_sha256': hashlib.sha256(after).hexdigest(), 'replacements': relative})
+        converted_contents[source] = updated
+        diff.extend(difflib.unified_diff(original.splitlines(keepends=True), updated.splitlines(keepends=True),
+                                         fromfile=source, tofile=source))
+    report = {'schema': PLAN_SCHEMA, 'operation': 'curate-wikilinks', 'scope': scope, 'review_required': True,
+              'snapshot': snapshot_list, 'changes': changes, 'unresolved': unresolved,
+              'unsupported': unsupported, 'diff': ''.join(diff)}
+    return report, converted_contents
+
+def apply_link_plan(plan_path):
+    try:
+        plan_file = Path(plan_path).resolve(strict=True)
+        if plan_file.is_relative_to(WIKI.resolve()): fail('el plan debe guardarse fuera de wiki/')
+        supplied = json.loads(plan_file.read_text(encoding='utf-8'))
+    except (OSError, RuntimeError, UnicodeError, json.JSONDecodeError) as exc:
+        fail('no se pudo leer el plan de curaduría: ' + str(exc))
+    if not isinstance(supplied, dict) or supplied.get('schema') != PLAN_SCHEMA or supplied.get('operation') != 'curate-wikilinks':
+        fail('plan de curaduría inválido o incompatible')
+    scope = supplied.get('scope')
+    if scope is not None and not isinstance(scope, str): fail('ámbito inválido en el plan')
+    fresh, converted = make_link_plan(scope, allow_lock=True)
+    for key in ('scope', 'review_required', 'snapshot', 'changes', 'unresolved', 'unsupported', 'diff'):
+        if supplied.get(key) != fresh[key]: fail('plan obsoleto o alterado; genera y revisa uno nuevo')
+    if not fresh['changes']:
+        print(json.dumps({'operation': 'apply-links', 'changed': [], 'converted': 0}, ensure_ascii=False))
+        return
+    changes = {}
+    snapshots = {}
+    for item in fresh['changes']:
+        path = WIKI / item['path']
+        changes[path] = converted[item['path']].encode('utf-8')
+        snapshots[path] = SNAPSHOTS[path]
+    log = read_path('_indexes/action-log.md')
+    log_bytes = regular(log)
+    timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec='seconds')
+    entries = ''.join(f"{timestamp} | curate-links | {json.dumps(item['path'], ensure_ascii=False)} | operator\n"
+                      for item in fresh['changes'])
+    changes[log] = log_bytes + (b'\n' if log_bytes and not log_bytes.endswith(b'\n') else b'') + entries.encode('utf-8')
+    snapshots[log] = SNAPSHOTS[log]
+    _, current_snapshot = scan_wiki_markdown(scope, allow_lock=True)
+    if current_snapshot != fresh['snapshot']: fail('la wiki cambió durante la aplicación; genera y revisa un plan nuevo')
+    publish(changes, snapshots)
+    print(json.dumps({'operation': 'apply-links', 'changed': [item['path'] for item in fresh['changes']],
+                      'converted': sum(len(item['replacements']) for item in fresh['changes'])}, ensure_ascii=False))
+
 def index_section(text, line, retired=False):
     pattern = r'(?im)^## (?:retirados|históricos retirados)\s*$' if retired else r'(?im)^## activos?\s*$'
     matches = list(re.finditer(pattern, text))
@@ -309,14 +689,30 @@ def publish(changes, snapshots=None, modes=None):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation', choices=['template', 'read', 'create', 'update', 'plan-move', 'plan-retire', 'move', 'retire'])
+    parser.add_argument('operation', choices=['template', 'read', 'create', 'update', 'plan-move', 'plan-retire', 'move', 'retire', 'plan-links', 'apply-links'])
     parser.add_argument('--path')
     parser.add_argument('--type', choices=sorted(TEMPLATES))
     parser.add_argument('--input')
     parser.add_argument('--destination')
+    parser.add_argument('--plan')
     return parser.parse_args()
 
 def main(args):
+    if args.operation == 'plan-links':
+        if args.type or args.input or args.destination or args.plan: fail('plan-links admite solo --path opcional')
+        plan, _ = make_link_plan(args.path)
+        print('curaduría: {} enlaces convertibles; {} sin resolver; {} no admitidos'.format(
+            sum(len(item['replacements']) for item in plan['changes']),
+            len(plan['unresolved']), len(plan['unsupported'])), file=sys.stderr)
+        if plan['diff']: print(plan['diff'], file=sys.stderr, end='')
+        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        return
+    if args.operation == 'apply-links':
+        if not args.plan or args.path or args.type or args.input or args.destination:
+            fail('apply-links requiere solo --plan')
+        apply_link_plan(args.plan)
+        return
+    if getattr(args, 'plan', None): fail('--plan solo se usa con apply-links')
     if args.operation == 'template':
         if not args.type or args.path or args.input or args.destination: fail('template requiere solo --type')
         template = TEMPLATES[args.type]
@@ -435,7 +831,7 @@ def run_locked(args):
 if __name__ == '__main__':
     try:
         args = parse_args()
-        if args.operation in ('create', 'update'):
+        if args.operation in ('create', 'update', 'apply-links'):
             run_locked(args)
         else:
             main(args)
