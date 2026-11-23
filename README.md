@@ -60,6 +60,23 @@ Para revisar o administrar la estructura de la única wiki:
 PowerShell ofrece los mismos comandos con `scripts/wiki.ps1`. Los comandos
 operan siempre en `wiki/` junto a esta skill y no admiten otra ruta.
 
+## Desarrollo y validación
+
+La validación de metadatos usa PyYAML únicamente como dependencia de desarrollo.
+Con Python 3.11 o posterior, prepara el entorno una vez por clon:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python scripts/validate-skill.py
+```
+
+En Windows usa `py -3 -m venv .venv` y sustituye `.venv/bin/python` por
+`.venv\Scripts\python.exe` en los dos comandos siguientes. Si se elimina el
+entorno, vuelve a crearlo e instalar las dependencias. El validador es una
+copia de desarrollo de `skill-creator`; CI ejecuta el mismo comando sobre una
+copia temporal llamada `local-mem`.
+
 ## Versiones y publicación
 
 `VERSION` identifica la versión del skill y `WIKI_FORMAT` la del layout de
