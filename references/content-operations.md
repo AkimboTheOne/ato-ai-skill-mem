@@ -87,6 +87,27 @@ python3 scripts/content.py plan-retire --path 30_resources/origen.md
 
 Para aplicar una operación autorizada, adquiere el lock manual, vuelve a generar el plan y compara el inventario y las huellas con los revisados. Si hay cambios o no puedes determinar todos los efectos, detente. Bajo el lock, prepara y revisa los cambios de contenido, referencias, índice y log; aplícalos sin sobrescribir destinos. Tras completarlos, verifica contenido, enlaces y `check`, y libera el lock. Si falla o se interrumpe, conserva el lock y sigue la recuperación. La revisión es responsabilidad del operador y la operación entre archivos no es atómica.
 
+## Curaduría de Wikilinks
+
+Para convertir enlaces de Obsidian a enlaces Markdown portables, genera un plan de solo lectura:
+
+```sh
+python3 scripts/content.py plan-links > /tmp/local-mem-links.json
+python3 scripts/content.py plan-links --path 30_resources/nota.md > /tmp/local-mem-links.json
+```
+
+La salida JSON va por `stdout` e incluye el diff, el inventario con huellas de los archivos Markdown y las referencias sin resolver o no admitidas. El diff también se muestra por `stderr` para facilitar su revisión aunque redirijas el JSON. Revisa el diff completo antes de aplicar. Mantén el plan fuera de `wiki/`; en Windows, usa una ruta temporal de `$env:TEMP`.
+
+```sh
+python3 scripts/content.py apply-links --plan /tmp/local-mem-links.json
+```
+
+`apply-links` vuelve a analizar la wiki y se detiene si cambió cualquier archivo Markdown del inventario, si el plan no coincide o si la wiki está bloqueada. Hace una segunda comprobación del inventario justo antes de publicar, pero un editor externo que no use el lock todavía puede cambiar archivos entre esa comprobación y la publicación; no edites la wiki mientras aplicas el plan. Convierte únicamente destinos explícitos o nombres de nota únicos. Conserva los alias visibles y convierte un encabezado solo si existe una coincidencia única. Enlaces ausentes o ambiguos, destinos que solo corresponden a un alias, encabezados repetidos, embeds, referencias a bloques y sintaxis no compatible quedan intactos y aparecen en el informe.
+
+El análisis incluye el cuerpo Markdown, excepto bloques y código inline, comentarios HTML y comentarios Obsidian. En el front matter solo procesa cadenas y listas simples entre comillas, tanto en formato inline como en bloque, de `sources`, `related`, `supersedes` y `superseded_by`. También puede cambiar únicamente enlaces reconocidos en `AGENTS.md` e `INDEX.md`. Excluye `.obsidian/` y `_indexes/action-log.md`.
+
+La aplicación adquiere el lock compartido, publica los documentos y las entradas del action log como una operación, e intenta revertir cambios si falla la publicación. Si no hay conversiones aplicables, no cambia archivos ni registra una operación.
+
 Las propuestas de migración anteriores al esquema actual conservan sus metadatos originales al actualizarse o retirarse. Una actualización puede mantener el esquema anterior o completar el actual, preservando identidad, fuente y fecha de creación.
 
 ## Coordinación de escrituras
