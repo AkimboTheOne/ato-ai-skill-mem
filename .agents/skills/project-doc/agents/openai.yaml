@@ -1,0 +1,5 @@
+interface:
+  display_name: "Documentación del proyecto"
+  short_description: "Busca y mantiene documentos Markdown en doc/."
+policy:
+  allow_implicit_invocation: true

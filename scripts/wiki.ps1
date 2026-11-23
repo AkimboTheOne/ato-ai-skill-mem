@@ -81,7 +81,10 @@ function Test-Wiki {
     foreach ($file in @('_indexes/INDEX.md','_indexes/action-log.md','_maps/INDEX.md')) { if (-not (Test-LocalFile (Join-Path $Wiki $file))) { Fail "falta archivo canónico local: $file" } }
     foreach ($file in @('domain.yml','domain-AGENTS.md','domain-INDEX.md','area.md','daily.md','pending-decision.md','export.md','resource.md','map.md','archive.md')) { if (-not (Test-LocalFile (Join-Path $Wiki "_templates/$file"))) { Fail "falta plantilla canónica local: $file" } }
     $ids = @{}
-    Get-ChildItem -LiteralPath (Join-Path $Wiki '20_domains') -Force | ForEach-Object {
+    $domainsPath = Join-Path $Wiki '20_domains'
+    $markerPath = Join-Path $domainsPath '.gitkeep'
+    if (Test-Path -LiteralPath $markerPath) { if (-not (Test-LocalFile $markerPath)) { Fail "marcador estructural inválido: $markerPath" } }
+    Get-ChildItem -LiteralPath $domainsPath -Force | Where-Object { $_.Name -ne '.gitkeep' } | ForEach-Object {
         $domain = $_.FullName
         if (-not (Test-LocalDirectory $domain)) { Fail "dominio inválido: $domain" }
         foreach ($needed in @('domain.yml','AGENTS.md','INDEX.md')) { if (-not (Test-LocalFile (Join-Path $domain $needed))) { Fail "paquete incompleto: $($_.Name)" } }

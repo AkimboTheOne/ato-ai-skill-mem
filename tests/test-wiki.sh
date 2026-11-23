@@ -47,9 +47,9 @@ mv "$INSTALL/wiki/20_domains.local" "$INSTALL/wiki/20_domains"
 
 OUTSIDE_FILE=$TEMP_ROOT/outside.md
 printf '%s\n' '# Fuera de la wiki' > "$OUTSIDE_FILE"
-ln -s "$OUTSIDE_FILE" "$INSTALL/wiki/20_domains/project-context/records/external.md"
+ln -s "$OUTSIDE_FILE" "$INSTALL/wiki/20_domains/isolated/records/external.md"
 if (cd "$INSTALL" && ./scripts/wiki.sh check >/dev/null 2>&1); then exit 1; fi
-rm "$INSTALL/wiki/20_domains/project-context/records/external.md"
+rm "$INSTALL/wiki/20_domains/isolated/records/external.md"
  (cd "$INSTALL" && ./scripts/wiki.sh check)
 
 cp "$INSTALL/WIKI_FORMAT" "$TEMP_ROOT/WIKI_FORMAT.saved"

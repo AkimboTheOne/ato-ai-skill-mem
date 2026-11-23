@@ -1,6 +1,8 @@
 # Índices de la wiki
 
+La plantilla base no contiene registros ni dominios precargados.
+
 ## Dominios
 
-- [Prompts de ingeniería y optimización](../20_domains/engineering-prompts/INDEX.md)
-- [Contexto y evolución del proyecto](../20_domains/project-context/INDEX.md)
+Añade aquí enlaces solo cuando la instancia cree dominios. No enlaces la
+documentación ni el historial del repositorio desde este índice.
