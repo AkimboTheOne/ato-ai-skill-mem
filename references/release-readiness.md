@@ -1,7 +1,7 @@
 # Preparación de release
 
 La versión se clasifica sobre el diff final respecto del último release. Una
-rama no fija SemVer. `VERSION` describe la skill y `VAULT_FORMAT` el layout;
+rama no fija SemVer. `VERSION` describe la skill y `WIKI_FORMAT` el layout;
 solo se cambia el formato cuando cambia el contrato de datos.
 
 La política editorial clasifica `major` como cambio público no retrocompatible,
@@ -20,8 +20,8 @@ El preflight es de solo lectura:
 ```
 
 Comprueba versión y formato, rama `main`, árbol limpio, tag `v<VERSION>` en
-`HEAD`, sincronización con `origin/main` y `scripts/vault.sh check`. No crea
-tags, commits ni pushes y no modifica `vault/`. Antes de crear el tag, los
+`HEAD`, sincronización con `origin/main` y `scripts/wiki.sh check`. No crea
+tags, commits ni pushes y no modifica `wiki/`. Antes de crear el tag, los
 estados `tag` y `head_tag` pueden quedar pendientes.
 
 ## Gate de publicación
@@ -33,5 +33,5 @@ estados `tag` y `head_tag` pueden quedar pendientes.
 5. Crear el tag inmutable `v<VERSION>` sobre el commit integrado.
 6. Ejecutar el preflight y confirmar que queda listo.
 
-La vault está incluida en la instalación de la skill y no requiere una
+La wiki está incluida en la instalación de la skill y no requiere una
 actualización documental posterior al tag. No muevas ni fuerces tags públicos.

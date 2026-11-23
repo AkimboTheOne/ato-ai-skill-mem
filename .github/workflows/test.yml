@@ -25,15 +25,15 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Run vault tests
+      - name: Run wiki tests
         shell: bash
-        run: ./tests/test-vault.sh
-      - name: Check installed skill vault
+        run: ./tests/test-wiki.sh
+      - name: Check installed skill wiki
         shell: bash
-        run: ./scripts/vault.sh check
+        run: ./scripts/wiki.sh check
       - name: Verify shell syntax
         shell: bash
-        run: sh -n scripts/vault.sh scripts/release-check.sh tests/test-vault.sh
+        run: sh -n scripts/wiki.sh scripts/release-check.sh tests/test-wiki.sh
 
   powershell:
     name: PowerShell (${{ matrix.os }})
@@ -44,12 +44,12 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Run vault tests
+      - name: Run wiki tests
         shell: pwsh
-        run: ./tests/test-vault.ps1
-      - name: Check installed skill vault
+        run: ./tests/test-wiki.ps1
+      - name: Check installed skill wiki
         shell: pwsh
-        run: ./scripts/vault.ps1 check
+        run: ./scripts/wiki.ps1 check
       - name: Verify worktree is clean
         shell: pwsh
         run: git diff --exit-code

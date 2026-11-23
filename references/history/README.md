@@ -26,4 +26,4 @@ La descripción anterior de los modos está preservada en
   y [retrieval-roadmap.md](retrieval-roadmap.md).
 
 Las decisiones que explican el cambio están en
-[`vault/20_domains/project-context/records/2026-11-16--single-installation-mode.md`](../../vault/20_domains/project-context/records/2026-11-16--single-installation-mode.md).
+[`wiki/20_domains/project-context/records/2026-11-16--single-installation-mode.md`](../../wiki/20_domains/project-context/records/2026-11-16--single-installation-mode.md).

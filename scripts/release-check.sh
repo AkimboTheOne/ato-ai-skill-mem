@@ -18,7 +18,7 @@ done
 [ "$FORMAT" = text ] || [ "$FORMAT" = json ] || { printf '%s\n' 'error: --format debe ser text o json' >&2; exit 2; }
 
 VERSION=$(tr -d '[:space:]' < "$ROOT/VERSION")
-VAULT_FORMAT=$(tr -d '[:space:]' < "$ROOT/VAULT_FORMAT")
+WIKI_FORMAT=$(tr -d '[:space:]' < "$ROOT/WIKI_FORMAT")
 TAG=v$VERSION
 BRANCH=$(git -C "$ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null || printf unavailable)
 HEAD=$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf unavailable)
@@ -34,21 +34,21 @@ check_worktree=fail
 check_tag=fail
 check_head_tag=fail
 check_sync=fail
-check_vault=fail
+check_wiki=fail
 blockers=''
 add_blocker() { if [ -n "$blockers" ]; then blockers="$blockers,$1"; else blockers=$1; fi; }
 printf '%s\n' "$VERSION" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' >/dev/null && check_version=pass || add_blocker version
-printf '%s\n' "$VAULT_FORMAT" | grep -E '^[1-9][0-9]*$' >/dev/null && check_format=pass || add_blocker vault_format
+printf '%s\n' "$WIKI_FORMAT" | grep -E '^[1-9][0-9]*$' >/dev/null && check_format=pass || add_blocker wiki_format
 [ "$BRANCH" = main ] && check_branch=pass || add_blocker branch
 [ -z "$DIRTY" ] && check_worktree=pass || add_blocker worktree
 [ "$TAG_HEAD" != unavailable ] && check_tag=pass || add_blocker tag
 [ "$HEAD" != unavailable ] && [ "$HEAD" = "$TAG_HEAD" ] && check_head_tag=pass || add_blocker head_tag
 [ "$MAIN" != unavailable ] && [ "$MAIN" = "$ORIGIN_MAIN" ] && check_sync=pass || add_blocker main_sync
-if "$ROOT/scripts/vault.sh" check >/dev/null 2>&1; then check_vault=pass; else add_blocker vault; fi
+if "$ROOT/scripts/wiki.sh" check >/dev/null 2>&1; then check_wiki=pass; else add_blocker wiki; fi
 
 if [ -n "$blockers" ]; then READY=false; EXIT_CODE=1; else READY=true; EXIT_CODE=0; fi
 if [ "$FORMAT" = json ]; then
-  printf '{"schema":1,"ready":%s,"version":"%s","expected_tag":"%s","checks":{"version":"%s","vault_format":"%s","branch":"%s","worktree":"%s","tag":"%s","head_tag":"%s","main_sync":"%s","vault":"%s"},"blockers":[' "$READY" "$VERSION" "$TAG" "$check_version" "$check_format" "$check_branch" "$check_worktree" "$check_tag" "$check_head_tag" "$check_sync" "$check_vault"
+  printf '{"schema":1,"ready":%s,"version":"%s","expected_tag":"%s","checks":{"version":"%s","wiki_format":"%s","branch":"%s","worktree":"%s","tag":"%s","head_tag":"%s","main_sync":"%s","wiki":"%s"},"blockers":[' "$READY" "$VERSION" "$TAG" "$check_version" "$check_format" "$check_branch" "$check_worktree" "$check_tag" "$check_head_tag" "$check_sync" "$check_wiki"
   old_ifs=$IFS; IFS=,
   first=true
   for blocker in $blockers; do
@@ -64,13 +64,13 @@ else
   printf 'release.version: %s\n' "$VERSION"
   printf 'release.expected_tag: %s\n' "$TAG"
   printf 'release.check.version: %s\n' "$check_version"
-  printf 'release.check.vault_format: %s\n' "$check_format"
+  printf 'release.check.wiki_format: %s\n' "$check_format"
   printf 'release.check.branch: %s (%s)\n' "$check_branch" "$BRANCH"
   printf 'release.check.worktree: %s\n' "$check_worktree"
   printf 'release.check.tag: %s\n' "$check_tag"
   printf 'release.check.head_tag: %s\n' "$check_head_tag"
   printf 'release.check.main_sync: %s\n' "$check_sync"
-  printf 'release.check.vault: %s\n' "$check_vault"
+  printf 'release.check.wiki: %s\n' "$check_wiki"
   printf 'release.blockers: %s\n' "${blockers:-none}"
 fi
 exit "$EXIT_CODE"

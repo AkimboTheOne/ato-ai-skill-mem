@@ -1,61 +1,19 @@
-# TO-DO: operaciones de registros
+# TO-DO
 
-## Objetivo
+## Cierre de la iteración de operaciones y búsqueda
 
-Diseñar e implementar operaciones explícitas para crear, leer, actualizar y
-retirar registros Markdown en la única `vault/` junto a la skill. El modo
-actual no ofrece comandos CRUD de registros: usa plantillas para crear y deja
-las ediciones autorizadas como trabajo manual. `migration-plan` y
-`migration-apply` solo trasladan registros heredados desde `records/` de la
-vault activa.
+Los flujos de contenido, las plantillas y la búsqueda local están documentados. La CLI asiste la revisión manual de movimientos y retiros; no los aplica automáticamente. Las pruebas existentes cubren operaciones en wikis temporales, rutas, enlaces, trazabilidad y algunos fallos de publicación. Antes de dar por cerrada la iteración:
 
-## Alcance y límites
+- Revisar el diff completo, incluidos los archivos nuevos, y contrastar la interfaz con los contratos y las instrucciones de la skill. Decidir SemVer en el gate de integración; no cambiar `VERSION` por anticipado.
+- Confirmar que los límites actuales satisfacen el alcance: la CLI protege índices e instrucciones, no edita `domain.yml`, y no mueve registros entre dominios. Documentar o implementar por separado cualquier capacidad adicional que se acuerde.
+- Revisar la preservación de contenido, enlaces y referencias de metadatos en los casos no interpretados por la CLI, y ampliar las pruebas donde se detecten riesgos reales. Las referencias ambiguas deben detener la operación para revisión.
+- Completar la validación de la skill y la revisión de release pertinente. `quick_validate.py` no se ejecutó en el entorno actual por falta de `PyYAML`; mantener esta dependencia fuera del runtime de la skill.
 
-- Limitar las operaciones a `vault/20_domains/<id>/records/`; conservar el
-  modo único, sin rutas externas, roles, bootstrap ni `ato-mem`.
-- Definir qué constituye la identidad de un registro y cómo se selecciona el
-  dominio. Mantener nombres `YYYY-MM-DD--slug.md` y el front matter vigente.
-- Resolver el significado de `delete`: el contrato conserva registros
-  retirados y sucesores enlazados. No implementar borrado físico hasta decidir
-  explícitamente si existe un caso válido y qué protección requiere.
-- Toda escritura debe requerir petición humana explícita, fallar ante
-  colisiones y preservar contenido, enlaces, procedencia e historial.
+## Evaluación futura: búsqueda semántica local
 
-## Trabajo para la siguiente iteración
+Los embeddings están aplazados y `SKILL.md` actualmente los excluye. No implementarlos ni instalar modelos como parte del cierre anterior.
 
-- Usar el commit previo al refactor
-  `473e761e3b36cd9be65a75db574b07f7411cada2`, en especial su `SKILL.md` y
-  `references/vault-operations.md`, como fuente para ingeniería inversa. Ese
-  commit documenta flujos de creación y actualización manuales y migración de
-  registros; no asumir que ya tenía un CLI CRUD completo. Separar el
-  comportamiento existente que convenga recuperar de las operaciones que aún
-  deban diseñarse. Se puede consultar con `git show
-  473e761e3b36cd9be65a75db574b07f7411cada2:SKILL.md`.
-- Revisar los contratos activos, plantillas y scripts Bash/PowerShell; usar
-  los documentos de `references/history/` solo como antecedentes, no como
-  interfaces para restaurar.
-- Acordar las operaciones y su interfaz mínima, incluidos resultados,
-  errores, validación de metadatos y comportamiento ante registros ausentes o
-  nombres duplicados.
-- Implementar operaciones equivalentes en Bash y PowerShell, confinadas a la
-  vault de la raíz del skill. Mantener la lectura de registros disponible sin
-  añadir búsqueda externa ni otro almacén.
-- Para cambios persistentes, conservar una traza auditable en
-  `vault/_indexes/action-log.md` y actualizar el índice del dominio cuando
-  corresponda. No sobrescribir datos ni resolver conflictos automáticamente.
-- Documentar la interfaz activa en `references/vault-operations.md` y
-  actualizar las instrucciones relacionadas; no añadir el detalle operativo
-  a `SKILL.md` salvo que cambie su flujo esencial.
-- Añadir pruebas para cada operación, errores y límites de ruta, no colisión,
-  trazabilidad, preservación del historial y paridad Bash/PowerShell.
-
-## Criterios de cierre
-
-- Las operaciones de registros quedan definidas e implementadas de forma
-  consistente en Bash y PowerShell, sin aceptar rutas o ámbitos alternativos.
-- El comportamiento de borrado o retiro está explícito y respeta la
-  conservación de registros y la autoridad humana.
-- Las operaciones y sus efectos están documentados; las pruebas cubren los
-  caminos exitosos y los fallos relevantes.
-- El diagnóstico estructural y las pruebas pertinentes pasan. La clasificación
-  SemVer se realiza en el gate sobre el diff completo.
+- Reunir consultas reales y evidencia que muestren si la búsqueda léxica falla al usar vocabulario diferente. Definir un conjunto de evaluación con resultados esperados y comparar calidad y coste frente a la búsqueda actual.
+- Si existe una mejora que justifique la complejidad, evaluar un modelo multilingüe local: disponibilidad, licencia, tamaño, dependencias, recursos y funcionamiento sin red. Acordar cómo se instala y actualiza.
+- Comparar cálculo transitorio con un índice persistente considerando latencia, espacio, reconstrucción, obsolescencia y control humano. Cualquier estado persistente debe ser explícito y confinado a la instalación.
+- Antes de implementar, acordar el alcance y actualizar el límite de embeddings de `SKILL.md`, los contratos y las pruebas. La búsqueda seguiría siendo de solo lectura sobre la memoria y los resultados requerirían revisión de la fuente.
